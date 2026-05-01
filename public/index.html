@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <h1>Lanka<span>Bot</span></h1>
+                <p>WhatsApp Automation Dashboard</p>
+            </div>
+            <div id="status-badge" class="badge disconnected">Disconnected</div>
+        </header>
+
+        <main>
+            <section class="qr-section card">
+                <h2>Connection</h2>
+                <div id="qr-container">
+                    <p id="qr-message">Waiting for QR code...</p>
+                    <img id="qr-code" src="" alt="Scan Me" style="display: none;">
+                </div>
+                <div id="ready-message" style="display: none;">
+                    <div class="success-icon">✔️</div>
+                    <h3>Bot is Ready!</h3>
+                    <p>Connected and listening for messages.</p>
+                </div>
+            </section>
+
+            <section class="control-section card">
+                <h2>Send Message</h2>
+                <form id="send-form">
+                    <input type="text" id="phone" placeholder="Phone Number (e.g. 94771234567)" required>
+                    <textarea id="message" placeholder="Type your message here..." required></textarea>
+                    <button type="submit" id="send-btn">Send Message</button>
+                </form>
+            </section>
+
+            <section class="log-section card">
+                <h2>Activity Log</h2>
+                <div id="logs">
+                    <div class="log-entry system">System: Dashboard loaded.</div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 LankaBot. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
