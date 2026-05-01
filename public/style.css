@@ -114,6 +114,25 @@ main {
     margin-bottom: 1rem;
 }
 
+.account-card {
+    background: rgba(15, 23, 42, 0.4);
+    padding: 1rem;
+    border-radius: 12px;
+    margin: 1rem 0;
+    text-align: left;
+    border-left: 4px solid var(--primary);
+}
+
+.account-card p {
+    font-size: 0.9rem;
+    margin: 0.2rem 0;
+}
+
+.status-text {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+}
+
 .control-section form {
     display: flex;
     flex-direction: column;
@@ -150,6 +169,21 @@ button:hover {
     background: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(37, 211, 102, 0.3);
+}
+
+.btn-secondary {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    margin-top: 1rem;
+    padding: 0.8rem;
+    font-size: 0.9rem;
+}
+
+.btn-secondary:hover {
+    background: var(--danger);
+    color: white;
+    box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
 }
 
 .log-section {

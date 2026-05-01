@@ -19,11 +19,17 @@ connectDB();
 // Initialize WhatsApp Bot with Socket.io
 whatsappBot.init(io);
 
-// Send DB Status on connection
+// Send Status on connection
 const mongoose = require('mongoose');
 io.on('connection', (socket) => {
-    const isConnected = mongoose.connection.readyState === 1;
-    socket.emit('db_status', isConnected);
+    // DB Status
+    socket.emit('db_status', mongoose.connection.readyState === 1);
+    
+    // WhatsApp Status
+    const botStatus = whatsappBot.getStatus();
+    if (botStatus.isReady && botStatus.accountInfo) {
+        socket.emit('ready', botStatus.accountInfo);
+    }
 });
 
 // Init Middleware

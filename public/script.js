@@ -8,6 +8,7 @@ const statusBadge = document.getElementById('status-badge');
 const dbStatusBadge = document.getElementById('db-status-badge');
 const logsContainer = document.getElementById('logs');
 const sendForm = document.getElementById('send-form');
+const logoutBtn = document.getElementById('logout-btn');
 
 // Socket Events
 socket.on('db_status', (isConnected) => {
@@ -20,6 +21,16 @@ socket.on('db_status', (isConnected) => {
     }
 });
 
+socket.on('disconnected', () => {
+    qrContainer.style.display = 'flex';
+    readyMessage.style.display = 'none';
+    qrImage.style.display = 'none';
+    qrMessage.style.display = 'block';
+    statusBadge.textContent = 'WhatsApp: Disconnected';
+    statusBadge.className = 'badge disconnected';
+    addLog('System: Logged out successfully.', 'system');
+});
+
 socket.on('qr', (qrData) => {
     qrImage.src = qrData;
     qrImage.style.display = 'block';
@@ -27,11 +38,17 @@ socket.on('qr', (qrData) => {
     addLog('System: QR Code received. Please scan.', 'system');
 });
 
-socket.on('ready', () => {
+socket.on('ready', (data) => {
     qrContainer.style.display = 'none';
     readyMessage.style.display = 'block';
-    statusBadge.textContent = 'Connected';
+    statusBadge.textContent = 'WhatsApp: Connected';
     statusBadge.className = 'badge connected';
+    
+    if (data) {
+        document.getElementById('account-name').textContent = data.name;
+        document.getElementById('account-number').textContent = data.number;
+    }
+
     addLog('System: WhatsApp Bot is Ready!', 'system');
 });
 
@@ -44,6 +61,12 @@ socket.on('system_log', (msg) => {
 });
 
 // Form Handling
+logoutBtn.addEventListener('click', () => {
+    if (confirm('Are you sure you want to logout? This will require you to scan the QR code again.')) {
+        socket.emit('logout');
+    }
+});
+
 sendForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const phone = document.getElementById('phone').value;
