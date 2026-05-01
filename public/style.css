@@ -52,6 +52,11 @@ header {
     font-size: 0.9rem;
 }
 
+.status-badges {
+    display: flex;
+    gap: 1rem;
+}
+
 .badge {
     padding: 0.5rem 1rem;
     border-radius: 20px;
