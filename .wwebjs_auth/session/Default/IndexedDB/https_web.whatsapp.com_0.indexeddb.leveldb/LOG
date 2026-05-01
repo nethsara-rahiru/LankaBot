@@ -1,0 +1,32 @@
+2026/05/01-20:44:29.047 6f475 Creating DB /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb since it was missing.
+2026/05/01-20:44:29.075 6f475 Reusing MANIFEST /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/05/01-20:48:06.881 6f475 Level-0 table #5: started
+2026/05/01-20:48:06.958 6f475 Level-0 table #5: 1191736 bytes OK
+2026/05/01-20:48:06.961 6f475 Delete type=0 #3
+2026/05/01-20:48:14.030 6f473 Level-0 table #7: started
+2026/05/01-20:48:14.151 6f473 Level-0 table #7: 1115128 bytes OK
+2026/05/01-20:48:14.153 6f473 Delete type=0 #4
+2026/05/01-20:48:14.164 6f473 Compacting 1@1 + 1@2 files
+2026/05/01-20:48:14.407 6f473 Generated table #8@1: 23909 keys, 1249598 bytes
+2026/05/01-20:48:14.407 6f473 Compacted 1@1 + 1@2 files => 1249598 bytes
+2026/05/01-20:48:14.408 6f473 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/05/01-20:48:16.441 6f475 Level-0 table #10: started
+2026/05/01-20:48:16.484 6f475 Level-0 table #10: 923612 bytes OK
+2026/05/01-20:48:16.486 6f475 Delete type=0 #6
+2026/05/01-20:48:16.486 6f475 Delete type=2 #5
+2026/05/01-20:48:16.486 6f475 Delete type=2 #7
+2026/05/01-20:48:16.492 6f473 Compacting 1@1 + 1@2 files
+2026/05/01-20:48:16.576 6f473 Generated table #11@1: 26637 keys, 1352241 bytes
+2026/05/01-20:48:16.577 6f473 Compacted 1@1 + 1@2 files => 1352241 bytes
+2026/05/01-20:48:16.578 6f473 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/05/01-20:48:59.419 6f482 Level-0 table #13: started
+2026/05/01-20:48:59.582 6f482 Level-0 table #13: 1081622 bytes OK
+2026/05/01-20:48:59.655 6f482 Delete type=2 #8
+2026/05/01-20:48:59.655 6f482 Delete type=0 #9
+2026/05/01-20:48:59.655 6f482 Delete type=2 #10
+2026/05/01-20:48:59.673 6f475 Compacting 1@1 + 1@2 files
+2026/05/01-20:49:00.602 6f475 Generated table #14@1: 31936 keys, 1648265 bytes
+2026/05/01-20:49:00.603 6f475 Compacted 1@1 + 1@2 files => 1648265 bytes
+2026/05/01-20:49:00.635 6f475 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/05/01-20:49:00.637 6f475 Delete type=2 #11
+2026/05/01-20:49:00.637 6f475 Delete type=2 #13
