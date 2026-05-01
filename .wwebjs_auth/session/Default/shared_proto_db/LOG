@@ -1,2 +1,3 @@
-2026/05/01-20:43:57.542 6f488 Creating DB /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/shared_proto_db since it was missing.
-2026/05/01-20:43:57.900 6f488 Reusing MANIFEST /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/shared_proto_db/MANIFEST-000001
+2026/05/01-21:00:30.021 75a38 Reusing MANIFEST /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/shared_proto_db/MANIFEST-000001
+2026/05/01-21:00:30.024 75a38 Recovering log #3
+2026/05/01-21:00:30.108 75a38 Reusing old log /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/shared_proto_db/000003.log 

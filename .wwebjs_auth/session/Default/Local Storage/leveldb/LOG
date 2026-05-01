@@ -1,2 +1,3 @@
-2026/05/01-20:43:54.220 6f4e6 Creating DB /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/Local Storage/leveldb since it was missing.
-2026/05/01-20:43:54.266 6f4e6 Reusing MANIFEST /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/Local Storage/leveldb/MANIFEST-000001
+2026/05/01-21:00:27.708 75a97 Reusing MANIFEST /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/Local Storage/leveldb/MANIFEST-000001
+2026/05/01-21:00:27.721 75a97 Recovering log #3
+2026/05/01-21:00:27.863 75a97 Reusing old log /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/Local Storage/leveldb/000003.log 
