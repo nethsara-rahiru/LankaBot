@@ -1,3 +1,6 @@
 2026/05/01-13:57:33.886 2a0fd Reusing MANIFEST /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/Local Storage/leveldb/MANIFEST-000001
 2026/05/01-13:57:33.903 2a0fd Recovering log #3
 2026/05/01-13:57:33.921 2a0fd Reusing old log /Volumes/Backup/LankaBot/LankaBot/.wwebjs_auth/session/Default/Local Storage/leveldb/000003.log 
+2026/05/01-14:16:58.981 2a102 Level-0 table #5: started
+2026/05/01-14:16:58.995 2a102 Level-0 table #5: 17745 bytes OK
+2026/05/01-14:16:59.018 2a102 Delete type=0 #3
