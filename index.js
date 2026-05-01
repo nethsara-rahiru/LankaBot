@@ -29,6 +29,8 @@ io.on('connection', (socket) => {
     const botStatus = whatsappBot.getStatus();
     if (botStatus.isReady && botStatus.accountInfo) {
         socket.emit('ready', botStatus.accountInfo);
+    } else {
+        socket.emit('require_connect');
     }
 });
 

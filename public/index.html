@@ -3,61 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LankaBot Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>LankaBot | Premium WhatsApp Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <div class="logo">
-                <h1>Lanka<span>Bot</span></h1>
-                <p>WhatsApp Automation Dashboard</p>
+            <div class="logo-wrapper">
+                <i class="ph-fill ph-robot logo-icon"></i>
+                <div class="logo">
+                    <h1>Lanka<span>Bot</span></h1>
+                    <p>Advanced WhatsApp Automation</p>
+                </div>
             </div>
             <div class="status-badges">
-                <div id="db-status-badge" class="badge disconnected">DB: Offline</div>
-                <div id="status-badge" class="badge disconnected">WhatsApp: Disconnected</div>
+                <div id="db-status-badge" class="badge disconnected">
+                    <i class="ph-bold ph-database"></i>
+                    <span>DB: Offline</span>
+                </div>
+                <div id="status-badge" class="badge disconnected">
+                    <i class="ph-bold ph-whatsapp-logo"></i>
+                    <span>WhatsApp: Disconnected</span>
+                </div>
             </div>
         </header>
 
         <main>
-            <section class="qr-section card">
-                <h2>Connection</h2>
-                <div id="qr-container">
-                    <p id="qr-message">Waiting for QR code...</p>
-                    <img id="qr-code" src="" alt="Scan Me" style="display: none;">
+            <section class="card status-section">
+                <div class="card-header">
+                    <i class="ph-bold ph-shield-check"></i>
+                    <h2>System Status</h2>
                 </div>
-                <div id="ready-message" style="display: none;">
-                    <div class="success-icon">✔️</div>
-                    <h3>Bot is Ready!</h3>
+                
+                <div id="ready-message">
+                    <i class="ph-fill ph-check-circle success-icon"></i>
+                    <h3>Bot is Active</h3>
+                    
                     <div id="account-info" class="account-card">
-                        <p><strong>Account:</strong> <span id="account-name">...</span></p>
-                        <p><strong>Number:</strong> <span id="account-number">...</span></p>
+                        <img id="account-pic" src="" alt="Profile" style="display: none;">
+                        <div class="account-details">
+                            <p><strong>Account:</strong> <span id="account-name">...</span></p>
+                            <p><strong>Number:</strong> <span id="account-number">...</span></p>
+                        </div>
                     </div>
-                    <p class="status-text">Connected and listening for messages.</p>
-                    <button id="logout-btn" class="btn-secondary">Logout Account</button>
+                    
+                    <p class="status-text">Ready to process automation.</p>
+                    <button id="logout-btn" class="btn-secondary">
+                        <i class="ph-bold ph-sign-out"></i> Logout Session
+                    </button>
                 </div>
             </section>
 
-            <section class="control-section card">
-                <h2>Send Message</h2>
+            <section class="card control-section">
+                <div class="card-header">
+                    <i class="ph-bold ph-paper-plane-tilt"></i>
+                    <h2>Broadcast Center</h2>
+                </div>
+
                 <form id="send-form">
-                    <input type="text" id="phone" placeholder="Phone Number (e.g. 94771234567)" required>
-                    <textarea id="message" placeholder="Type your message here..." required></textarea>
-                    <button type="submit" id="send-btn">Send Message</button>
+                    <div class="input-group">
+                        <i class="ph-bold ph-phone"></i>
+                        <input type="text" id="phone" placeholder="Phone Number (e.g. 94771234567)" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="ph-bold ph-chat-text"></i>
+                        <textarea id="message" placeholder="Craft your message here..." required></textarea>
+                    </div>
+                    <button type="submit" id="send-btn" class="btn-primary">
+                        <span>Send Message</span>
+                        <i class="ph-bold ph-paper-plane-right"></i>
+                    </button>
                 </form>
             </section>
 
-            <section class="log-section card">
-                <h2>Activity Log</h2>
+            <section class="card log-section">
+                <div class="card-header">
+                    <i class="ph-bold ph-terminal-window"></i>
+                    <h2>Live Activity Logs</h2>
+                </div>
                 <div id="logs">
-                    <div class="log-entry system">System: Dashboard loaded.</div>
+                    <div class="log-entry system">
+                        <span class="log-time">System</span>
+                        <span>Dashboard initialized. Awaiting connection...</span>
+                    </div>
                 </div>
             </section>
         </main>
 
         <footer>
-            <p>&copy; 2026 LankaBot. All rights reserved.</p>
+            <p>&copy; 2026 LankaBot Premium Dashboard. Built for high-performance automation.</p>
         </footer>
     </div>
 

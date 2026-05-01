@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Connect Account</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .connect-card {
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        #qr-container {
+            margin: 2rem auto;
+            background: white;
+            padding: 1rem;
+            border-radius: 20px;
+            width: 250px;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .instruction-step {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-align: left;
+            margin-bottom: 1rem;
+            background: var(--glass-heavy);
+            padding: 1rem;
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+        }
+        .step-num {
+            background: var(--primary);
+            color: #000;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card connect-card">
+        <div class="logo-wrapper" style="justify-content: center; margin-bottom: 2rem;">
+            <i class="ph-fill ph-robot logo-icon"></i>
+            <div class="logo">
+                <h1>Lanka<span>Bot</span></h1>
+            </div>
+        </div>
+
+        <h2>Link your WhatsApp</h2>
+        <p style="color: var(--text-dim); margin-bottom: 2rem;">Scan the QR code to start automating.</p>
+
+        <div id="qr-container">
+            <p id="qr-message" style="color: #000;">Generating QR...</p>
+            <img id="qr-code" src="" alt="Scan Me" style="display: none; width: 100%;">
+        </div>
+
+        <div class="instructions">
+            <div class="instruction-step">
+                <div class="step-num">1</div>
+                <p>Open WhatsApp on your phone</p>
+            </div>
+            <div class="instruction-step">
+                <div class="step-num">2</div>
+                <p>Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong></p>
+            </div>
+            <div class="instruction-step">
+                <div class="step-num">3</div>
+                <p>Tap <strong>Link a Device</strong> and point your phone to this screen</p>
+            </div>
+        </div>
+
+        <div id="logs" style="height: 100px; margin-top: 2rem; font-size: 0.8rem; padding: 0.5rem;">
+            <div class="log-entry system">Awaiting connection...</div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const qrImage = document.getElementById('qr-code');
+        const qrMessage = document.getElementById('qr-message');
+        const logsContainer = document.getElementById('logs');
+
+        socket.on('qr', (qrData) => {
+            qrImage.src = qrData;
+            qrImage.style.display = 'block';
+            qrMessage.style.display = 'none';
+        });
+
+        socket.on('ready', () => {
+            window.location.href = '/';
+        });
+
+        socket.on('system_log', (msg) => {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry system';
+            entry.textContent = msg;
+            logsContainer.prepend(entry);
+        });
+    </script>
+</body>
+</html>

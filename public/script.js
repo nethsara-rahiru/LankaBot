@@ -12,44 +12,58 @@ const logoutBtn = document.getElementById('logout-btn');
 
 // Socket Events
 socket.on('db_status', (isConnected) => {
+    const span = dbStatusBadge.querySelector('span');
+    const icon = dbStatusBadge.querySelector('i');
     if (isConnected) {
-        dbStatusBadge.textContent = 'DB: Online';
+        span.textContent = 'DB: Online';
         dbStatusBadge.className = 'badge connected';
+        icon.className = 'ph-fill ph-database';
     } else {
-        dbStatusBadge.textContent = 'DB: Offline';
+        span.textContent = 'DB: Offline';
         dbStatusBadge.className = 'badge disconnected';
+        icon.className = 'ph-bold ph-database';
     }
 });
 
 socket.on('disconnected', () => {
-    qrContainer.style.display = 'flex';
-    readyMessage.style.display = 'none';
-    qrImage.style.display = 'none';
-    qrMessage.style.display = 'block';
-    statusBadge.textContent = 'WhatsApp: Disconnected';
-    statusBadge.className = 'badge disconnected';
-    addLog('System: Logged out successfully.', 'system');
+    window.location.href = '/connect.html';
 });
 
-socket.on('qr', (qrData) => {
-    qrImage.src = qrData;
-    qrImage.style.display = 'block';
-    qrMessage.style.display = 'none';
-    addLog('System: QR Code received. Please scan.', 'system');
+socket.on('require_connect', () => {
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+        window.location.href = '/connect.html';
+    }
+});
+
+socket.on('qr', () => {
+    // If we receive a QR event while on the index page, redirect to connect
+    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+        window.location.href = '/connect.html';
+    }
 });
 
 socket.on('ready', (data) => {
-    qrContainer.style.display = 'none';
-    readyMessage.style.display = 'block';
-    statusBadge.textContent = 'WhatsApp: Connected';
+    // If we are on connect page, redirect to dashboard
+    if (window.location.pathname === '/connect.html') {
+        window.location.href = '/';
+        return;
+    }
+
+    statusBadge.querySelector('span').textContent = 'WhatsApp: Connected';
     statusBadge.className = 'badge connected';
+    icon.className = 'ph-fill ph-whatsapp-logo';
     
     if (data) {
         document.getElementById('account-name').textContent = data.name;
         document.getElementById('account-number').textContent = data.number;
+        if (data.profilePic) {
+            const pic = document.getElementById('account-pic');
+            pic.src = data.profilePic;
+            pic.style.display = 'block';
+        }
     }
 
-    addLog('System: WhatsApp Bot is Ready!', 'system');
+    addLog('WhatsApp Bot is Ready!', 'system');
 });
 
 socket.on('message_log', (data) => {
@@ -57,7 +71,7 @@ socket.on('message_log', (data) => {
 });
 
 socket.on('system_log', (msg) => {
-    addLog(`System: ${msg}`, 'system');
+    addLog(msg, 'system');
 });
 
 // Form Handling
@@ -69,13 +83,24 @@ logoutBtn.addEventListener('click', () => {
 
 sendForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const phone = document.getElementById('phone').value;
-    const message = document.getElementById('message').value;
+    const phoneInput = document.getElementById('phone');
+    const messageInput = document.getElementById('message');
+    const sendBtn = document.getElementById('send-btn');
+    
+    const phone = phoneInput.value;
+    const message = messageInput.value;
+
+    // Loading state
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<span>Sending...</span><i class="ph-bold ph-spinner"></i>';
 
     socket.emit('send_message', { phone, message }, (response) => {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<span>Send Message</span><i class="ph-bold ph-paper-plane-right"></i>';
+        
         if (response.success) {
             addLog(`You -> ${phone}: ${message}`, 'outgoing');
-            document.getElementById('message').value = '';
+            messageInput.value = '';
         } else {
             addLog(`Error: ${response.error}`, 'system');
         }
@@ -85,7 +110,16 @@ sendForm.addEventListener('submit', (e) => {
 function addLog(text, type) {
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    const time = new Date().toLocaleTimeString();
-    entry.textContent = `[${time}] ${text}`;
+    
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'log-time';
+    timeSpan.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+    
+    entry.appendChild(timeSpan);
+    entry.appendChild(textSpan);
+    
     logsContainer.prepend(entry);
 }

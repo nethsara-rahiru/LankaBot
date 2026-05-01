@@ -40,12 +40,21 @@ const init = (io) => {
         io.emit('system_log', `Auth Failure: ${msg}`);
     });
 
-    client.on('ready', () => {
+    client.on('ready', async () => {
         const info = client.info;
         isReady = true;
+        
+        let profilePicUrl = '';
+        try {
+            profilePicUrl = await client.getProfilePicUrl(info.wid._serialized);
+        } catch (err) {
+            console.log('Could not fetch profile pic');
+        }
+
         accountInfo = {
             name: info.pushname,
-            number: info.wid.user
+            number: info.wid.user,
+            profilePic: profilePicUrl
         };
         console.log('WhatsApp Client is ready!');
         
