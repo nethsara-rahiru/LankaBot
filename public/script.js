@@ -5,10 +5,21 @@ const qrMessage = document.getElementById('qr-message');
 const qrContainer = document.getElementById('qr-container');
 const readyMessage = document.getElementById('ready-message');
 const statusBadge = document.getElementById('status-badge');
+const dbStatusBadge = document.getElementById('db-status-badge');
 const logsContainer = document.getElementById('logs');
 const sendForm = document.getElementById('send-form');
 
 // Socket Events
+socket.on('db_status', (isConnected) => {
+    if (isConnected) {
+        dbStatusBadge.textContent = 'DB: Online';
+        dbStatusBadge.className = 'badge connected';
+    } else {
+        dbStatusBadge.textContent = 'DB: Offline';
+        dbStatusBadge.className = 'badge disconnected';
+    }
+});
+
 socket.on('qr', (qrData) => {
     qrImage.src = qrData;
     qrImage.style.display = 'block';
