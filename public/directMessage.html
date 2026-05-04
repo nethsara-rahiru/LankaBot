@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Direct Message</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo-wrapper" onclick="window.location.href='/dashboard.html'" style="cursor: pointer;">
+                    <i class="ph-fill ph-robot logo-icon"></i>
+                    <div class="logo">
+                        <h1>Lanka<span>Bot</span></h1>
+                        <p>Advanced Automation</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="user-profile-header" class="user-profile-header" style="display: none;">
+                <img id="header-account-pic" src="" alt="Profile">
+                <div class="header-user-details">
+                    <h4 id="header-account-name">...</h4>
+                    <p id="header-account-number">...</p>
+                </div>
+                <div class="status-indicator connected" style="margin-left: 1rem;">
+                    <i class="ph-fill ph-paper-plane-tilt"></i>
+                    <span>Direct Message Active</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="nav-section" style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-layout"></i> Dashboard
+                </button>
+                <button class="btn-primary" onclick="window.location.href='/directMessage.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-paper-plane-tilt"></i> Direct Message
+                </button>
+            </section>
+
+            <div style="grid-column: 1 / -1; max-width: 800px; margin: 0 auto; width: 100%;">
+                <section class="card">
+                    <div class="card-header">
+                        <i class="ph-bold ph-paper-plane-tilt"></i>
+                        <h2>Broadcast Center</h2>
+                    </div>
+
+                    <form id="send-form">
+                        <div class="input-group">
+                            <label>Recipient Phone</label>
+                            <i class="ph-bold ph-phone"></i>
+                            <input type="text" id="phone" placeholder="e.g. 94771234567" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Message Content</label>
+                            <i class="ph-bold ph-chat-text"></i>
+                            <textarea id="message" placeholder="Type your message here..." required style="min-height: 200px;"></textarea>
+                        </div>
+                        <button type="submit" id="send-btn" class="btn-primary">
+                            <span>Send Message</span>
+                            <i class="ph-bold ph-paper-plane-right"></i>
+                        </button>
+                    </form>
+                </section>
+
+                <section class="card" style="margin-top: 2rem;">
+                    <div class="card-header">
+                        <i class="ph-bold ph-info"></i>
+                        <h2>Sending Tips</h2>
+                    </div>
+                    <ul style="color: var(--text-dim); font-size: 0.9rem; padding-left: 1.5rem; line-height: 2;">
+                        <li>Always include the country code (e.g., 94 for Sri Lanka).</li>
+                        <li>Avoid sending spam to prevent your number from being blocked.</li>
+                        <li>You can send text, links, and emojis.</li>
+                        <li>Check the <strong>Live Activity</strong> page to see delivery status.</li>
+                    </ul>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 LankaBot Premium Dashboard. Automate your business with ease.</p>
+        </footer>
+    </div>
+
+    <!-- Hidden logs container for script.js compatibility -->
+    <div id="logs" style="display: none;"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+    <script>
+        // Redirect if not connected
+        socket.on('ready', (data) => {
+            // Already handled by script.js
+        });
+    </script>
+</body>
+</html>

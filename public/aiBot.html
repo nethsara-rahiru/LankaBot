@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | AI Assistant Settings</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo-wrapper" onclick="window.location.href='/dashboard.html'" style="cursor: pointer;">
+                    <i class="ph-fill ph-robot logo-icon"></i>
+                    <div class="logo">
+                        <h1>Lanka<span>Bot</span></h1>
+                        <p>Advanced Automation</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="user-profile-header" class="user-profile-header" style="display: none;">
+                <img id="header-account-pic" src="" alt="Profile">
+                <div class="header-user-details">
+                    <h4 id="header-account-name">...</h4>
+                    <p id="header-account-number">...</p>
+                </div>
+                <div class="status-indicator connected" style="margin-left: 1rem;">
+                    <i class="ph-fill ph-sparkle"></i>
+                    <span id="ai-status-text">AI Mode Active</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="nav-section" style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-layout"></i> Dashboard
+                </button>
+                <button class="btn-primary" onclick="window.location.href='/aiBot.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-sparkle"></i> AI Settings
+                </button>
+            </section>
+
+            <div style="grid-column: 1 / -1; max-width: 800px; margin: 0 auto; width: 100%;">
+                <section class="card">
+                    <div class="card-header">
+                        <i class="ph-bold ph-gear"></i>
+                        <h2>Gemini AI Configuration</h2>
+                    </div>
+
+                    <div style="margin-bottom: 2rem; padding: 1.5rem; background: rgba(255, 255, 255, 0.03); border-radius: 20px; border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text);">Enable AI Auto-Reply</h3>
+                            <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: var(--text-dim);">When enabled, Gemini will reply to messages that don't match your rules.</p>
+                        </div>
+                        <label class="switch" style="position: relative; display: inline-block; width: 60px; height: 34px;">
+                            <input type="checkbox" id="aiEnabled" style="opacity: 0; width: 0; height: 0;">
+                            <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; border-radius: 34px;"></span>
+                        </label>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Bot Personality (System Prompt)</label>
+                        <i class="ph-bold ph-identification-card"></i>
+                        <textarea id="aiSystemPrompt" placeholder="Describe how the bot should behave..." style="min-height: 150px;"></textarea>
+                        <p style="font-size: 0.75rem; color: var(--text-dim); margin-top: 0.5rem;">
+                            <i class="ph-bold ph-info" style="font-size: 0.8rem; vertical-align: middle;"></i>
+                            Tip: Tell the AI who it is, what its tone should be, and what information it should prioritize.
+                        </p>
+                    </div>
+
+                    <button id="save-settings" class="btn-primary" style="margin-top: 1.5rem;">
+                        <span>Save AI Configuration</span>
+                        <i class="ph-bold ph-check"></i>
+                    </button>
+                </section>
+
+                <section class="card" style="margin-top: 2rem;">
+                    <div class="card-header">
+                        <i class="ph-bold ph-lightning"></i>
+                        <h2>How it works</h2>
+                    </div>
+                    <div style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.6;">
+                        <p>1. <strong>Local Rules First</strong>: The bot always checks your manual rules in <code>rules.html</code> first.</p>
+                        <p>2. <strong>AI Fallback</strong>: If no rule matches, the message is sent to Google Gemini Flash.</p>
+                        <p>3. <strong>Custom Context</strong>: The AI uses your "Bot Personality" to generate a relevant response.</p>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 LankaBot Premium Dashboard. Intelligent automation powered by Gemini.</p>
+        </footer>
+    </div>
+
+    <!-- Switch styles -->
+    <style>
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .nav-section button.btn-primary {
+            background: rgba(var(--primary-rgb), 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+    </style>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+    <script>
+        const aiEnabledToggle = document.getElementById('aiEnabled');
+        const aiSystemPromptInput = document.getElementById('aiSystemPrompt');
+        const saveBtn = document.getElementById('save-settings');
+
+        // Fetch current settings
+        async function fetchSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                
+                aiEnabledToggle.checked = data.aiEnabled;
+                aiSystemPromptInput.value = data.aiSystemPrompt;
+                
+                const statusText = document.getElementById('ai-status-text');
+                if (statusText) {
+                    statusText.textContent = data.aiEnabled ? 'AI Mode Active' : 'AI Mode Disabled';
+                }
+            } catch (err) {
+                console.error('Error fetching settings:', err);
+            }
+        }
+
+        // Save settings
+        saveBtn.addEventListener('click', async () => {
+            const aiEnabled = aiEnabledToggle.checked;
+            const aiSystemPrompt = aiSystemPromptInput.value;
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span>Saving...</span><i class="ph-bold ph-spinner"></i>';
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ aiEnabled, aiSystemPrompt })
+                });
+
+                if (res.ok) {
+                    alert('AI Settings saved successfully!');
+                    fetchSettings();
+                } else {
+                    alert('Error saving settings');
+                }
+            } catch (err) {
+                alert('Connection error');
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<span>Save AI Configuration</span><i class="ph-bold ph-check"></i>';
+            }
+        });
+
+        fetchSettings();
+    </script>
+</body>
+</html>

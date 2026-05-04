@@ -42,8 +42,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Define Routes
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/rules', require('./routes/ruleRoutes'));
+app.use('/api/settings', require('./routes/settingsRoutes'));
 
-// Main Dashboard Route
+// Main Landing Route (Splash Screen)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

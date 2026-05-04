@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Live Activity</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        #logs {
+            min-height: 600px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo-wrapper" onclick="window.location.href='/dashboard.html'" style="cursor: pointer;">
+                    <i class="ph-fill ph-robot logo-icon"></i>
+                    <div class="logo">
+                        <h1>Lanka<span>Bot</span></h1>
+                        <p>Advanced Automation</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="user-profile-header" class="user-profile-header" style="display: none;">
+                <img id="header-account-pic" src="" alt="Profile">
+                <div class="header-user-details">
+                    <h4 id="header-account-name">...</h4>
+                    <p id="header-account-number">...</p>
+                </div>
+                <div class="status-indicator connected" style="margin-left: 1rem;">
+                    <i class="ph-fill ph-terminal-window"></i>
+                    <span>Live Monitoring</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="nav-section" style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-layout"></i> Dashboard
+                </button>
+                <button class="btn-primary" onclick="window.location.href='/liveActivity.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-terminal-window"></i> Live Activity
+                </button>
+            </section>
+
+            <div style="grid-column: 1 / -1;">
+                <section class="card log-section">
+                    <div class="card-header">
+                        <i class="ph-bold ph-terminal-window"></i>
+                        <h2>System Operations & Messages</h2>
+                        <button class="btn-secondary" onclick="document.getElementById('logs').innerHTML = ''" style="margin-left: auto; width: auto; padding: 0.5rem 1rem; font-size: 0.8rem;">
+                            Clear Logs
+                        </button>
+                    </div>
+                    <div id="logs">
+                        <div class="log-entry system">
+                            <span class="log-time">System</span>
+                            <span>Monitoring initialized. Waiting for events...</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 LankaBot Premium Dashboard. Real-time monitoring active.</p>
+        </footer>
+    </div>
+
+    <!-- Hidden form for script.js compatibility -->
+    <form id="send-form" style="display: none;">
+        <input type="text" id="phone">
+        <textarea id="message"></textarea>
+        <button id="send-btn"></button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

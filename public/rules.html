@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Auto-Reply Rules</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .rules-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 2rem;
+        }
+        @media (max-width: 1000px) {
+            .rules-grid { grid-template-columns: 1fr; }
+        }
+        .rule-item {
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 24px;
+            margin-bottom: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .rule-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 4px;
+            background: var(--primary);
+            opacity: 0.5;
+        }
+        .rule-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary);
+            transform: translateX(8px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        .rule-item:hover::before {
+            opacity: 1;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+        .rule-info h4 {
+            color: var(--text);
+            margin: 0 0 0.4rem 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .rule-info p {
+            margin: 0;
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .match-badge {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: rgba(var(--primary-rgb), 0.1);
+            color: var(--primary);
+            padding: 3px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(var(--primary-rgb), 0.2);
+        }
+        
+        select {
+            cursor: pointer;
+        }
+        select option {
+            background: #0f172a;
+            color: white;
+            padding: 10px;
+        }
+
+        /* Specific fix for textarea icons */
+        .input-group:has(textarea) i {
+            bottom: auto;
+            top: 2.8rem;
+        }
+
+        .rule-actions {
+            display: flex;
+            gap: 0.8rem;
+        }
+        .action-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+        .action-btn.delete:hover { 
+            background: var(--danger); 
+            color: white;
+            border-color: var(--danger);
+            box-shadow: 0 0 15px var(--danger-glow);
+        }
+        .action-btn.toggle:hover { 
+            background: var(--primary); 
+            color: #000;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 5rem 2rem;
+            color: var(--text-dim);
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 28px;
+            border: 1px dashed var(--glass-border);
+        }
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            display: block;
+            opacity: 0.3;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo-wrapper" onclick="window.location.href='/dashboard.html'" style="cursor: pointer;">
+                    <i class="ph-fill ph-robot logo-icon"></i>
+                    <div class="logo">
+                        <h1>Lanka<span>Bot</span></h1>
+                        <p>Advanced Automation</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="status-indicator connected">
+                    <i class="ph-fill ph-magic-wand"></i>
+                    <span>Rules Engine Active</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <section class="nav-section" style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-layout"></i> Dashboard
+                </button>
+                <button class="btn-primary" onclick="window.location.href='/rules.html'" style="flex: 1; border-radius: 20px;">
+                    <i class="ph-bold ph-magic-wand"></i> Auto-Reply Rules
+                </button>
+            </section>
+
+            <section class="stats-grid" style="grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div class="card" style="padding: 1.2rem; flex-direction: row; align-items: center; gap: 1rem; height: auto;">
+                    <div style="background: rgba(var(--primary-rgb), 0.1); width: 50px; height: 50px; border-radius: 15px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ph-bold ph-magic-wand" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    </div>
+                    <div>
+                        <p style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; font-weight: 700; margin: 0;">Total Rules</p>
+                        <h3 id="total-rules" style="margin: 0; font-size: 1.5rem;">0</h3>
+                    </div>
+                </div>
+                <div class="card" style="padding: 1.2rem; flex-direction: row; align-items: center; gap: 1rem; height: auto;">
+                    <div style="background: rgba(var(--primary-rgb), 0.1); width: 50px; height: 50px; border-radius: 15px; display: flex; align-items: center; justify-content: center;">
+                        <i class="ph-bold ph-lightning" style="font-size: 1.5rem; color: var(--primary);"></i>
+                    </div>
+                    <div>
+                        <p style="color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase; font-weight: 700; margin: 0;">Active Rules</p>
+                        <h3 id="active-rules" style="margin: 0; font-size: 1.5rem;">0</h3>
+                    </div>
+                </div>
+            </section>
+
+            <div class="rules-grid" style="grid-column: 1 / -1;">
+                <!-- Add Rule Form -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="ph-bold ph-plus-circle"></i>
+                        <h2>Create New Rule</h2>
+                    </div>
+                    <form id="rule-form">
+                        <div class="input-group">
+                            <label>Trigger Keyword</label>
+                            <i class="ph-bold ph-key"></i>
+                            <input type="text" id="trigger" placeholder="e.g. price" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Match Type</label>
+                            <i class="ph-bold ph-equals"></i>
+                            <select id="matchType" required>
+                                <option value="contains">Contains (Default)</option>
+                                <option value="exact">Exact Match</option>
+                                <option value="startsWith">Starts With</option>
+                                <option value="endsWith">Ends With</option>
+                                <option value="regex">Regex Pattern</option>
+                                <option value="fuzzy">Fuzzy/Similar Match</option>
+                            </select>
+                            <i class="ph-bold ph-caret-down" style="position: absolute; right: 1.2rem; bottom: 1.1rem; color: var(--text-dim); pointer-events: none;"></i>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="input-group">
+                                <label>Start Time (Optional)</label>
+                                <i class="ph-bold ph-clock"></i>
+                                <input type="time" id="startTime">
+                            </div>
+                            <div class="input-group">
+                                <label>End Time (Optional)</label>
+                                <i class="ph-bold ph-clock-afternoon"></i>
+                                <input type="time" id="endTime">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label>Auto-Reply Message</label>
+                            <i class="ph-bold ph-chat-centered-text"></i>
+                            <textarea id="reply" placeholder="What should the bot say?" required style="min-height: 120px;"></textarea>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <span>Save Rule</span>
+                            <i class="ph-bold ph-check"></i>
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Rules List -->
+                <section class="card">
+                    <div class="card-header">
+                        <i class="ph-bold ph-list-bullets"></i>
+                        <h2>Active Rules</h2>
+                    </div>
+                    <div id="rules-list">
+                        <div class="loading-spinner" style="text-align: center; padding: 2rem;">
+                            <i class="ph-bold ph-circle-notch ph-spin" style="font-size: 2rem; color: var(--primary);"></i>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 LankaBot Premium Dashboard. Automate your business with ease.</p>
+        </footer>
+    </div>
+
+    <script>
+        const ruleForm = document.getElementById('rule-form');
+        const rulesList = document.getElementById('rules-list');
+
+        // Fetch Rules
+        async function fetchRules() {
+            try {
+                const res = await fetch('/api/rules');
+                const rules = await res.json();
+                renderRules(rules);
+            } catch (err) {
+                console.error('Error fetching rules:', err);
+                rulesList.innerHTML = '<p style="color: #ff4757; text-align: center;">Failed to load rules.</p>';
+            }
+        }
+
+        // Render Rules
+        function renderRules(rules) {
+            // Update stats
+            document.getElementById('total-rules').textContent = rules.length;
+            document.getElementById('active-rules').textContent = rules.filter(r => r.active).length;
+
+            if (rules.length === 0) {
+                rulesList.innerHTML = `
+                    <div class="empty-state">
+                        <i class="ph-bold ph-info"></i>
+                        <p>No rules found. Create your first auto-reply rule!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            rulesList.innerHTML = rules.map(rule => `
+                <div class="rule-item" style="opacity: ${rule.active ? 1 : 0.5}">
+                    <div class="rule-info">
+                        <h4>
+                            <i class="ph-bold ph-hash"></i>
+                            ${rule.trigger}
+                            <span class="match-badge">${rule.matchType || 'contains'}</span>
+                            ${rule.startTime && rule.endTime ? `
+                                <span class="match-badge" style="background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.1); color: var(--text-dim);">
+                                    <i class="ph-bold ph-clock" style="font-size: 0.8rem; vertical-align: middle;"></i>
+                                    ${rule.startTime} - ${rule.endTime}
+                                </span>
+                            ` : ''}
+                        </h4>
+                        <p title="${rule.reply}">${rule.reply}</p>
+                    </div>
+                    <div class="rule-actions">
+                        <button class="action-btn toggle" onclick="toggleRule('${rule._id}', ${rule.active})" title="${rule.active ? 'Disable' : 'Enable'}">
+                            <i class="ph-bold ${rule.active ? 'ph-toggle-right' : 'ph-toggle-left'}"></i>
+                        </button>
+                        <button class="action-btn delete" onclick="deleteRule('${rule._id}')" title="Delete">
+                            <i class="ph-bold ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Add Rule
+        ruleForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const trigger = document.getElementById('trigger').value;
+            const matchType = document.getElementById('matchType').value;
+            const startTime = document.getElementById('startTime').value || null;
+            const endTime = document.getElementById('endTime').value || null;
+            const reply = document.getElementById('reply').value;
+
+            try {
+                const res = await fetch('/api/rules', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trigger, matchType, startTime, endTime, reply })
+                });
+
+                if (res.ok) {
+                    ruleForm.reset();
+                    fetchRules();
+                } else {
+                    const data = await res.json();
+                    alert(data.message || 'Error saving rule');
+                }
+            } catch (err) {
+                alert('Connection error');
+            }
+        });
+
+        // Toggle Rule
+        async function toggleRule(id, currentStatus) {
+            try {
+                await fetch(`/api/rules/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active: !currentStatus })
+                });
+                fetchRules();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Delete Rule
+        async function deleteRule(id) {
+            if (!confirm('Are you sure you want to delete this rule?')) return;
+            try {
+                await fetch(`/api/rules/${id}`, { method: 'DELETE' });
+                fetchRules();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Initial Load
+        fetchRules();
+    </script>
+</body>
+</html>

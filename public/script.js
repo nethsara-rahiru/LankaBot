@@ -16,11 +16,11 @@ socket.on('db_status', (isConnected) => {
     const icon = dbStatusBadge.querySelector('i');
     if (isConnected) {
         span.textContent = 'DB: Online';
-        dbStatusBadge.className = 'badge connected';
+        dbStatusBadge.className = 'status-indicator connected';
         icon.className = 'ph-fill ph-database';
     } else {
         span.textContent = 'DB: Offline';
-        dbStatusBadge.className = 'badge disconnected';
+        dbStatusBadge.className = 'status-indicator disconnected';
         icon.className = 'ph-bold ph-database';
     }
 });
@@ -30,14 +30,14 @@ socket.on('disconnected', () => {
 });
 
 socket.on('require_connect', () => {
-    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+    if (window.location.pathname === '/' || window.location.pathname === '/dashboard.html') {
         window.location.href = '/connect.html';
     }
 });
 
 socket.on('qr', () => {
-    // If we receive a QR event while on the index page, redirect to connect
-    if (window.location.pathname === '/' || window.location.pathname === '/index.html') {
+    // If we receive a QR event while on the dashboard page, redirect to connect
+    if (window.location.pathname === '/' || window.location.pathname === '/dashboard.html') {
         window.location.href = '/connect.html';
     }
 });
@@ -45,21 +45,37 @@ socket.on('qr', () => {
 socket.on('ready', (data) => {
     // If we are on connect page, redirect to dashboard
     if (window.location.pathname === '/connect.html') {
-        window.location.href = '/';
+        window.location.href = '/dashboard.html';
         return;
     }
 
-    statusBadge.querySelector('span').textContent = 'WhatsApp: Connected';
-    statusBadge.className = 'badge connected';
+    // Update Header Status
+    const span = statusBadge.querySelector('span');
+    const icon = statusBadge.querySelector('i');
+    span.textContent = 'WhatsApp: Connected';
+    statusBadge.className = 'status-indicator connected';
     icon.className = 'ph-fill ph-whatsapp-logo';
     
+    // Update Header User Profile
     if (data) {
-        document.getElementById('account-name').textContent = data.name;
-        document.getElementById('account-number').textContent = data.number;
-        if (data.profilePic) {
-            const pic = document.getElementById('account-pic');
-            pic.src = data.profilePic;
-            pic.style.display = 'block';
+        document.getElementById('user-profile-header').style.display = 'flex';
+        document.getElementById('header-account-name').textContent = data.name;
+        document.getElementById('header-account-number').textContent = data.number;
+        
+        const pic = document.getElementById('header-account-pic');
+        const defaultPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=2ecc71&color=fff`;
+        pic.src = data.profilePic || defaultPic;
+
+        // Also update the card if it exists (for compatibility)
+        const cardName = document.getElementById('account-name');
+        if (cardName) {
+            cardName.textContent = data.name;
+            document.getElementById('account-number').textContent = data.number;
+            const cardPic = document.getElementById('account-pic');
+            if (cardPic) {
+                cardPic.src = data.profilePic || defaultPic;
+                cardPic.style.display = 'block';
+            }
         }
     }
 
@@ -75,39 +91,49 @@ socket.on('system_log', (msg) => {
 });
 
 // Form Handling
-logoutBtn.addEventListener('click', () => {
-    if (confirm('Are you sure you want to logout? This will require you to scan the QR code again.')) {
-        socket.emit('logout');
-    }
-});
-
-sendForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const phoneInput = document.getElementById('phone');
-    const messageInput = document.getElementById('message');
-    const sendBtn = document.getElementById('send-btn');
-    
-    const phone = phoneInput.value;
-    const message = messageInput.value;
-
-    // Loading state
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<span>Sending...</span><i class="ph-bold ph-spinner"></i>';
-
-    socket.emit('send_message', { phone, message }, (response) => {
-        sendBtn.disabled = false;
-        sendBtn.innerHTML = '<span>Send Message</span><i class="ph-bold ph-paper-plane-right"></i>';
-        
-        if (response.success) {
-            addLog(`You -> ${phone}: ${message}`, 'outgoing');
-            messageInput.value = '';
-        } else {
-            addLog(`Error: ${response.error}`, 'system');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to logout? This will require you to scan the QR code again.')) {
+            socket.emit('logout');
         }
     });
-});
+}
+
+if (sendForm) {
+    sendForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const phoneInput = document.getElementById('phone');
+        const messageInput = document.getElementById('message');
+        const sendBtn = document.getElementById('send-btn');
+        
+        const phone = phoneInput.value;
+        const message = messageInput.value;
+
+        // Loading state
+        if (sendBtn) {
+            sendBtn.disabled = true;
+            sendBtn.innerHTML = '<span>Sending...</span><i class="ph-bold ph-spinner"></i>';
+        }
+
+        socket.emit('send_message', { phone, message }, (response) => {
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<span>Send Message</span><i class="ph-bold ph-paper-plane-right"></i>';
+            }
+            
+            if (response.success) {
+                addLog(`You -> ${phone}: ${message}`, 'outgoing');
+                messageInput.value = '';
+            } else {
+                addLog(`Error: ${response.error}`, 'system');
+            }
+        });
+    });
+}
 
 function addLog(text, type) {
+    if (!logsContainer) return;
+    
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
     

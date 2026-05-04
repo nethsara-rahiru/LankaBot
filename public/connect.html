@@ -14,84 +14,125 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 2rem;
         }
-        .connect-card {
-            max-width: 500px;
-            width: 90%;
+        .connect-container {
+            max-width: 900px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+        .instructions-side {
+            text-align: left;
+        }
+        .qr-side {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--glass-heavy);
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid var(--glass-border);
             text-align: center;
         }
         #qr-container {
-            margin: 2rem auto;
             background: white;
             padding: 1rem;
             border-radius: 20px;
-            width: 250px;
-            height: 250px;
+            width: 260px;
+            height: 260px;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            margin-bottom: 2rem;
         }
         .instruction-step {
             display: flex;
             align-items: center;
-            gap: 1rem;
-            text-align: left;
-            margin-bottom: 1rem;
-            background: var(--glass-heavy);
-            padding: 1rem;
-            border-radius: 14px;
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+            background: var(--glass);
+            padding: 1.5rem;
+            border-radius: 18px;
             border: 1px solid var(--glass-border);
+            transition: transform 0.3s ease;
+        }
+        .instruction-step:hover {
+            transform: translateX(10px);
+            background: var(--glass-heavy);
         }
         .step-num {
             background: var(--primary);
             color: #000;
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 700;
             flex-shrink: 0;
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+        @media (max-width: 800px) {
+            .connect-container { grid-template-columns: 1fr; gap: 2rem; }
+            .instructions-side { order: 2; }
+            .qr-side { order: 1; }
         }
     </style>
 </head>
 <body>
-    <div class="card connect-card">
-        <div class="logo-wrapper" style="justify-content: center; margin-bottom: 2rem;">
-            <i class="ph-fill ph-robot logo-icon"></i>
-            <div class="logo">
-                <h1>Lanka<span>Bot</span></h1>
+    <div class="connect-container">
+        <!-- Left Side: Instructions -->
+        <div class="instructions-side">
+            <div class="logo-wrapper" style="margin-bottom: 2.5rem;">
+                <i class="ph-fill ph-robot logo-icon"></i>
+                <div class="logo">
+                    <h1>Lanka<span>Bot</span></h1>
+                    <p>Setup your connection</p>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <div class="instruction-step">
+                    <div class="step-num">1</div>
+                    <p>Open <strong>WhatsApp</strong> on your mobile phone.</p>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">2</div>
+                    <p>Tap <strong>Menu</strong> (Android) or <strong>Settings</strong> (iOS).</p>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">3</div>
+                    <p>Select <strong>Linked Devices</strong> and tap <strong>Link a Device</strong>.</p>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">4</div>
+                    <p>Point your phone to this screen to capture the QR code.</p>
+                </div>
             </div>
         </div>
 
-        <h2>Link your WhatsApp</h2>
-        <p style="color: var(--text-dim); margin-bottom: 2rem;">Scan the QR code to start automating.</p>
-
-        <div id="qr-container">
-            <p id="qr-message" style="color: #000;">Generating QR...</p>
-            <img id="qr-code" src="" alt="Scan Me" style="display: none; width: 100%;">
-        </div>
-
-        <div class="instructions">
-            <div class="instruction-step">
-                <div class="step-num">1</div>
-                <p>Open WhatsApp on your phone</p>
+        <!-- Right Side: QR Code -->
+        <div class="qr-side card">
+            <div id="qr-container">
+                <p id="qr-message" style="color: #000; font-weight: 600;">Generating QR...</p>
+                <img id="qr-code" src="" alt="Scan Me" style="display: none; width: 100%;">
             </div>
-            <div class="instruction-step">
-                <div class="step-num">2</div>
-                <p>Tap <strong>Menu</strong> or <strong>Settings</strong> and select <strong>Linked Devices</strong></p>
-            </div>
-            <div class="instruction-step">
-                <div class="step-num">3</div>
-                <p>Tap <strong>Link a Device</strong> and point your phone to this screen</p>
-            </div>
-        </div>
-
-        <div id="logs" style="height: 100px; margin-top: 2rem; font-size: 0.8rem; padding: 0.5rem;">
-            <div class="log-entry system">Awaiting connection...</div>
+            
+            <h3 style="margin-bottom: 0.5rem;">Scan QR Code</h3>
+            <p id="status-label" style="color: var(--primary); font-weight: 500; font-size: 0.9rem;">
+                <i class="ph-bold ph-circle-notch ph-spin"></i> Initializing system...
+            </p>
+            <p id="logout-alt" style="display: none; margin-top: 1.5rem; font-size: 0.8rem; color: #888;">
+                Want to link a different account? <span onclick="handleLogout()" style="color: var(--primary); cursor: pointer; text-decoration: underline;">Logout</span>
+            </p>
         </div>
     </div>
 
@@ -100,24 +141,39 @@
         const socket = io();
         const qrImage = document.getElementById('qr-code');
         const qrMessage = document.getElementById('qr-message');
-        const logsContainer = document.getElementById('logs');
+        const statusLabel = document.getElementById('status-label');
+        const logoutAlt = document.getElementById('logout-alt');
 
         socket.on('qr', (qrData) => {
             qrImage.src = qrData;
             qrImage.style.display = 'block';
             qrMessage.style.display = 'none';
+            statusLabel.innerHTML = `<i class="ph-bold ph-qr-code"></i> QR Code Ready. Scan to connect.`;
+            logoutAlt.style.display = 'none';
         });
 
         socket.on('ready', () => {
-            window.location.href = '/';
+            qrMessage.style.display = 'block';
+            qrMessage.textContent = 'Bot is Ready!';
+            qrImage.style.display = 'none';
+            statusLabel.innerHTML = `<i class="ph-bold ph-check-circle"></i> Authenticated. Redirecting...`;
+            logoutAlt.style.display = 'block';
+            
+            setTimeout(() => {
+                window.location.href = '/dashboard.html';
+            }, 1500);
         });
 
         socket.on('system_log', (msg) => {
-            const entry = document.createElement('div');
-            entry.className = 'log-entry system';
-            entry.textContent = msg;
-            logsContainer.prepend(entry);
+            statusLabel.innerHTML = `<i class="ph-bold ph-info"></i> ${msg}`;
         });
+
+        function handleLogout() {
+            if (confirm('Logout current session?')) {
+                socket.emit('logout');
+                window.location.reload();
+            }
+        }
     </script>
 </body>
 </html>

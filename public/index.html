@@ -3,103 +3,140 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LankaBot | Premium WhatsApp Dashboard</title>
+    <title>LankaBot | Loading...</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root {
+            --primary: #2ecc71;
+            --bg: #000000;
+        }
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: pulse 2s infinite ease-in-out;
+        }
+        .logo i { color: var(--primary); }
+        .logo span { color: var(--primary); }
+        
+        .loading-container {
+            width: 250px;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .loading-bar {
+            width: 40%;
+            height: 100%;
+            background: var(--primary);
+            border-radius: 10px;
+            position: absolute;
+            left: -40%;
+            animation: loading 1.5s infinite linear;
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        @keyframes loading {
+            0% { left: -40%; }
+            100% { left: 100%; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .status-text {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #888;
+            letter-spacing: 1px;
+            text-transform: none;
+            max-width: 300px;
+            text-align: center;
+        }
+        .error-link {
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            color: var(--primary);
+            text-decoration: underline;
+            cursor: pointer;
+            display: none;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo-wrapper">
-                <i class="ph-fill ph-robot logo-icon"></i>
-                <div class="logo">
-                    <h1>Lanka<span>Bot</span></h1>
-                    <p>Advanced WhatsApp Automation</p>
-                </div>
-            </div>
-            <div class="status-badges">
-                <div id="db-status-badge" class="badge disconnected">
-                    <i class="ph-bold ph-database"></i>
-                    <span>DB: Offline</span>
-                </div>
-                <div id="status-badge" class="badge disconnected">
-                    <i class="ph-bold ph-whatsapp-logo"></i>
-                    <span>WhatsApp: Disconnected</span>
-                </div>
-            </div>
-        </header>
-
-        <main>
-            <section class="card status-section">
-                <div class="card-header">
-                    <i class="ph-bold ph-shield-check"></i>
-                    <h2>System Status</h2>
-                </div>
-                
-                <div id="ready-message">
-                    <i class="ph-fill ph-check-circle success-icon"></i>
-                    <h3>Bot is Active</h3>
-                    
-                    <div id="account-info" class="account-card">
-                        <img id="account-pic" src="" alt="Profile" style="display: none;">
-                        <div class="account-details">
-                            <p><strong>Account:</strong> <span id="account-name">...</span></p>
-                            <p><strong>Number:</strong> <span id="account-number">...</span></p>
-                        </div>
-                    </div>
-                    
-                    <p class="status-text">Ready to process automation.</p>
-                    <button id="logout-btn" class="btn-secondary">
-                        <i class="ph-bold ph-sign-out"></i> Logout Session
-                    </button>
-                </div>
-            </section>
-
-            <section class="card control-section">
-                <div class="card-header">
-                    <i class="ph-bold ph-paper-plane-tilt"></i>
-                    <h2>Broadcast Center</h2>
-                </div>
-
-                <form id="send-form">
-                    <div class="input-group">
-                        <i class="ph-bold ph-phone"></i>
-                        <input type="text" id="phone" placeholder="Phone Number (e.g. 94771234567)" required>
-                    </div>
-                    <div class="input-group">
-                        <i class="ph-bold ph-chat-text"></i>
-                        <textarea id="message" placeholder="Craft your message here..." required></textarea>
-                    </div>
-                    <button type="submit" id="send-btn" class="btn-primary">
-                        <span>Send Message</span>
-                        <i class="ph-bold ph-paper-plane-right"></i>
-                    </button>
-                </form>
-            </section>
-
-            <section class="card log-section">
-                <div class="card-header">
-                    <i class="ph-bold ph-terminal-window"></i>
-                    <h2>Live Activity Logs</h2>
-                </div>
-                <div id="logs">
-                    <div class="log-entry system">
-                        <span class="log-time">System</span>
-                        <span>Dashboard initialized. Awaiting connection...</span>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <footer>
-            <p>&copy; 2026 LankaBot Premium Dashboard. Built for high-performance automation.</p>
-        </footer>
+    <div class="logo">
+        <i class="ph-fill ph-robot"></i>
+        <div>Lanka<span>Bot</span></div>
     </div>
+    
+    <div class="loading-container">
+        <div class="loading-bar"></div>
+    </div>
+    
+    <p id="status-text" class="status-text">Booting System...</p>
+    <div id="error-action" class="error-link" onclick="window.location.reload()">System taking too long? Click to refresh</div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="script.js"></script>
+    <script>
+        const socket = io();
+        const statusText = document.getElementById('status-text');
+        const errorAction = document.getElementById('error-action');
+
+        socket.on('connect', () => {
+            console.log('Connected to server, syncing status...');
+        });
+
+        socket.on('system_log', (msg) => {
+            statusText.textContent = msg;
+            // If we get a log, reset the "slow" timer or show it if it's been too long
+        });
+
+        socket.on('qr', () => {
+            statusText.textContent = 'QR Code Ready! Redirecting...';
+            setTimeout(() => {
+                window.location.href = '/connect.html';
+            }, 800);
+        });
+
+        socket.on('ready', () => {
+            statusText.textContent = 'Session verified. Launching...';
+            setTimeout(() => {
+                window.location.href = '/dashboard.html';
+            }, 1000);
+        });
+
+        socket.on('require_connect', () => {
+            statusText.textContent = 'Awaiting QR generation...';
+        });
+
+        // Fallback: If absolutely stuck for 10s
+        setTimeout(() => {
+            if (statusText.textContent === 'Booting System...' || statusText.textContent === 'Awaiting QR generation...') {
+                errorAction.style.display = 'block';
+                statusText.textContent = 'Still waiting for WhatsApp... This may take up to 30s.';
+            }
+        }, 10000);
+    </script>
 </body>
 </html>
