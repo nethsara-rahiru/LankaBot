@@ -1,10 +1,13 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const Rule = require('../models/Rule');
 const Settings = require('../models/Settings');
-const { getGeminiResponse } = require('../utils/ai');
+const { getGroqResponse } = require('../utils/groq');
 let ioInstance;
 let isReady = false;
 let accountInfo = null;
+
+// AI Message Buffer Map: { userId: { messages: [], timeout: null } }
+const aiBuffers = new Map();
 let lastQR = null;
 
 const client = new Client({
@@ -92,10 +95,14 @@ const init = (io) => {
     });
 
     client.on('message', async (msg) => {
+        // Ignore status updates and stickers
+        if (msg.from === 'status@broadcast') return;
+        if (msg.type === 'sticker') return;
+
         const user = msg.from.split('@')[0];
-        console.log(`Message from ${user}: ${msg.body}`);
+        console.log(`Message from ${user}: ${msg.body || '[' + msg.type + ']'}`);
         
-        io.emit('message_log', { from: user, body: msg.body });
+        io.emit('message_log', { from: user, body: msg.body || `[${msg.type.toUpperCase()}]` });
 
         // Rule-based Auto Replies
         try {
@@ -155,16 +162,54 @@ const init = (io) => {
                 return; // Stop further processing if rule matched
             }
 
-            // AI Fallback (Gemini)
+            // AI Fallback (Gemini) with Buffering & Human-like delay
             const settings = await Settings.findOne();
             if (settings && settings.aiEnabled) {
-                const aiResponse = await getGeminiResponse(msg.body, settings.aiSystemPrompt);
-                if (aiResponse) {
-                    console.log(`AI Replying to ${user} using Gemini`);
-                    msg.reply(aiResponse);
-                    io.emit('system_log', `AI-Replied to ${user} (Powered by Gemini)`);
-                    return;
+                const userId = msg.from;
+                
+                // Clear existing timeout for this user
+                if (aiBuffers.has(userId)) {
+                    clearTimeout(aiBuffers.get(userId).timeout);
+                } else {
+                    aiBuffers.set(userId, { messages: [], timeout: null });
                 }
+
+                const buffer = aiBuffers.get(userId);
+                buffer.messages.push(msg.body);
+
+                // Set new timeout for 10 seconds
+                buffer.timeout = setTimeout(async () => {
+                    try {
+                        const combinedMsg = buffer.messages.join('\n');
+                        const messagesToProcess = [...buffer.messages];
+                        aiBuffers.delete(userId); // Clear buffer after starting process
+
+                        const aiResponse = await getGroqResponse(combinedMsg, settings.aiSystemPrompt);
+                        
+                        if (aiResponse) {
+                            const chat = await msg.getChat();
+                            
+                            // Calculate typing duration (50ms per char, min 20s as requested)
+                            const typingDuration = Math.max(20000, aiResponse.length * 50);
+                            
+                            console.log(`AI Replying to ${user} (Collected ${messagesToProcess.length} msgs). Typing for ${typingDuration/1000}s...`);
+                            
+                            // Start typing
+                            await chat.sendStateTyping();
+                            
+                            // Wait for typing duration
+                            await new Promise(resolve => setTimeout(resolve, typingDuration));
+                            
+                            // Send response
+                            await msg.reply(aiResponse);
+                            io.emit('system_log', `AI-Replied to ${user} (Unified response using Groq)`);
+                        }
+                    } catch (aiErr) {
+                        console.error('Error in delayed AI response:', aiErr);
+                    }
+                }, 10000);
+
+                return; // End this message event, wait for timeout
             }
         } catch (err) {
             console.error('Error processing rules/AI:', err);

@@ -9,19 +9,23 @@ const getGeminiResponse = async (prompt, systemPrompt, retries = 5) => {
         return null;
     }
 
-    // Try using v1 instead of v1beta for potentially better stability
-    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Switch back to v1beta which is more feature-rich for Gemini Flash
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
     for (let i = 0; i < retries; i++) {
         try {
+            // Combine system prompt and user prompt for better compatibility across API versions
+            const combinedPrompt = systemPrompt 
+                ? `System Instruction: ${systemPrompt}\n\nUser Message: ${prompt}`
+                : prompt;
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    system_instruction: {
-                        parts: [{ text: systemPrompt || "You are LankaBot, a professional AI assistant." }]
-                    },
-                    contents: [{ parts: [{ text: prompt }] }]
+                    contents: [{ 
+                        parts: [{ text: combinedPrompt }] 
+                    }]
                 })
             });
 
@@ -34,9 +38,14 @@ const getGeminiResponse = async (prompt, systemPrompt, retries = 5) => {
             }
 
             if (response.status === 429 || response.status === 503) {
-                const waitTime = (i + 1) * 2000; // Increased delay: 2s, 4s, 6s...
+                const waitTime = (i + 1) * 2000;
                 console.warn(`Gemini API Busy (${response.status}). Retrying in ${waitTime/1000}s... (${i + 1}/${retries})`);
                 await new Promise(res => setTimeout(res, waitTime));
+                
+                // If it's the last retry and still busy, return the specific fallback
+                if (i === retries - 1) {
+                    return "I'm receiving too many messages right now and my AI engine is a bit overwhelmed. 😅 Please try again in a moment!";
+                }
                 continue;
             }
 
@@ -48,8 +57,7 @@ const getGeminiResponse = async (prompt, systemPrompt, retries = 5) => {
         }
     }
 
-    // Ultimate fallback if AI fails completely
-    return "I'm receiving too many messages right now and my AI engine is a bit overwhelmed. 😅 Please try again in a moment!";
+    return null;
 };
 
 module.exports = { getGeminiResponse };
