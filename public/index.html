@@ -99,44 +99,25 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
         const statusText = document.getElementById('status-text');
         const errorAction = document.getElementById('error-action');
 
-        socket.on('connect', () => {
-            console.log('Connected to server, syncing status...');
-        });
-
-        socket.on('system_log', (msg) => {
-            statusText.textContent = msg;
-            // If we get a log, reset the "slow" timer or show it if it's been too long
-        });
-
-        socket.on('qr', () => {
-            statusText.textContent = 'QR Code Ready! Redirecting...';
-            setTimeout(() => {
-                window.location.href = '/connect.html';
-            }, 800);
-        });
-
-        socket.on('ready', () => {
-            statusText.textContent = 'Session verified. Launching...';
+        // Auth Check
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login.html';
+        } else {
+            // If authenticated, go to dashboard (which will handle account selection)
+            if (statusText) statusText.textContent = 'System verified. Launching...';
             setTimeout(() => {
                 window.location.href = '/dashboard.html';
-            }, 1000);
-        });
+            }, 1500);
+        }
 
-        socket.on('require_connect', () => {
-            statusText.textContent = 'Awaiting QR generation...';
-        });
+        const socket = io();
 
-        // Fallback: If absolutely stuck for 10s
-        setTimeout(() => {
-            if (statusText.textContent === 'Booting System...' || statusText.textContent === 'Awaiting QR generation...') {
-                errorAction.style.display = 'block';
-                statusText.textContent = 'Still waiting for WhatsApp... This may take up to 30s.';
-            }
-        }, 10000);
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
     </script>
 </body>
 </html>

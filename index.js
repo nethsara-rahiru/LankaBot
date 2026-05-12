@@ -24,14 +24,6 @@ const mongoose = require('mongoose');
 io.on('connection', (socket) => {
     // DB Status
     socket.emit('db_status', mongoose.connection.readyState === 1);
-    
-    // WhatsApp Status
-    const botStatus = whatsappBot.getStatus();
-    if (botStatus.isReady && botStatus.accountInfo) {
-        socket.emit('ready', botStatus.accountInfo);
-    } else {
-        socket.emit('require_connect');
-    }
 });
 
 // Init Middleware
@@ -44,6 +36,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/rules', require('./routes/ruleRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/accounts', require('./routes/accountRoutes'));
 
 // Main Landing Route (Splash Screen)
 app.get('/', (req, res) => {

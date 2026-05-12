@@ -37,14 +37,11 @@
         </header>
 
         <main>
-            <section class="nav-section" style="grid-column: 1 / -1; display: flex; gap: 1rem; margin-bottom: 1rem;">
-                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="flex: 1; border-radius: 20px;">
-                    <i class="ph-bold ph-layout"></i> Dashboard
+            <div style="grid-column: 1 / -1; margin-bottom: 2rem;">
+                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="border-radius: 16px; padding: 10px 20px; font-size: 0.9rem;">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Dashboard
                 </button>
-                <button class="btn-primary" onclick="window.location.href='/aiBot.html'" style="flex: 1; border-radius: 20px;">
-                    <i class="ph-bold ph-sparkle"></i> AI Settings
-                </button>
-            </section>
+            </div>
 
             <div style="grid-column: 1 / -1; max-width: 800px; margin: 0 auto; width: 100%;">
                 <section class="card">
@@ -129,14 +126,17 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
     <script>
-        const aiEnabledToggle = document.getElementById('aiEnabled');
-        const aiSystemPromptInput = document.getElementById('aiSystemPrompt');
-        const saveBtn = document.getElementById('save-settings');
+        const activeAccountId = localStorage.getItem('activeAccountId');
 
         // Fetch current settings
         async function fetchSettings() {
             try {
-                const res = await fetch('/api/settings');
+                const res = await fetch('/api/settings', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'x-account-id': activeAccountId
+                    }
+                });
                 const data = await res.json();
                 
                 aiEnabledToggle.checked = data.aiEnabled;
@@ -162,7 +162,11 @@
             try {
                 const res = await fetch('/api/settings', {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'x-account-id': activeAccountId
+                    },
                     body: JSON.stringify({ aiEnabled, aiSystemPrompt })
                 });
 

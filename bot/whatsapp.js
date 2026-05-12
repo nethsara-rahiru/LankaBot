@@ -1,292 +1,240 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const Rule = require('../models/Rule');
 const Settings = require('../models/Settings');
+const Account = require('../models/Account');
 const { getGroqResponse } = require('../utils/groq');
+const qrcodeImage = require('qrcode');
+
 let ioInstance;
-let isReady = false;
-let accountInfo = null;
+const clients = new Map(); // accountId -> Client instance
+const aiBuffers = new Map(); // userId_accountId -> { messages: [], timeout: null }
 
-// AI Message Buffer Map: { userId: { messages: [], timeout: null } }
-const aiBuffers = new Map();
-let lastQR = null;
-
-const client = new Client({
-    authStrategy: new LocalAuth(),
-    webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-    },
-    puppeteer: {
-        headless: 'new',
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-extensions',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--no-first-run',
-            '--no-zygote',
-            '--single-process', // <- this can help on some systems
-            '--disable-gpu'
-        ],
-    }
-});
-
-// Initialize with Socket.io
-const init = (io) => {
+// Initialize the manager with Socket.io
+const init = async (io) => {
     ioInstance = io;
+    console.log('WhatsApp Manager Initialized');
 
-    io.emit('system_log', 'Initializing WhatsApp Client...');
+    // Load all active accounts from DB and start them
+    try {
+        const accounts = await Account.find();
+        for (const account of accounts) {
+            startClient(account._id);
+        }
+    } catch (err) {
+        console.error('Error loading accounts:', err);
+    }
 
-    client.on('qr', (qr) => {
-        isReady = false;
-        accountInfo = null;
-        console.log('Scan the QR code in the browser dashboard.');
-        io.emit('system_log', 'QR Code generated. Please scan to login.');
-        // Generate QR image data URL
-        const qrcodeImage = require('qrcode');
-        qrcodeImage.toDataURL(qr, (err, url) => {
-            if (!err) {
-                lastQR = url;
-                io.emit('qr', url);
+    // Global Socket Events
+    io.on('connection', (socket) => {
+        socket.on('get_status', async (accountId) => {
+            const client = clients.get(accountId.toString());
+            if (client) {
+                // Return current state
+                const account = await Account.findById(accountId);
+                socket.emit('account_status', {
+                    accountId,
+                    status: account.status,
+                    accountInfo: {
+                        name: account.pushName,
+                        number: account.phoneNumber,
+                        profilePic: account.profilePic
+                    },
+                    lastQR: account.lastQR
+                });
             }
         });
-    });
 
-    client.on('authenticated', () => {
-        console.log('Authenticated successfully!');
-        lastQR = null;
-        io.emit('system_log', 'Authenticated! Finalizing connection...');
-    });
-
-    client.on('auth_failure', (msg) => {
-        isReady = false;
-        console.error('Authentication failure:', msg);
-        io.emit('system_log', `Auth Failure: ${msg}`);
-    });
-
-    client.on('ready', async () => {
-        const info = client.info;
-        isReady = true;
-        lastQR = null;
-        
-        let profilePicUrl = '';
-        try {
-            profilePicUrl = await client.getProfilePicUrl(info.wid._serialized);
-        } catch (err) {
-            console.log('Could not fetch profile pic');
-        }
-
-        accountInfo = {
-            name: info.pushname,
-            number: info.wid.user,
-            profilePic: profilePicUrl
-        };
-        console.log('WhatsApp Client is ready!');
-        
-        io.emit('ready', accountInfo);
-        io.emit('system_log', `Connected as ${info.pushname} (${info.wid.user})`);
-    });
-
-    client.on('loading_screen', (percent, message) => {
-        console.log('LOADING SCREEN', percent, message);
-        io.emit('system_log', `Loading: ${percent}% - ${message}`);
-    });
-
-    client.on('message', async (msg) => {
-        // Ignore status updates and stickers
-        if (msg.from === 'status@broadcast') return;
-        if (msg.type === 'sticker') return;
-
-        const user = msg.from.split('@')[0];
-        console.log(`Message from ${user}: ${msg.body || '[' + msg.type + ']'}`);
-        
-        io.emit('message_log', { from: user, body: msg.body || `[${msg.type.toUpperCase()}]` });
-
-        // Rule-based Auto Replies
-        try {
-            const rules = await Rule.find({ active: true });
-            const matchedRule = rules.find(r => {
-                const body = msg.body.toLowerCase();
-                const trigger = r.trigger.toLowerCase();
-                
-                // Time Check
-                if (r.startTime && r.endTime) {
-                    const now = new Date();
-                    const currentTime = now.getHours() * 60 + now.getMinutes();
-                    
-                    const [startH, startM] = r.startTime.split(':').map(Number);
-                    const [endH, endM] = r.endTime.split(':').map(Number);
-                    
-                    const startTotal = startH * 60 + startM;
-                    const endTotal = endH * 60 + endM;
-                    
-                    if (startTotal <= endTotal) {
-                        // Normal range (e.g. 09:00 - 17:00)
-                        if (currentTime < startTotal || currentTime > endTotal) return false;
-                    } else {
-                        // Overnight range (e.g. 22:00 - 05:00)
-                        if (currentTime < startTotal && currentTime > endTotal) return false;
-                    }
+        socket.on('logout_account', async (accountId) => {
+            const client = clients.get(accountId.toString());
+            if (client) {
+                try {
+                    await client.logout();
+                } catch (err) {
+                    console.error('Logout error:', err);
                 }
-
-                switch(r.matchType) {
-                    case 'exact':
-                        return body === trigger;
-                    case 'startsWith':
-                        return body.startsWith(trigger);
-                    case 'endsWith':
-                        return body.endsWith(trigger);
-                    case 'fuzzy':
-                        // Simple fuzzy: check if trigger exists in body or vice versa, and length ratio
-                        const triggerWords = trigger.split(/\s+/);
-                        return triggerWords.every(word => body.includes(word)) || body.includes(trigger);
-                    case 'regex':
-                        try {
-                            const regex = new RegExp(r.trigger, 'i');
-                            return regex.test(msg.body);
-                        } catch (e) {
-                            return false;
-                        }
-                    case 'contains':
-                    default:
-                        return body.includes(trigger);
-                }
-            });
-            
-            if (matchedRule) {
-                console.log(`Auto-replying to ${user} for trigger: ${matchedRule.trigger} (${matchedRule.matchType})`);
-                msg.reply(matchedRule.reply);
-                io.emit('system_log', `Auto-replied to ${user} (Trigger: ${matchedRule.trigger}, Type: ${matchedRule.matchType})`);
-                return; // Stop further processing if rule matched
-            }
-
-            // AI Fallback (Gemini) with Buffering & Human-like delay
-            const settings = await Settings.findOne();
-            if (settings && settings.aiEnabled) {
-                const userId = msg.from;
-                
-                // Clear existing timeout for this user
-                if (aiBuffers.has(userId)) {
-                    clearTimeout(aiBuffers.get(userId).timeout);
-                } else {
-                    aiBuffers.set(userId, { messages: [], timeout: null });
-                }
-
-                const buffer = aiBuffers.get(userId);
-                buffer.messages.push(msg.body);
-
-                // Set new timeout for 10 seconds
-                buffer.timeout = setTimeout(async () => {
-                    try {
-                        const combinedMsg = buffer.messages.join('\n');
-                        const messagesToProcess = [...buffer.messages];
-                        aiBuffers.delete(userId); // Clear buffer after starting process
-
-                        const aiResponse = await getGroqResponse(combinedMsg, settings.aiSystemPrompt);
-                        
-                        if (aiResponse) {
-                            const chat = await msg.getChat();
-                            
-                            // Calculate typing duration (50ms per char, min 20s as requested)
-                            const typingDuration = Math.max(20000, aiResponse.length * 50);
-                            
-                            console.log(`AI Replying to ${user} (Collected ${messagesToProcess.length} msgs). Typing for ${typingDuration/1000}s...`);
-                            
-                            // Start typing
-                            await chat.sendStateTyping();
-                            
-                            // Wait for typing duration
-                            await new Promise(resolve => setTimeout(resolve, typingDuration));
-                            
-                            // Send response
-                            await msg.reply(aiResponse);
-                            io.emit('system_log', `AI-Replied to ${user} (Unified response using Groq)`);
-                        }
-                    } catch (aiErr) {
-                        console.error('Error in delayed AI response:', aiErr);
-                    }
-                }, 10000);
-
-                return; // End this message event, wait for timeout
-            }
-        } catch (err) {
-            console.error('Error processing rules/AI:', err);
-        }
-
-        // Command logic
-        if (msg.body.toLowerCase() === 'hello') {
-            msg.reply('Hello from LankaBot Dashboard! 👋');
-        }
-
-        if (msg.body.toLowerCase() === '!image') {
-            const path = require('path');
-            const fs = require('fs');
-            const { MessageMedia } = require('whatsapp-web.js');
-            const imagePath = path.join(__dirname, '../assets/sample-image.jpg');
-            if (fs.existsSync(imagePath)) {
-                const media = MessageMedia.fromFilePath(imagePath);
-                await client.sendMessage(msg.from, media, { caption: 'Here is your image!' });
-            }
-        }
-        
-        // ... add other commands back as needed
-    });
-
-    client.on('disconnected', (reason) => {
-        isReady = false;
-        accountInfo = null;
-        console.log('Client was logged out', reason);
-        io.emit('system_log', `System: Logged out / Disconnected (${reason})`);
-        io.emit('disconnected');
-    });
-
-    // Handle events from frontend
-    io.on('connection', (socket) => {
-        // If already ready, send info immediately to the new connection
-        if (isReady && accountInfo) {
-            socket.emit('ready', accountInfo);
-            socket.emit('system_log', 'Dashboard reconnected. Bot is active.');
-        } else if (lastQR) {
-            socket.emit('qr', lastQR);
-        }
-
-        socket.on('logout', async () => {
-            try {
-                io.emit('system_log', 'System: Attempting to logout...');
-                await client.logout();
-                isReady = false;
-                accountInfo = null;
-                io.emit('disconnected');
-                io.emit('system_log', 'System: Logout successful. Please wait for a new QR code.');
-            } catch (err) {
-                console.error('Logout error:', err);
-                io.emit('system_log', `System: Logout error - ${err.message}`);
-                // Fallback: If logout fails, just reset the local state
-                isReady = false;
-                accountInfo = null;
-                io.emit('disconnected');
             }
         });
 
         socket.on('send_message', async (data, callback) => {
             try {
-                const number = data.phone.includes('@c.us') ? data.phone : `${data.phone}@c.us`;
-                await client.sendMessage(number, data.message);
+                const { accountId, phone, message } = data;
+                const client = clients.get(accountId.toString());
+                if (!client) return callback({ success: false, error: 'Client not found' });
+
+                const number = phone.includes('@c.us') ? phone : `${phone}@c.us`;
+                await client.sendMessage(number, message);
                 callback({ success: true });
             } catch (err) {
                 callback({ success: false, error: err.message });
             }
         });
     });
-
-    client.initialize();
 };
 
-const getStatus = () => ({
-    isReady,
-    accountInfo
-});
+const startClient = async (accountId) => {
+    accountId = accountId.toString();
+    if (clients.has(accountId)) return;
 
-module.exports = { init, client, getStatus };
+    const account = await Account.findById(accountId);
+    if (!account) return;
+
+    console.log(`Starting WhatsApp Client for session: ${account.sessionId}`);
+    
+    const client = new Client({
+        authStrategy: new LocalAuth({ clientId: account.sessionId }),
+        webVersionCache: {
+            type: 'remote',
+            remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
+        },
+        puppeteer: {
+            headless: 'new',
+            executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        }
+    });
+
+    clients.set(accountId, client);
+
+    client.on('qr', async (qr) => {
+        const url = await qrcodeImage.toDataURL(qr);
+        await Account.findByIdAndUpdate(accountId, { status: 'qr', lastQR: url });
+        ioInstance.emit('account_qr', { accountId, qr: url });
+        ioInstance.emit('system_log', `[${account.sessionId}] QR Code generated.`);
+    });
+
+    client.on('ready', async () => {
+        const info = client.info;
+        let profilePicUrl = '';
+        try { profilePicUrl = await client.getProfilePicUrl(info.wid._serialized); } catch (e) {}
+
+        const updatedAccount = await Account.findByIdAndUpdate(accountId, {
+            status: 'ready',
+            lastQR: null,
+            phoneNumber: info.wid.user,
+            pushName: info.pushname,
+            profilePic: profilePicUrl
+        }, { returnDocument: 'after' });
+
+        ioInstance.emit('account_ready', {
+            accountId,
+            accountInfo: {
+                name: updatedAccount.pushName,
+                number: updatedAccount.phoneNumber,
+                profilePic: updatedAccount.profilePic
+            }
+        });
+        ioInstance.emit('system_log', `[${account.sessionId}] Connected as ${info.pushname}`);
+    });
+
+    client.on('message', async (msg) => {
+        if (msg.from === 'status@broadcast' || msg.type === 'sticker') return;
+
+        // Check if account is paused
+        const accountData = await Account.findById(accountId);
+        if (accountData && accountData.paused) {
+            console.log(`[Account ${accountId}] Paused - ignoring message.`);
+            return;
+        }
+
+        const user = msg.from.split('@')[0];
+        ioInstance.emit('message_log', { accountId, from: user, body: msg.body || `[${msg.type.toUpperCase()}]` });
+
+        try {
+            // Find Rules for THIS account
+            const rules = await Rule.find({ account: accountId, active: true });
+            const matchedRule = rules.find(r => {
+                const body = (msg.body || '').toLowerCase();
+                const trigger = r.trigger.toLowerCase();
+                
+                // Time Check
+                if (r.startTime && r.endTime) {
+                    const now = new Date();
+                    const currentTime = now.getHours() * 60 + now.getMinutes();
+                    const [startH, startM] = r.startTime.split(':').map(Number);
+                    const [endH, endM] = r.endTime.split(':').map(Number);
+                    const startTotal = startH * 60 + startM;
+                    const endTotal = endH * 60 + endM;
+                    
+                    if (startTotal <= endTotal) {
+                        if (currentTime < startTotal || currentTime > endTotal) return false;
+                    } else {
+                        if (currentTime < startTotal && currentTime > endTotal) return false;
+                    }
+                }
+
+                switch(r.matchType) {
+                    case 'exact': return body === trigger;
+                    case 'startsWith': return body.startsWith(trigger);
+                    case 'endsWith': return body.endsWith(trigger);
+                    case 'fuzzy': 
+                        const triggerWords = trigger.split(/\s+/);
+                        return triggerWords.every(word => body.includes(word)) || body.includes(trigger);
+                    case 'regex':
+                        try { return new RegExp(r.trigger, 'i').test(msg.body); } catch (e) { return false; }
+                    case 'contains':
+                    default: return body.includes(trigger);
+                }
+            });
+
+            if (matchedRule) {
+                console.log(`[Account ${accountId}] Auto-replying for trigger: ${matchedRule.trigger}`);
+                await msg.reply(matchedRule.reply);
+                ioInstance.emit('system_log', `[Account ${accountId}] Auto-replied to ${user}`);
+                return;
+            }
+
+            // AI Fallback for THIS account
+            const settings = await Settings.findOne({ account: accountId });
+            if (settings && settings.aiEnabled) {
+                const bufferKey = `${msg.from}_${accountId}`;
+                if (!aiBuffers.has(bufferKey)) aiBuffers.set(bufferKey, { messages: [], timeout: null });
+                
+                const buffer = aiBuffers.get(bufferKey);
+                buffer.messages.push(msg.body);
+                clearTimeout(buffer.timeout);
+
+                buffer.timeout = setTimeout(async () => {
+                    const combinedMsg = buffer.messages.join('\n');
+                    aiBuffers.delete(bufferKey);
+                    const aiResponse = await getGroqResponse(combinedMsg, settings.aiSystemPrompt);
+                    if (aiResponse) {
+                        const chat = await msg.getChat();
+                        try {
+                            if (chat.sendPresence) {
+                                await chat.sendPresence('composing');
+                            } else if (chat.sendStateTyping) {
+                                await chat.sendStateTyping();
+                            }
+                        } catch (e) {
+                            console.error('Typing indicator error:', e);
+                        }
+                        await new Promise(r => setTimeout(r, settings.typingTime || 3000));
+                        await msg.reply(aiResponse);
+                    }
+                }, settings.responseTime || 2000);
+            }
+        } catch (err) {
+            console.error('Error processing message:', err);
+        }
+    });
+
+    client.on('disconnected', async (reason) => {
+        await Account.findByIdAndUpdate(accountId, { status: 'disconnected', lastQR: null });
+        ioInstance.emit('account_disconnected', { accountId });
+        ioInstance.emit('system_log', `[${account.sessionId}] Disconnected: ${reason}`);
+    });
+
+    client.initialize().catch(err => {
+        console.error(`Failed to initialize client [${account.sessionId}]:`, err);
+    });
+};
+
+const stopClient = async (accountId) => {
+    const client = clients.get(accountId.toString());
+    if (client) {
+        await client.destroy();
+        clients.delete(accountId.toString());
+    }
+};
+
+module.exports = { init, startClient, stopClient };

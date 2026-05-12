@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Register</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: radial-gradient(circle at top right, rgba(46, 204, 113, 0.15), transparent), #0a0a0a;
+        }
+        .auth-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 2.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 32px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+        .auth-logo {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 1rem;
+        }
+        .auth-header h1 {
+            font-size: 2rem;
+            margin: 0;
+            color: var(--text);
+        }
+        .auth-header p {
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+        }
+        .auth-footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+        .auth-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .error-msg {
+            background: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+            display: none;
+            border: 1px solid rgba(231, 76, 60, 0.2);
+        }
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <i class="ph-fill ph-robot auth-logo"></i>
+            <h1>Create Account</h1>
+            <p>Join LankaBot Premium Platform</p>
+        </div>
+
+        <div id="error" class="error-msg"></div>
+
+        <form id="register-form">
+            <div class="input-group">
+                <label>Full Name</label>
+                <i class="ph-bold ph-user"></i>
+                <input type="text" id="name" placeholder="John Doe" required>
+            </div>
+            
+            <div class="input-group" style="margin-top: 1.25rem;">
+                <label>Email Address</label>
+                <i class="ph-bold ph-envelope"></i>
+                <input type="email" id="email" placeholder="name@company.com" required>
+            </div>
+            
+            <div class="input-group" style="margin-top: 1.25rem;">
+                <label>Password</label>
+                <i class="ph-bold ph-lock"></i>
+                <input type="password" id="password" placeholder="••••••••" required minlength="6">
+            </div>
+            
+            <button type="submit" id="submit-btn" class="btn-primary" style="margin-top: 2rem; width: 100%;">
+                <span>Get Started</span>
+                <i class="ph-bold ph-rocket-launch"></i>
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Already have an account? <a href="/login.html">Login</a>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('register-form');
+        const errorDiv = document.getElementById('error');
+        const submitBtn = document.getElementById('submit-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            errorDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Creating account...</span><i class="ph-bold ph-spinner"></i>';
+
+            try {
+                const res = await fetch('/api/users/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    window.location.href = '/dashboard.html';
+                } else {
+                    errorDiv.textContent = data.msg || 'Registration failed';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (err) {
+                errorDiv.textContent = 'Connection error. Please try again.';
+                errorDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<span>Get Started</span><i class="ph-bold ph-rocket-launch"></i>';
+            }
+        });
+
+        // Redirect if already logged in
+        if (localStorage.getItem('token')) {
+            window.location.href = '/dashboard.html';
+        }
+    </script>
+</body>
+</html>

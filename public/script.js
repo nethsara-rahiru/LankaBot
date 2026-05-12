@@ -1,5 +1,40 @@
 const socket = io();
 
+// Auth Check
+const token = localStorage.getItem('token');
+const userData = JSON.parse(localStorage.getItem('user') || '{}');
+const activeAccountId = localStorage.getItem('activeAccountId');
+
+if (!token && !['/login.html', '/register.html', '/index.html', '/'].includes(window.location.pathname)) {
+    window.location.href = '/login.html';
+}
+
+// Redirect to accounts selection if on dashboard/settings but no account active
+if (token && !activeAccountId && !['/login.html', '/register.html', '/index.html', '/', '/accounts.html'].includes(window.location.pathname)) {
+    window.location.href = '/accounts.html';
+}
+
+// Initial User UI Update
+document.addEventListener('DOMContentLoaded', () => {
+    if (userData.name) {
+        const headerName = document.getElementById('header-account-name');
+        if (headerName) headerName.textContent = userData.name;
+        
+        const headerProfile = document.getElementById('user-profile-header');
+        if (headerProfile) headerProfile.style.display = 'flex';
+        
+        const headerPic = document.getElementById('header-account-pic');
+        if (headerPic) {
+            headerPic.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name)}&background=2ecc71&color=fff`;
+        }
+    }
+
+    // Load status for active account
+    if (activeAccountId) {
+        socket.emit('get_status', activeAccountId);
+    }
+});
+
 const qrImage = document.getElementById('qr-code');
 const qrMessage = document.getElementById('qr-message');
 const qrContainer = document.getElementById('qr-container');
@@ -10,8 +45,57 @@ const logsContainer = document.getElementById('logs');
 const sendForm = document.getElementById('send-form');
 const logoutBtn = document.getElementById('logout-btn');
 
-// Socket Events
+// Socket Events for Multi-Account
+socket.on('account_qr', (data) => {
+    if (data.accountId === activeAccountId && qrImage) {
+        qrImage.src = data.qr;
+        if (qrContainer) qrContainer.style.display = 'block';
+        if (readyMessage) readyMessage.style.display = 'none';
+    }
+});
+
+socket.on('account_ready', (data) => {
+    if (data.accountId === activeAccountId) {
+        updateWhatsAppHeader(true, data.accountInfo);
+        if (qrContainer) qrContainer.style.display = 'none';
+        if (readyMessage) readyMessage.style.display = 'block';
+    }
+});
+
+socket.on('account_status', (data) => {
+    if (data.accountId === activeAccountId) {
+        const isReady = data.status === 'ready';
+        updateWhatsAppHeader(isReady, data.accountInfo);
+        if (data.status === 'qr' && qrImage) {
+            qrImage.src = data.lastQR;
+        }
+    }
+});
+
+function updateWhatsAppHeader(isConnected, info) {
+    if (!statusBadge) return;
+    const span = statusBadge.querySelector('span');
+    const icon = statusBadge.querySelector('i');
+    
+    if (isConnected) {
+        span.textContent = `WA: ${info.name || 'Connected'}`;
+        statusBadge.className = 'status-indicator connected';
+        icon.className = 'ph-fill ph-whatsapp-logo';
+    } else {
+        span.textContent = 'WhatsApp: Disconnected';
+        statusBadge.className = 'status-indicator disconnected';
+        icon.className = 'ph-bold ph-whatsapp-logo';
+    }
+}
+
+socket.on('message_log', (data) => {
+    if (data.accountId === activeAccountId) {
+        addLog(`${data.from}: ${data.body}`, 'incoming');
+    }
+});
+
 socket.on('db_status', (isConnected) => {
+    if (!dbStatusBadge) return;
     const span = dbStatusBadge.querySelector('span');
     const icon = dbStatusBadge.querySelector('i');
     if (isConnected) {
@@ -25,67 +109,6 @@ socket.on('db_status', (isConnected) => {
     }
 });
 
-socket.on('disconnected', () => {
-    window.location.href = '/connect.html';
-});
-
-socket.on('require_connect', () => {
-    if (window.location.pathname === '/' || window.location.pathname === '/dashboard.html') {
-        window.location.href = '/connect.html';
-    }
-});
-
-socket.on('qr', () => {
-    // If we receive a QR event while on the dashboard page, redirect to connect
-    if (window.location.pathname === '/' || window.location.pathname === '/dashboard.html') {
-        window.location.href = '/connect.html';
-    }
-});
-
-socket.on('ready', (data) => {
-    // If we are on connect page, redirect to dashboard
-    if (window.location.pathname === '/connect.html') {
-        window.location.href = '/dashboard.html';
-        return;
-    }
-
-    // Update Header Status
-    const span = statusBadge.querySelector('span');
-    const icon = statusBadge.querySelector('i');
-    span.textContent = 'WhatsApp: Connected';
-    statusBadge.className = 'status-indicator connected';
-    icon.className = 'ph-fill ph-whatsapp-logo';
-    
-    // Update Header User Profile
-    if (data) {
-        document.getElementById('user-profile-header').style.display = 'flex';
-        document.getElementById('header-account-name').textContent = data.name;
-        document.getElementById('header-account-number').textContent = data.number;
-        
-        const pic = document.getElementById('header-account-pic');
-        const defaultPic = `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name)}&background=2ecc71&color=fff`;
-        pic.src = data.profilePic || defaultPic;
-
-        // Also update the card if it exists (for compatibility)
-        const cardName = document.getElementById('account-name');
-        if (cardName) {
-            cardName.textContent = data.name;
-            document.getElementById('account-number').textContent = data.number;
-            const cardPic = document.getElementById('account-pic');
-            if (cardPic) {
-                cardPic.src = data.profilePic || defaultPic;
-                cardPic.style.display = 'block';
-            }
-        }
-    }
-
-    addLog('WhatsApp Bot is Ready!', 'system');
-});
-
-socket.on('message_log', (data) => {
-    addLog(`${data.from}: ${data.body}`, 'incoming');
-});
-
 socket.on('system_log', (msg) => {
     addLog(msg, 'system');
 });
@@ -93,8 +116,11 @@ socket.on('system_log', (msg) => {
 // Form Handling
 if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to logout? This will require you to scan the QR code again.')) {
-            socket.emit('logout');
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('activeAccountId');
+            window.location.href = '/login.html';
         }
     });
 }
@@ -115,7 +141,7 @@ if (sendForm) {
             sendBtn.innerHTML = '<span>Sending...</span><i class="ph-bold ph-spinner"></i>';
         }
 
-        socket.emit('send_message', { phone, message }, (response) => {
+        socket.emit('send_message', { accountId: activeAccountId, phone, message }, (response) => {
             if (sendBtn) {
                 sendBtn.disabled = false;
                 sendBtn.innerHTML = '<span>Send Message</span><i class="ph-bold ph-paper-plane-right"></i>';

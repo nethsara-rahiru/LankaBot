@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const RuleSchema = new mongoose.Schema({
+    account: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Account',
+        required: true
+    },
     trigger: { 
         type: String, 
         required: true, 

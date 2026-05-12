@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Manage Accounts</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .account-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .account-card {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 24px;
+            padding: 1.5rem;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+        .account-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+        }
+        .account-card.active {
+            border-color: var(--primary);
+            background: rgba(var(--primary-rgb), 0.05);
+        }
+        .account-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .account-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            object-fit: cover;
+        }
+        .account-info h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        .account-info p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+        }
+        .account-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            width: fit-content;
+        }
+        .status-ready { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+        .status-qr { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
+        .status-disconnected { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+        
+        .account-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: auto;
+        }
+        .add-account-btn {
+            background: rgba(var(--primary-rgb), 0.1);
+            border: 2px dashed var(--primary);
+            color: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .add-account-btn:hover {
+            background: rgba(var(--primary-rgb), 0.2);
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background: #111;
+            padding: 2.5rem;
+            border-radius: 32px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid var(--glass-border);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo-wrapper" onclick="window.location.href='/dashboard.html'" style="cursor: pointer;">
+                    <i class="ph-fill ph-robot logo-icon"></i>
+                    <div class="logo">
+                        <h1>Lanka<span>Bot</span></h1>
+                        <p>Multi-Account Manager</p>
+                    </div>
+                </div>
+            </div>
+            <div id="user-profile-header" class="user-profile-header">
+                <img id="header-account-pic" src="" alt="Profile">
+                <div class="header-user-details">
+                    <h4 id="header-account-name">...</h4>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div style="grid-column: 1 / -1; margin-bottom: 2rem;">
+                <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="border-radius: 16px; padding: 10px 20px; font-size: 0.9rem;">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Dashboard
+                </button>
+            </div>
+
+            <div style="grid-column: 1 / -1;">
+                <div class="account-grid" id="account-grid">
+                    <!-- Accounts will be loaded here -->
+                    <div class="add-account-btn" onclick="openModal()">
+                        <i class="ph-bold ph-plus-circle" style="font-size: 2.5rem; margin-bottom: 0.5rem;"></i>
+                        <span style="font-weight: 600;">Add New WhatsApp</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 LankaBot Premium. Scalable WhatsApp Automation.</p>
+        </footer>
+    </div>
+
+    <!-- Add Account Modal -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <div id="setup-initial">
+                <h2 style="margin-top: 0; margin-bottom: 1.5rem;">New Session</h2>
+                <p style="color: var(--text-dim); margin-bottom: 2rem;">Give this session a name to identify it (e.g. "Personal", "Business").</p>
+                <div class="input-group">
+                    <label>Session Name</label>
+                    <i class="ph-bold ph-tag"></i>
+                    <input type="text" id="sessionName" placeholder="e.g. My Business Bot">
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn-secondary" onclick="closeModal()" style="flex: 1;">Cancel</button>
+                    <button class="btn-primary" id="btn-create" onclick="createAccount()" style="flex: 2;">Create Session</button>
+                </div>
+            </div>
+
+            <div id="setup-qr" style="display: none; text-align: center;">
+                <h2 style="margin-top: 0; margin-bottom: 1rem;">Scan QR Code</h2>
+                <p style="color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Open WhatsApp on your phone and scan this code to link the account.</p>
+                <div id="modal-qr-container" style="background: white; padding: 1rem; border-radius: 20px; display: inline-block; margin-bottom: 1.5rem;">
+                    <div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 10px;">
+                        <i class="ph-bold ph-circle-notch ph-spin" style="font-size: 2rem; color: #333;"></i>
+                    </div>
+                </div>
+                <p id="setup-status" style="color: var(--primary); font-weight: 600; font-size: 0.9rem; margin: 0;">Initializing client...</p>
+                <button class="btn-secondary" onclick="closeModal()" style="margin-top: 1.5rem; width: 100%;">Cancel Setup</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+    <script>
+        const accountGrid = document.getElementById('account-grid');
+        const addModal = document.getElementById('addModal');
+        const sessionNameInput = document.getElementById('sessionName');
+        const setupInitial = document.getElementById('setup-initial');
+        const setupQr = document.getElementById('setup-qr');
+        const modalQrContainer = document.getElementById('modal-qr-container');
+        const setupStatus = document.getElementById('setup-status');
+
+        let pendingAccountId = null;
+
+        // Socket listeners for setup
+        socket.on('account_qr', (data) => {
+            if (data.accountId === pendingAccountId) {
+                modalQrContainer.innerHTML = `<img src="${data.qr}" style="width: 200px; height: 200px; display: block;">`;
+                setupStatus.textContent = 'Scan the QR code above';
+            }
+        });
+
+        socket.on('account_ready', (data) => {
+            if (data.accountId === pendingAccountId) {
+                setupStatus.textContent = 'Account linked successfully!';
+                setTimeout(() => {
+                    closeModal();
+                    fetchAccounts();
+                }, 1500);
+            }
+        });
+
+        async function fetchAccounts() {
+            try {
+                const res = await fetch('/api/accounts', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const accounts = await res.json();
+                renderAccounts(accounts);
+            } catch (err) {
+                console.error('Error fetching accounts:', err);
+            }
+        }
+
+        function renderAccounts(accounts) {
+            // Keep the "Add" button
+            const addButton = accountGrid.querySelector('.add-account-btn');
+            if (!addButton) return; // Prevent errors if grid is cleared
+            accountGrid.innerHTML = '';
+            
+            accounts.forEach(acc => {
+                const card = document.createElement('div');
+                card.className = `account-card ${localStorage.getItem('activeAccountId') === acc._id ? 'active' : ''}`;
+                
+                const statusClass = `status-${acc.status}`;
+                const statusIcon = acc.status === 'ready' ? 'ph-check-circle' : (acc.status === 'qr' ? 'ph-qr-code' : 'ph-x-circle');
+                
+                card.innerHTML = `
+                    <div class="account-header">
+                        <img class="account-avatar" src="${acc.profilePic || 'https://ui-avatars.com/api/?name=' + acc.sessionId}" alt="Avatar">
+                        <div class="account-info">
+                            <h3>${acc.sessionId}</h3>
+                            <p>${acc.phoneNumber || 'Not connected'}</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="account-status ${statusClass}">
+                            <i class="ph-fill ${statusIcon}"></i>
+                            <span>${acc.status.toUpperCase()}</span>
+                        </div>
+                        <button class="btn-secondary" style="padding: 4px 10px; font-size: 0.75rem; display: flex; align-items: center; gap: 5px; border-radius: 10px; ${acc.paused ? 'background: rgba(230, 126, 34, 0.1); color: #e67e22; border-color: #e67e22;' : ''}" onclick="togglePause('${acc._id}')">
+                            <i class="ph-bold ${acc.paused ? 'ph-play' : 'ph-pause'}"></i>
+                            ${acc.paused ? 'Resume' : 'Pause'}
+                        </button>
+                    </div>
+                    <div class="account-actions">
+                        <button class="btn-primary" style="padding: 8px; font-size: 0.8rem;" onclick="selectAccount('${acc._id}')">
+                            <i class="ph-bold ph-arrow-square-out"></i> Manage
+                        </button>
+                        <button class="btn-secondary" style="padding: 8px; font-size: 0.8rem; color: #e74c3c;" onclick="deleteAccount('${acc._id}')">
+                            <i class="ph-bold ph-trash"></i> Delete
+                        </button>
+                    </div>
+                `;
+                accountGrid.appendChild(card);
+            });
+            
+            accountGrid.appendChild(addButton);
+        }
+
+        async function togglePause(id) {
+            try {
+                const res = await fetch(`/api/accounts/${id}/pause`, {
+                    method: 'PATCH',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (res.ok) fetchAccounts();
+            } catch (err) {
+                alert('Error toggling pause');
+            }
+        }
+
+        function selectAccount(id) {
+            localStorage.setItem('activeAccountId', id);
+            window.location.href = '/dashboard.html';
+        }
+
+        async function createAccount() {
+            const sessionId = sessionNameInput.value;
+            if (!sessionId) return alert('Please enter a session name');
+
+            const btnCreate = document.getElementById('btn-create');
+            btnCreate.disabled = true;
+            btnCreate.innerHTML = '<span>Processing...</span><i class="ph-bold ph-spinner"></i>';
+
+            try {
+                const res = await fetch('/api/accounts', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ sessionId })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    pendingAccountId = data._id;
+                    setupInitial.style.display = 'none';
+                    setupQr.style.display = 'block';
+                } else {
+                    const data = await res.json();
+                    alert(data.msg || 'Error creating account');
+                    btnCreate.disabled = false;
+                    btnCreate.innerHTML = '<span>Create Session</span><i class="ph-bold ph-check"></i>';
+                }
+            } catch (err) {
+                alert('Connection error');
+                btnCreate.disabled = false;
+                btnCreate.innerHTML = '<span>Create Session</span><i class="ph-bold ph-check"></i>';
+            }
+        }
+
+        async function deleteAccount(id) {
+            if (!confirm('Are you sure you want to delete this account? This will stop all automation for this number.')) return;
+
+            try {
+                const res = await fetch(`/api/accounts/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+
+                if (res.ok) {
+                    if (localStorage.getItem('activeAccountId') === id) {
+                        localStorage.removeItem('activeAccountId');
+                    }
+                    fetchAccounts();
+                }
+            } catch (err) {
+                alert('Error deleting account');
+            }
+        }
+
+        function openModal() { 
+            pendingAccountId = null;
+            setupInitial.style.display = 'block';
+            setupQr.style.display = 'none';
+            sessionNameInput.value = '';
+            addModal.style.display = 'flex'; 
+        }
+
+        function closeModal() { 
+            addModal.style.display = 'none'; 
+            if (pendingAccountId) fetchAccounts();
+        }
+
+        fetchAccounts();
+    </script>
+</body>
+</html>

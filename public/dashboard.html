@@ -38,9 +38,12 @@
                 <img id="header-account-pic" src="https://ui-avatars.com/api/?name=User&background=2ecc71&color=fff" alt="Profile">
                 <div class="header-user-details">
                     <h4 id="header-account-name">...</h4>
-                    <p id="header-account-number">...</p>
+                    <p id="header-account-number" style="display: none;">...</p>
                 </div>
-                <button id="logout-btn" class="logout-mini-btn" title="Logout">
+                <button class="logout-mini-btn" title="Switch Account" onclick="window.location.href='/accounts.html'" style="margin-left: 0.5rem; background: rgba(52, 152, 219, 0.1); color: #3498db;">
+                    <i class="ph-bold ph-arrows-left-right"></i>
+                </button>
+                <button id="logout-btn" class="logout-mini-btn" title="Logout" style="margin-left: 0.5rem;">
                     <i class="ph-bold ph-sign-out"></i>
                 </button>
             </div>
@@ -103,6 +106,28 @@
                         <h3>Groq AI Config</h3>
                         <p>Configure how AI handles messages and define its personality.</p>
                         <span class="badge-soon" style="background: rgba(241, 196, 15, 0.2); color: #f1c40f;">Powered by Groq Llama 3.1</span>
+                    </div>
+                </div>
+
+                <!-- Settings Card -->
+                <div class="card feature-card" onclick="window.location.href='/settings.html'">
+                    <div class="feature-icon-wrapper" style="background: rgba(var(--primary-rgb), 0.1);">
+                        <i class="ph-bold ph-gear" style="color: var(--primary);"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>General Settings</h3>
+                        <p>Manage bot behavior, response times, and typing indicators.</p>
+                    </div>
+                </div>
+
+                <!-- Accounts Card -->
+                <div class="card feature-card" onclick="window.location.href='/accounts.html'">
+                    <div class="feature-icon-wrapper" style="background: rgba(52, 152, 219, 0.1);">
+                        <i class="ph-bold ph-users-three" style="color: #3498db;"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>Manage Accounts</h3>
+                        <p>Add or switch between multiple WhatsApp numbers.</p>
                     </div>
                 </div>
             </section>
