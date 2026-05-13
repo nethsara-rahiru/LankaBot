@@ -196,7 +196,16 @@ const startClient = async (accountId) => {
                 buffer.timeout = setTimeout(async () => {
                     const combinedMsg = buffer.messages.join('\n');
                     aiBuffers.delete(bufferKey);
-                    const aiResponse = await getGroqResponse(combinedMsg, settings.aiSystemPrompt);
+                    
+                    let fullSystemPrompt = `${settings.aiSystemPrompt}\n\n`;
+                    if (settings.aiPersonality) fullSystemPrompt += `PERSONALITY:\n${settings.aiPersonality}\n\n`;
+                    if (settings.aiBehavior) fullSystemPrompt += `BEHAVIOR:\n${settings.aiBehavior}\n\n`;
+                    if (settings.aiDecisionMaking) fullSystemPrompt += `DECISION-MAKING:\n${settings.aiDecisionMaking}\n\n`;
+                    if (settings.aiCommunicationStyle) fullSystemPrompt += `COMMUNICATION STYLE:\n${settings.aiCommunicationStyle}\n\n`;
+                    if (settings.aiBrandIdentity) fullSystemPrompt += `BRAND IDENTITY:\n${settings.aiBrandIdentity}\n\n`;
+                    if (settings.knowledgeBase) fullSystemPrompt += `KNOWLEDGE BASE / FACTS:\n${settings.knowledgeBase}\n\n`;
+                    
+                    const aiResponse = await getGroqResponse(combinedMsg, fullSystemPrompt);
                     if (aiResponse) {
                         const chat = await msg.getChat();
                         try {

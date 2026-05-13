@@ -37,6 +37,12 @@ exports.updateSettings = async (req, res) => {
         if (req.body.responseTime !== undefined) settings.responseTime = req.body.responseTime;
         if (req.body.typingTime !== undefined) settings.typingTime = req.body.typingTime;
         if (req.body.waitingTime !== undefined) settings.waitingTime = req.body.waitingTime;
+        if (req.body.knowledgeBase !== undefined) settings.knowledgeBase = req.body.knowledgeBase;
+        if (req.body.aiPersonality !== undefined) settings.aiPersonality = req.body.aiPersonality;
+        if (req.body.aiBehavior !== undefined) settings.aiBehavior = req.body.aiBehavior;
+        if (req.body.aiDecisionMaking !== undefined) settings.aiDecisionMaking = req.body.aiDecisionMaking;
+        if (req.body.aiCommunicationStyle !== undefined) settings.aiCommunicationStyle = req.body.aiCommunicationStyle;
+        if (req.body.aiBrandIdentity !== undefined) settings.aiBrandIdentity = req.body.aiBrandIdentity;
         settings.updatedAt = Date.now();
         
         const updatedSettings = await settings.save();

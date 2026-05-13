@@ -26,6 +26,15 @@ const SettingsSchema = new mongoose.Schema({
         type: Number,
         default: 1000 // 1 second
     },
+    knowledgeBase: {
+        type: String,
+        default: ""
+    },
+    aiPersonality: { type: String, default: "" },
+    aiBehavior: { type: String, default: "" },
+    aiDecisionMaking: { type: String, default: "" },
+    aiCommunicationStyle: { type: String, default: "" },
+    aiBrandIdentity: { type: String, default: "" },
     updatedAt: {
         type: Date,
         default: Date.now
