@@ -17,6 +17,12 @@ const SettingsSchema = new mongoose.Schema({
         communicationStyle: { type: String, default: "" },
         brandIdentity: { type: String, default: "" }
     },
+    customCompanyDetails: [
+        {
+            key: { type: String, required: true },
+            value: { type: String, required: true }
+        }
+    ],
     customPrompts: [
         {
             title: { type: String, required: true },

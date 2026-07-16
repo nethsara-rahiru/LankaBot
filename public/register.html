@@ -140,7 +140,7 @@
                 if (res.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    window.location.href = '/dashboard.html';
+                    window.location.href = '/manageAccount.html';
                 } else {
                     errorDiv.textContent = data.msg || 'Registration failed';
                     errorDiv.style.display = 'block';
@@ -156,7 +156,7 @@
 
         // Redirect if already logged in
         if (localStorage.getItem('token')) {
-            window.location.href = '/dashboard.html';
+            window.location.href = '/manageAccount.html';
         }
     </script>
 </body>

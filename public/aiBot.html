@@ -14,10 +14,10 @@
     <nav class="top-bar">
         <div class="top-bar-inner">
             <div class="top-bar-left">
-                <button class="back-btn" onclick="window.location.href='/dashboard.html'" title="Back to Dashboard">
+                <button class="back-btn" onclick="window.location.href='/manageAccount.html'" title="Back to Dashboard">
                     <i class="ph-bold ph-arrow-left"></i>
                 </button>
-                <div class="logo" style="margin-left: 1rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" onclick="window.location.href='/dashboard.html'">
+                <div class="logo" style="margin-left: 1rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" onclick="window.location.href='/manageAccount.html'">
                     <i class="ph-fill ph-robot logo-icon" style="font-size: 1.8rem;"></i>
                     <h1 style="font-size: 1.3rem; margin: 0; font-weight: 700; letter-spacing: -0.5px;">Lanka<span style="color: var(--primary);">Bot</span> <span style="color: var(--text-dim); font-size: 1rem; font-weight: 400; margin-left: 0.5rem;">| AI Config</span></h1>
                 </div>
@@ -67,45 +67,33 @@
                             <i class="ph-bold ph-buildings" style="margin-top: 4px;"></i>
                             <input type="text" id="aiOrganizationName" placeholder="e.g. Lanka Tech Solutions..." style="padding-left: 2.5rem;" />
                         </div>
+                        
+                        <!-- Dynamic Company Details -->
                         <div class="input-group" style="grid-column: 1 / -1;">
                             <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
-                                <span>Current Compiled System Prompt (from AI Scripts)</span>
+                                <span><i class="ph-bold ph-storefront" style="margin-right: 6px; color: var(--primary);"></i>Company Details & Knowledge</span>
+                                <button type="button" onclick="addCompanyDetailRow(null, null, true)" style="background: rgba(var(--primary-rgb), 0.15); border: 1px solid var(--primary); color: var(--primary); cursor: pointer; padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; display: flex; align-items: center; gap: 4px;" title="Add new field">
+                                    <i class="ph-bold ph-plus"></i> Add Field
+                                </button>
                             </label>
-                            <i class="ph-bold ph-terminal" style="margin-top: 4px;"></i>
-                            <textarea id="compiledSystemPrompt" readonly style="min-height: 250px; background: rgba(0,0,0,0.2); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; cursor: not-allowed;"></textarea>
+                            <p style="margin: 0 0 1rem 0; font-size: 0.8rem; color: var(--text-dim);">Add custom info here (e.g. "Physical Address", "Open Hours", "Delivery Policy") to train the AI on your specific business details.</p>
+                            
+                            <div id="companyDetailsContainer" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <!-- Dynamic rows go here -->
+                            </div>
                         </div>
-                        <div class="input-group">
+
+                        <div class="input-group" style="grid-column: 1 / -1;">
                             <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
-                                <span>Personality</span>
-                                <button type="button" onclick="document.getElementById('aiPersonality').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
+                                <span><i class="ph-bold ph-terminal" style="margin-right: 6px; color: var(--primary);"></i>Current Compiled System Prompt (from AI Scripts)</span>
                             </label>
-                            <i class="ph-bold ph-user-focus" style="margin-top: 4px;"></i>
-                            <textarea id="aiPersonality" placeholder="Funny, Professional, Sarcastic..." style="min-height: 100px;"></textarea>
+                            <div id="scriptBlocksContainer" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                                <p style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+                                    <i class="ph-bold ph-spinner"></i> Loading AI scripts…
+                                </p>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
-                                <span>Behavior</span>
-                                <button type="button" onclick="document.getElementById('aiBehavior').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
-                            </label>
-                            <i class="ph-bold ph-activity" style="margin-top: 4px;"></i>
-                            <textarea id="aiBehavior" placeholder="How to handle angry customers..." style="min-height: 100px;"></textarea>
-                        </div>
-                        <div class="input-group">
-                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
-                                <span>Communication Style</span>
-                                <button type="button" onclick="document.getElementById('aiCommunicationStyle').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
-                            </label>
-                            <i class="ph-bold ph-chat-circle-dots" style="margin-top: 4px;"></i>
-                            <textarea id="aiCommunicationStyle" placeholder="Formal, Slang, Emoji-heavy..." style="min-height: 100px;"></textarea>
-                        </div>
-                        <div class="input-group">
-                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
-                                <span>Brand Identity</span>
-                                <button type="button" onclick="document.getElementById('aiBrandIdentity').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
-                            </label>
-                            <i class="ph-bold ph-copyright" style="margin-top: 4px;"></i>
-                            <textarea id="aiBrandIdentity" placeholder="Company mission, vision, values..." style="min-height: 100px;"></textarea>
-                        </div>
+
                     </div>
 
                     <button id="save-settings" class="btn-primary" style="margin-top: 1.5rem; width: 100%;">
@@ -344,14 +332,191 @@
             .top-bar { padding: 1rem; }
             .top-bar-right { display: none !important; }
         }
+        /* ── AI Script Blocks ── */
+        .script-block {
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .script-block:hover {
+            border-color: rgba(var(--primary-rgb), 0.3);
+        }
+        .script-block-header {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.9rem 1.2rem;
+            background: rgba(255, 255, 255, 0.03);
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .script-block-header:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .script-block-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(var(--primary-rgb), 0.12);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .script-block-title {
+            flex: 1;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+        .script-block-filename {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255,255,255,0.05);
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+        .script-block-chevron {
+            color: var(--text-dim);
+            font-size: 1rem;
+            transition: transform 0.25s ease;
+        }
+        .script-block.open .script-block-chevron {
+            transform: rotate(180deg);
+        }
+        .script-block-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        .script-block.open .script-block-body {
+            max-height: 600px;
+        }
+        .script-block-content {
+            padding: 0 1.2rem 1rem 1.2rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            line-height: 1.65;
+            color: var(--text-dim);
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: rgba(0, 0, 0, 0.15);
+            margin: 0 0.6rem 0.6rem 0.6rem;
+            padding: 1rem;
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .script-block-content::-webkit-scrollbar {
+            width: 5px;
+        }
+        .script-block-content::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.15);
+            border-radius: 5px;
+        }
+
     </style>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
     <script>
         const aiEnabledToggle = document.getElementById('aiEnabled');
-        const compiledPromptArea = document.getElementById('compiledSystemPrompt');
+        const scriptBlocksContainer = document.getElementById('scriptBlocksContainer');
+        const companyDetailsContainer = document.getElementById('companyDetailsContainer');
         const saveBtn = document.getElementById('save-settings');
+
+        // Script file icon map
+        const scriptIcons = {
+            'system_prompt.txt': 'ph-code',
+            'role_and_behavior.txt': 'ph-user-gear',
+            'customer_memory_system.txt': 'ph-brain',
+            'global_customer_information.txt': 'ph-globe',
+            'organization_speciffic_customer_memory.txt': 'ph-buildings',
+            'current_conversation Memory.txt': 'ph-chat-circle-text',
+            'language_policy.txt': 'ph-translate',
+            'company_knowledge.txt': 'ph-book-open',
+            'respons_style.txt': 'ph-palette',
+            'ai_decision_process.txt': 'ph-tree-structure',
+            'current_customer_data.txt': 'ph-identification-card',
+            'rule.txt': 'ph-scales',
+        };
+
+        // --- Dynamic Company Details ---
+        function addCompanyDetailRow(key = '', value = '', isInteractive = false) {
+            if (isInteractive) {
+                const newKey = prompt("Enter the name for the new field (e.g., Physical Address, Open Hours):");
+                if (!newKey || !newKey.trim()) return;
+                key = newKey.trim();
+            } else if (!key) {
+                return;
+            }
+
+            const id = 'detail_' + Math.random().toString(36).substr(2, 9);
+            const div = document.createElement('div');
+            div.className = 'input-group company-detail-row-container';
+            div.id = id;
+            div.innerHTML = `
+                <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                    <span>${escapeHtml(key)}</span>
+                    <button type="button" onclick="document.getElementById('${id}').remove()" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Remove Field"><i class="ph-bold ph-trash"></i></button>
+                </label>
+                <i class="ph-bold ph-text-align-left" style="margin-top: 4px;"></i>
+                <input type="hidden" class="detail-key" value="${escapeHtml(key)}">
+                <textarea class="detail-value" placeholder="Enter information for ${escapeHtml(key)}..." style="min-height: 80px;">${escapeHtml(value)}</textarea>
+            `;
+            companyDetailsContainer.appendChild(div);
+        }
+
+        function getCompanyDetails() {
+            const details = [];
+            const rows = companyDetailsContainer.querySelectorAll('.company-detail-row-container');
+            rows.forEach(row => {
+                const key = row.querySelector('.detail-key').value.trim();
+                const value = row.querySelector('.detail-value').value.trim();
+                if (key && value) {
+                    details.push({ key, value });
+                }
+            });
+            return details;
+        }
+
+        function renderScriptBlocks(scripts) {
+            if (!scripts || scripts.length === 0) {
+                scriptBlocksContainer.innerHTML = `
+                    <p style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+                        <i class="ph-bold ph-warning"></i> No AI scripts found in <code>AI/scripts/</code> folder.
+                    </p>`;
+                return;
+            }
+
+            scriptBlocksContainer.innerHTML = scripts.map((s, i) => {
+                const icon = scriptIcons[s.filename] || 'ph-file-text';
+                return `
+                <div class="script-block" id="script-block-${i}">
+                    <div class="script-block-header" onclick="toggleScriptBlock(${i})">
+                        <div class="script-block-icon">
+                            <i class="ph-bold ${icon}"></i>
+                        </div>
+                        <span class="script-block-title">${escapeHtml(s.title)}</span>
+                        <span class="script-block-filename">${escapeHtml(s.filename)}</span>
+                        <i class="ph-bold ph-caret-down script-block-chevron"></i>
+                    </div>
+                    <div class="script-block-body">
+                        <div class="script-block-content">${escapeHtml(s.content)}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleScriptBlock(index) {
+            const block = document.getElementById(`script-block-${index}`);
+            if (block) block.classList.toggle('open');
+        }
 
         /* ────────────────────────────
            Main AI Settings
@@ -369,24 +534,25 @@
                 aiEnabledToggle.checked = data.aiEnabled;
                 if (data.aiConfig) {
                     document.getElementById('aiOrganizationName').value = data.aiConfig.organizationName || '';
-                    document.getElementById('aiPersonality').value = data.aiConfig.personality || '';
-                    document.getElementById('aiBehavior').value = data.aiConfig.behavior || '';
-                    document.getElementById('aiCommunicationStyle').value = data.aiConfig.communicationStyle || '';
-                    document.getElementById('aiBrandIdentity').value = data.aiConfig.brandIdentity || '';
                 }
                 
-                // Fetch compiled prompt
+                companyDetailsContainer.innerHTML = '';
+                if (data.customCompanyDetails && data.customCompanyDetails.length > 0) {
+                    data.customCompanyDetails.forEach(d => addCompanyDetailRow(d.key, d.value));
+                }
+                
+                // Fetch individual AI script files
                 try {
-                    const promptRes = await fetch('/api/settings/compiled-prompt', {
+                    const scriptsRes = await fetch('/api/settings/prompt-scripts', {
                         headers: {
                             'Authorization': `Bearer ${localStorage.getItem('token')}`,
                             'x-account-id': activeAccountId
                         }
                     });
-                    const promptData = await promptRes.json();
-                    compiledPromptArea.value = promptData.prompt || 'Failed to load compiled prompt.';
+                    const scripts = await scriptsRes.json();
+                    renderScriptBlocks(scripts);
                 } catch(e) {
-                    compiledPromptArea.value = 'Failed to load compiled prompt.';
+                    scriptBlocksContainer.innerHTML = `<p style="color:#ff6060;text-align:center;">Failed to load AI scripts.</p>`;
                 }
                 
                 const statusText = document.getElementById('ai-status-text');
@@ -415,12 +581,9 @@
                     body: JSON.stringify({ 
                         aiEnabled, 
                         aiConfig: {
-                            organizationName: document.getElementById('aiOrganizationName').value,
-                            personality: document.getElementById('aiPersonality').value,
-                            behavior: document.getElementById('aiBehavior').value,
-                            communicationStyle: document.getElementById('aiCommunicationStyle').value,
-                            brandIdentity: document.getElementById('aiBrandIdentity').value
-                        }
+                            organizationName: document.getElementById('aiOrganizationName').value
+                        },
+                        customCompanyDetails: getCompanyDetails()
                     })
                 });
                 if (res.ok) {

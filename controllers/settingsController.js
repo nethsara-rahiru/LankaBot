@@ -1,5 +1,5 @@
 const Settings = require('../models/Settings');
-const { getPromptTemplate } = require('../utils/groq');
+const { getPromptTemplate, getPromptScripts } = require('../utils/groq');
 
 // @desc    Get settings for specific account
 // @route   GET /api/settings
@@ -32,6 +32,18 @@ exports.getCompiledPrompt = (req, res) => {
     }
 };
 
+// @desc    Get individual AI script files
+// @route   GET /api/settings/prompt-scripts
+// @access  Private
+exports.getPromptScriptsEndpoint = (req, res) => {
+    try {
+        const scripts = getPromptScripts();
+        res.json(scripts);
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+};
+
 // @desc    Update settings for specific account
 // @route   PATCH /api/settings
 // @access  Private
@@ -54,6 +66,10 @@ exports.updateSettings = async (req, res) => {
             if (req.body.aiConfig.behavior !== undefined) settings.aiConfig.behavior = req.body.aiConfig.behavior;
             if (req.body.aiConfig.communicationStyle !== undefined) settings.aiConfig.communicationStyle = req.body.aiConfig.communicationStyle;
             if (req.body.aiConfig.brandIdentity !== undefined) settings.aiConfig.brandIdentity = req.body.aiConfig.brandIdentity;
+        }
+        
+        if (req.body.customCompanyDetails !== undefined) {
+            settings.customCompanyDetails = req.body.customCompanyDetails;
         }
         
         const updatedSettings = await settings.save();

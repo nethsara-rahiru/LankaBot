@@ -121,4 +121,27 @@ const getGroqResponse = async (prompt, systemPrompt, retries = 3) => {
     return "I'm experiencing some connectivity issues with my AI brain. Please try again in a moment! 🧠⚡";
 };
 
-module.exports = { getGroqResponse, getPromptTemplate };
+/**
+ * Returns individual AI script files as separate objects for UI display.
+ */
+const getPromptScripts = () => {
+    const scripts = [];
+    if (!fs.existsSync(AI_DIR)) return scripts;
+
+    const files = fs.readdirSync(AI_DIR);
+    for (const file of FILE_ORDER) {
+        const actualFile = files.find(f => f.toLowerCase().replace(/ /g, '_') === file.toLowerCase().replace(/ /g, '_'));
+        if (actualFile) {
+            const content = fs.readFileSync(path.join(AI_DIR, actualFile), 'utf8');
+            // Create a readable title from the filename
+            const title = actualFile
+                .replace(/\.txt$/, '')
+                .replace(/[_\-]/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+            scripts.push({ filename: actualFile, title, content });
+        }
+    }
+    return scripts;
+};
+
+module.exports = { getGroqResponse, getPromptTemplate, getPromptScripts };

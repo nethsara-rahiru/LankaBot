@@ -324,14 +324,26 @@ const startClient = async (accountId) => {
                         organization_customer_profile: '{}'
                     };
 
-                    // Include any specific AI Config text they saved
+                    let configStr = '';
+                    
+                    // Include any legacy AI Config text if they still exist
                     if (settings.aiConfig) {
-                        let configStr = '';
                         if (settings.aiConfig.personality) configStr += `PERSONALITY:\n${settings.aiConfig.personality}\n\n`;
                         if (settings.aiConfig.behavior) configStr += `BEHAVIOR:\n${settings.aiConfig.behavior}\n\n`;
                         if (settings.aiConfig.communicationStyle) configStr += `COMMUNICATION STYLE:\n${settings.aiConfig.communicationStyle}\n\n`;
                         if (settings.aiConfig.brandIdentity) configStr += `BRAND IDENTITY:\n${settings.aiConfig.brandIdentity}\n\n`;
-                        
+                    }
+
+                    // Include dynamic company details
+                    if (settings.customCompanyDetails && settings.customCompanyDetails.length > 0) {
+                        configStr += `COMPANY / BUSINESS DETAILS:\n`;
+                        settings.customCompanyDetails.forEach(detail => {
+                            configStr += `- **${detail.key}**: ${detail.value}\n`;
+                        });
+                        configStr += `\n`;
+                    }
+                    
+                    if (configStr) {
                         promptData.knowledge_chunks = configStr + (promptData.knowledge_chunks === 'No additional knowledge provided.' ? '' : promptData.knowledge_chunks);
                         promptData.knowledge = promptData.knowledge_chunks;
                     }

@@ -6,6 +6,9 @@ const auth = require('../middleware/auth');
 // Get compiled prompt from AI scripts
 router.get('/compiled-prompt', auth, settingsController.getCompiledPrompt);
 
+// Get individual AI script files
+router.get('/prompt-scripts', auth, settingsController.getPromptScriptsEndpoint);
+
 // Get settings for specific account
 router.get('/', auth, settingsController.getSettings);
 
