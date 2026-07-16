@@ -11,36 +11,34 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div style="margin-bottom: 1rem; display: flex; justify-content: flex-start;">
-            <button class="btn-secondary" onclick="window.location.href='/dashboard.html'" style="width: auto; border-radius: 12px; padding: 8px 16px; font-size: 0.85rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
-                <i class="ph-bold ph-arrow-left"></i> Back to Dashboard
-            </button>
-        </div>
-        <header>
-            <div class="header-left">
-                <div class="logo-wrapper" onclick="window.location.href='/dashboard.html'" style="cursor: pointer;">
-                    <i class="ph-fill ph-robot logo-icon"></i>
-                    <div class="logo">
-                        <h1>Lanka<span>Bot</span></h1>
-                        <p>Advanced Automation</p>
-                    </div>
+    <nav class="top-bar">
+        <div class="top-bar-inner">
+            <div class="top-bar-left">
+                <button class="back-btn" onclick="window.location.href='/dashboard.html'" title="Back to Dashboard">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <div class="logo" style="margin-left: 1rem; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" onclick="window.location.href='/dashboard.html'">
+                    <i class="ph-fill ph-robot logo-icon" style="font-size: 1.8rem;"></i>
+                    <h1 style="font-size: 1.3rem; margin: 0; font-weight: 700; letter-spacing: -0.5px;">Lanka<span style="color: var(--primary);">Bot</span> <span style="color: var(--text-dim); font-size: 1rem; font-weight: 400; margin-left: 0.5rem;">| AI Config</span></h1>
                 </div>
             </div>
-
-            <div id="user-profile-header" class="user-profile-header" style="display: none;">
-                <img id="header-account-pic" src="" alt="Profile">
-                <div class="header-user-details">
-                    <h4 id="header-account-name">...</h4>
-                    <p id="header-account-number">...</p>
-                </div>
-                <div class="status-indicator connected" style="margin-left: 1rem;">
+            <div class="top-bar-right" id="user-profile-header" style="display: none;">
+                <div class="status-indicator connected" style="margin-right: 0.5rem; background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.2);">
                     <i class="ph-fill ph-sparkle"></i>
-                    <span id="ai-status-text">AI Mode Active</span>
+                    <span id="ai-status-text">AI Mode</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.8rem; padding-left: 0.8rem; border-left: 1px solid var(--glass-border);">
+                    <div class="header-user-details" style="display: flex; flex-direction: column; text-align: right;">
+                        <h4 id="header-account-name" style="font-size: 0.9rem; margin: 0; line-height: 1.2; color: var(--text);">...</h4>
+                        <p id="header-account-number" style="font-size: 0.75rem; margin: 0; color: var(--text-dim);">...</p>
+                    </div>
+                    <img id="header-account-pic" src="" alt="Profile" style="width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover;">
                 </div>
             </div>
-        </header>
+        </div>
+    </nav>
 
+    <div class="container" style="padding-top: 2rem;">
         <main>
             <div style="grid-column: 1 / -1; max-width: 800px; margin: 0 auto; width: 100%;">
                 <section class="card">
@@ -62,38 +60,50 @@
 
                     <div class="training-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
                         <div class="input-group">
-                            <label>Base System Prompt</label>
-                            <i class="ph-bold ph-identification-card"></i>
-                            <textarea id="aiSystemPrompt" placeholder="Primary instructions..." style="min-height: 100px;"></textarea>
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                                <span>Organization Name</span>
+                                <button type="button" onclick="document.getElementById('aiOrganizationName').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
+                            </label>
+                            <i class="ph-bold ph-buildings" style="margin-top: 4px;"></i>
+                            <input type="text" id="aiOrganizationName" placeholder="e.g. Lanka Tech Solutions..." style="padding-left: 2.5rem;" />
+                        </div>
+                        <div class="input-group" style="grid-column: 1 / -1;">
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                                <span>Current Compiled System Prompt (from AI Scripts)</span>
+                            </label>
+                            <i class="ph-bold ph-terminal" style="margin-top: 4px;"></i>
+                            <textarea id="compiledSystemPrompt" readonly style="min-height: 250px; background: rgba(0,0,0,0.2); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; cursor: not-allowed;"></textarea>
                         </div>
                         <div class="input-group">
-                            <label>Knowledge Base (Facts)</label>
-                            <i class="ph-bold ph-books"></i>
-                            <textarea id="knowledgeBase" placeholder="FAQ, Price, Office Address..." style="min-height: 100px;"></textarea>
-                        </div>
-                        <div class="input-group">
-                            <label>Personality</label>
-                            <i class="ph-bold ph-user-focus"></i>
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                                <span>Personality</span>
+                                <button type="button" onclick="document.getElementById('aiPersonality').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
+                            </label>
+                            <i class="ph-bold ph-user-focus" style="margin-top: 4px;"></i>
                             <textarea id="aiPersonality" placeholder="Funny, Professional, Sarcastic..." style="min-height: 100px;"></textarea>
                         </div>
                         <div class="input-group">
-                            <label>Behavior</label>
-                            <i class="ph-bold ph-activity"></i>
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                                <span>Behavior</span>
+                                <button type="button" onclick="document.getElementById('aiBehavior').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
+                            </label>
+                            <i class="ph-bold ph-activity" style="margin-top: 4px;"></i>
                             <textarea id="aiBehavior" placeholder="How to handle angry customers..." style="min-height: 100px;"></textarea>
                         </div>
                         <div class="input-group">
-                            <label>Decision Making</label>
-                            <i class="ph-bold ph-scales"></i>
-                            <textarea id="aiDecisionMaking" placeholder="When to offer discounts..." style="min-height: 100px;"></textarea>
-                        </div>
-                        <div class="input-group">
-                            <label>Communication Style</label>
-                            <i class="ph-bold ph-chat-circle-dots"></i>
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                                <span>Communication Style</span>
+                                <button type="button" onclick="document.getElementById('aiCommunicationStyle').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
+                            </label>
+                            <i class="ph-bold ph-chat-circle-dots" style="margin-top: 4px;"></i>
                             <textarea id="aiCommunicationStyle" placeholder="Formal, Slang, Emoji-heavy..." style="min-height: 100px;"></textarea>
                         </div>
-                        <div class="input-group" style="grid-column: 1 / -1;">
-                            <label>Brand Identity</label>
-                            <i class="ph-bold ph-copyright"></i>
+                        <div class="input-group">
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 0.4rem;">
+                                <span>Brand Identity</span>
+                                <button type="button" onclick="document.getElementById('aiBrandIdentity').value=''" style="background: none; border: none; color: rgba(255,80,80,0.8); cursor: pointer; padding: 0;" title="Clear Field"><i class="ph-bold ph-trash"></i></button>
+                            </label>
+                            <i class="ph-bold ph-copyright" style="margin-top: 4px;"></i>
                             <textarea id="aiBrandIdentity" placeholder="Company mission, vision, values..." style="min-height: 100px;"></textarea>
                         </div>
                     </div>
@@ -104,6 +114,42 @@
                     </button>
                 </section>
 
+                <!-- ── Custom System Prompts ── -->
+                <section class="card" id="custom-prompts-section" style="margin-top: 2rem;">
+                    <div class="card-header">
+                        <i class="ph-bold ph-notepad"></i>
+                        <h2>Custom System Prompts</h2>
+                    </div>
+
+                    <!-- Add new prompt form -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 20px; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0 0 1rem 0; font-size: 1rem; color: var(--text);">
+                            <i class="ph-bold ph-plus-circle" style="margin-right: 6px; color: var(--primary);"></i>Save New Prompt
+                        </h3>
+                        <div class="input-group" style="margin-bottom: 1rem;">
+                            <label>Prompt Title</label>
+                            <i class="ph-bold ph-tag"></i>
+                            <input type="text" id="customPromptTitle" placeholder="e.g. Sales Bot, Support Agent, Formal Tone…" style="padding-left: 2.5rem;">
+                        </div>
+                        <div class="input-group" style="margin-bottom: 1rem;">
+                            <label>System Prompt</label>
+                            <i class="ph-bold ph-identification-card"></i>
+                            <textarea id="customPromptText" placeholder="Write the full system prompt here…" style="min-height: 120px;"></textarea>
+                        </div>
+                        <button id="save-custom-prompt" class="btn-primary" style="width: 100%;">
+                            <span>Save Prompt</span>
+                            <i class="ph-bold ph-floppy-disk"></i>
+                        </button>
+                    </div>
+
+                    <!-- Saved prompts list -->
+                    <div id="custom-prompts-list">
+                        <p style="color: var(--text-dim); font-size: 0.85rem; text-align: center; padding: 1rem 0;">
+                            <i class="ph-bold ph-spinner"></i> Loading saved prompts…
+                        </p>
+                    </div>
+                </section>
+
                 <section class="card" style="margin-top: 2rem;">
                     <div class="card-header">
                         <i class="ph-bold ph-lightning"></i>
@@ -112,7 +158,8 @@
                     <div style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.6;">
                         <p>1. <strong>Local Rules First</strong>: The bot always checks your manual rules in <code>rules.html</code> first.</p>
                         <p>2. <strong>AI Fallback</strong>: If no rule matches, the message is sent to Groq Llama 3.1.</p>
-                        <p>3. <strong>Custom Context</strong>: The AI uses your "Bot Personality" to generate a relevant response.</p>
+                        <p>3. <strong>Custom Context</strong>: The AI uses your configurations along with the built-in AI scripts to generate a relevant response.</p>
+                        <p>4. <strong>Custom Prompts</strong>: You can save prompt templates above to copy/paste and reuse as needed for your configurations.</p>
                     </div>
                 </section>
             </div>
@@ -123,7 +170,7 @@
         </footer>
     </div>
 
-    <!-- Switch styles -->
+    <!-- Switch + Custom Prompt styles -->
     <style>
         .slider:before {
             position: absolute;
@@ -152,17 +199,163 @@
         @media (max-width: 768px) {
             .training-grid { grid-template-columns: 1fr; }
         }
+
+        /* ── Custom Prompt Cards ── */
+        .prompt-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1.2rem 1.4rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            margin-bottom: 0.8rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .prompt-card:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(var(--primary-rgb), 0.4);
+        }
+        .prompt-card-icon {
+            flex-shrink: 0;
+            width: 40px;
+            height: 40px;
+            background: rgba(var(--primary-rgb), 0.15);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+        .prompt-card-body {
+            flex: 1;
+            min-width: 0;
+        }
+        .prompt-card-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .prompt-card-preview {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .prompt-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+            align-items: center;
+        }
+        .btn-use-prompt {
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            border-radius: 10px;
+            border: 1px solid var(--primary);
+            background: rgba(var(--primary-rgb), 0.12);
+            color: var(--primary);
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .btn-use-prompt:hover {
+            background: rgba(var(--primary-rgb), 0.25);
+            transform: translateY(-1px);
+        }
+        .btn-delete-prompt {
+            padding: 6px 10px;
+            font-size: 0.9rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255,80,80,0.25);
+            background: rgba(255,80,80,0.08);
+            color: #ff6060;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s, transform 0.15s;
+        }
+        .btn-delete-prompt:hover {
+            background: rgba(255,80,80,0.2);
+            transform: translateY(-1px);
+        }
+        .no-prompts-msg {
+            text-align: center;
+            padding: 2rem 1rem;
+            color: var(--text-dim);
+            font-size: 0.88rem;
+        }
+        .no-prompts-msg i {
+            display: block;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.4;
+        }
+
+        /* ── Top Bar ── */
+        .top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 1rem 2rem;
+        }
+        .top-bar-inner {
+            max-width: 1300px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+        }
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+        }
+        .back-btn {
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.2rem;
+        }
+        .back-btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        @media (max-width: 768px) {
+            .top-bar { padding: 1rem; }
+            .top-bar-right { display: none !important; }
+        }
     </style>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
     <script>
         const aiEnabledToggle = document.getElementById('aiEnabled');
-        const aiSystemPromptInput = document.getElementById('aiSystemPrompt');
-        const knowledgeBaseInput = document.getElementById('knowledgeBase');
+        const compiledPromptArea = document.getElementById('compiledSystemPrompt');
         const saveBtn = document.getElementById('save-settings');
 
-        // Fetch current settings
+        /* ────────────────────────────
+           Main AI Settings
+        ──────────────────────────── */
         async function fetchSettings() {
             try {
                 const res = await fetch('/api/settings', {
@@ -174,13 +367,27 @@
                 const data = await res.json();
                 
                 aiEnabledToggle.checked = data.aiEnabled;
-                aiSystemPromptInput.value = data.aiSystemPrompt || '';
-                knowledgeBaseInput.value = data.knowledgeBase || '';
-                document.getElementById('aiPersonality').value = data.aiPersonality || '';
-                document.getElementById('aiBehavior').value = data.aiBehavior || '';
-                document.getElementById('aiDecisionMaking').value = data.aiDecisionMaking || '';
-                document.getElementById('aiCommunicationStyle').value = data.aiCommunicationStyle || '';
-                document.getElementById('aiBrandIdentity').value = data.aiBrandIdentity || '';
+                if (data.aiConfig) {
+                    document.getElementById('aiOrganizationName').value = data.aiConfig.organizationName || '';
+                    document.getElementById('aiPersonality').value = data.aiConfig.personality || '';
+                    document.getElementById('aiBehavior').value = data.aiConfig.behavior || '';
+                    document.getElementById('aiCommunicationStyle').value = data.aiConfig.communicationStyle || '';
+                    document.getElementById('aiBrandIdentity').value = data.aiConfig.brandIdentity || '';
+                }
+                
+                // Fetch compiled prompt
+                try {
+                    const promptRes = await fetch('/api/settings/compiled-prompt', {
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                            'x-account-id': activeAccountId
+                        }
+                    });
+                    const promptData = await promptRes.json();
+                    compiledPromptArea.value = promptData.prompt || 'Failed to load compiled prompt.';
+                } catch(e) {
+                    compiledPromptArea.value = 'Failed to load compiled prompt.';
+                }
                 
                 const statusText = document.getElementById('ai-status-text');
                 if (statusText) {
@@ -191,13 +398,12 @@
             }
         }
 
-        // Save settings
+
+
         saveBtn.addEventListener('click', async () => {
             const aiEnabled = aiEnabledToggle.checked;
-            
             saveBtn.disabled = true;
             saveBtn.innerHTML = '<span>Saving...</span><i class="ph-bold ph-spinner"></i>';
-
             try {
                 const res = await fetch('/api/settings', {
                     method: 'PATCH',
@@ -208,31 +414,195 @@
                     },
                     body: JSON.stringify({ 
                         aiEnabled, 
-                        aiSystemPrompt: aiSystemPromptInput.value,
-                        knowledgeBase: knowledgeBaseInput.value,
-                        aiPersonality: document.getElementById('aiPersonality').value,
-                        aiBehavior: document.getElementById('aiBehavior').value,
-                        aiDecisionMaking: document.getElementById('aiDecisionMaking').value,
-                        aiCommunicationStyle: document.getElementById('aiCommunicationStyle').value,
-                        aiBrandIdentity: document.getElementById('aiBrandIdentity').value
+                        aiConfig: {
+                            organizationName: document.getElementById('aiOrganizationName').value,
+                            personality: document.getElementById('aiPersonality').value,
+                            behavior: document.getElementById('aiBehavior').value,
+                            communicationStyle: document.getElementById('aiCommunicationStyle').value,
+                            brandIdentity: document.getElementById('aiBrandIdentity').value
+                        }
                     })
                 });
-
                 if (res.ok) {
-                    alert('AI Settings saved successfully!');
+                    showToast('AI Settings saved!', 'success');
                     fetchSettings();
                 } else {
-                    alert('Error saving settings');
+                    showToast('Error saving settings', 'error');
                 }
             } catch (err) {
-                alert('Connection error');
+                showToast('Connection error', 'error');
             } finally {
                 saveBtn.disabled = false;
                 saveBtn.innerHTML = '<span>Save AI Configuration</span><i class="ph-bold ph-check"></i>';
             }
         });
 
+        /* ────────────────────────────
+           Custom System Prompts
+        ──────────────────────────── */
+        const saveCustomPromptBtn = document.getElementById('save-custom-prompt');
+        const customPromptsList  = document.getElementById('custom-prompts-list');
+
+        function authHeaders(extra = {}) {
+            return {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'x-account-id': activeAccountId,
+                ...extra
+            };
+        }
+
+        async function fetchCustomPrompts() {
+            customPromptsList.innerHTML = `
+                <p style="color:var(--text-dim);font-size:0.85rem;text-align:center;padding:1rem 0;">
+                    <i class="ph-bold ph-spinner"></i> Loading…
+                </p>`;
+            try {
+                const res = await fetch('/api/settings/custom-prompts', { headers: authHeaders() });
+                const prompts = await res.json();
+                renderCustomPrompts(prompts);
+            } catch (err) {
+                customPromptsList.innerHTML = `<p style="color:#ff6060;text-align:center;">Failed to load prompts.</p>`;
+            }
+        }
+
+        function renderCustomPrompts(prompts) {
+            if (!prompts || prompts.length === 0) {
+                customPromptsList.innerHTML = `
+                    <div class="no-prompts-msg">
+                        <i class="ph-bold ph-notepad"></i>
+                        No saved prompts yet. Use the form above to create your first one!
+                    </div>`;
+                return;
+            }
+
+            customPromptsList.innerHTML = prompts.map(p => `
+                <div class="prompt-card" id="prompt-${p._id}">
+                    <div class="prompt-card-icon">
+                        <i class="ph-bold ph-identification-card"></i>
+                    </div>
+                    <div class="prompt-card-body">
+                        <div class="prompt-card-title">${escapeHtml(p.title)}</div>
+                        <div class="prompt-card-preview">${escapeHtml(p.prompt)}</div>
+                    </div>
+                    <div class="prompt-card-actions">
+                        <button class="btn-use-prompt" onclick="copyCustomPrompt('${p._id}', ${JSON.stringify(p.prompt).replace(/'/g, "\\'")})" title="Copy to clipboard">
+                            <i class="ph-bold ph-copy"></i> Copy
+                        </button>
+                        <button class="btn-delete-prompt" onclick="deleteCustomPrompt('${p._id}')" title="Delete">
+                            <i class="ph-bold ph-trash"></i>
+                        </button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function copyCustomPrompt(id, prompt) {
+            navigator.clipboard.writeText(prompt).then(() => {
+                showToast(`Copied "${document.querySelector(`#prompt-${id} .prompt-card-title`).textContent}" to clipboard!`, 'success');
+            }).catch(err => {
+                showToast('Failed to copy to clipboard', 'error');
+            });
+        }
+
+        async function deleteCustomPrompt(id) {
+            if (!confirm('Delete this saved prompt?')) return;
+            try {
+                const res = await fetch(`/api/settings/custom-prompts/${id}`, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+                if (res.ok) {
+                    const prompts = await res.json();
+                    renderCustomPrompts(prompts);
+                    showToast('Prompt deleted', 'info');
+                } else {
+                    showToast('Failed to delete', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error', 'error');
+            }
+        }
+
+        saveCustomPromptBtn.addEventListener('click', async () => {
+            const title  = document.getElementById('customPromptTitle').value.trim();
+            const prompt = document.getElementById('customPromptText').value.trim();
+
+            if (!title) { showToast('Please enter a title', 'error'); return; }
+            if (!prompt) { showToast('Please enter a system prompt', 'error'); return; }
+
+            saveCustomPromptBtn.disabled = true;
+            saveCustomPromptBtn.innerHTML = '<span>Saving…</span><i class="ph-bold ph-spinner"></i>';
+
+            try {
+                const res = await fetch('/api/settings/custom-prompts', {
+                    method: 'POST',
+                    headers: authHeaders({ 'Content-Type': 'application/json' }),
+                    body: JSON.stringify({ title, prompt })
+                });
+                if (res.ok) {
+                    const prompts = await res.json();
+                    renderCustomPrompts(prompts);
+                    document.getElementById('customPromptTitle').value = '';
+                    document.getElementById('customPromptText').value = '';
+                    showToast('Prompt saved!', 'success');
+                } else {
+                    showToast('Failed to save prompt', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error', 'error');
+            } finally {
+                saveCustomPromptBtn.disabled = false;
+                saveCustomPromptBtn.innerHTML = '<span>Save Prompt</span><i class="ph-bold ph-floppy-disk"></i>';
+            }
+        });
+
+        /* ────────────────────────────
+           Helpers
+        ──────────────────────────── */
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function showToast(message, type = 'success') {
+            let toast = document.getElementById('ai-toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'ai-toast';
+                toast.style.cssText = `
+                    position: fixed; bottom: 2rem; right: 2rem; z-index: 9999;
+                    padding: 0.9rem 1.4rem; border-radius: 14px; font-size: 0.9rem;
+                    font-family: inherit; font-weight: 500; display: flex; align-items: center;
+                    gap: 0.5rem; box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                    transition: opacity 0.3s, transform 0.3s;
+                    backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1);
+                `;
+                document.body.appendChild(toast);
+            }
+            const colors = {
+                success: { bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.35)', color: '#4ade80', icon: 'ph-check-circle' },
+                error:   { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.35)', color: '#f87171', icon: 'ph-x-circle' },
+                info:    { bg: 'rgba(99,102,241,0.15)', border: 'rgba(99,102,241,0.35)', color: '#818cf8', icon: 'ph-info' },
+            };
+            const c = colors[type] || colors.success;
+            toast.style.background = c.bg;
+            toast.style.borderColor = c.border;
+            toast.style.color = c.color;
+            toast.innerHTML = `<i class="ph-bold ${c.icon}"></i> ${message}`;
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+            }, 3000);
+        }
+
+        /* ── Init ── */
         fetchSettings();
+        fetchCustomPrompts();
     </script>
 </body>
 </html>

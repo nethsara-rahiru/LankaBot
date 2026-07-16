@@ -1,0 +1,11 @@
+GLOBAL CUSTOMER:
+{{global_customer_data}}
+
+CURRENT ORGANIZATION CUSTOMER:
+{{organization_contact_data}}
+
+CURRENT CONVERSATION:
+{{messages}}
+
+RELEVANT KNOWLEDGE:
+{{knowledge}}

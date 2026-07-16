@@ -1,0 +1,2 @@
+Customer information is divided into three levels.
+You MUST understand the difference.

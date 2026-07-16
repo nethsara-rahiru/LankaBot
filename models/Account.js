@@ -6,6 +6,10 @@ const AccountSchema = new mongoose.Schema({
         ref: 'user',
         required: true
     },
+    organizationName: {
+        type: String,
+        required: true
+    },
     phoneNumber: {
         type: String,
         required: false
@@ -16,7 +20,7 @@ const AccountSchema = new mongoose.Schema({
     },
     profilePic: {
         type: String,
-        required: false
+        default: ''
     },
     sessionId: {
         type: String,

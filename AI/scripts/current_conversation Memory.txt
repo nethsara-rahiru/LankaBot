@@ -1,0 +1,7 @@
+Use this to continue the current conversation naturally.
+
+Conversation Summary:
+{{conversation_summary}}
+
+Recent Messages:
+{{recent_messages}}

@@ -166,6 +166,11 @@
                     <i class="ph-bold ph-tag"></i>
                     <input type="text" id="sessionName" placeholder="e.g. My Business Bot">
                 </div>
+                <div class="input-group" style="margin-top: 1rem;">
+                    <label>Organization Name</label>
+                    <i class="ph-bold ph-buildings"></i>
+                    <input type="text" id="orgName" placeholder="e.g. Lanka Tech Solutions">
+                </div>
                 <div style="display: flex; gap: 1rem; margin-top: 2rem;">
                     <button class="btn-secondary" onclick="closeModal()" style="flex: 1;">Cancel</button>
                     <button class="btn-primary" id="btn-create" onclick="createAccount()" style="flex: 2;">Create Session</button>
@@ -192,6 +197,7 @@
         const accountGrid = document.getElementById('account-grid');
         const addModal = document.getElementById('addModal');
         const sessionNameInput = document.getElementById('sessionName');
+        const orgNameInput = document.getElementById('orgName');
         const setupInitial = document.getElementById('setup-initial');
         const setupQr = document.getElementById('setup-qr');
         const modalQrContainer = document.getElementById('modal-qr-container');
@@ -294,7 +300,9 @@
 
         async function createAccount() {
             const sessionId = sessionNameInput.value;
+            const organizationName = orgNameInput.value;
             if (!sessionId) return alert('Please enter a session name');
+            if (!organizationName) return alert('Please enter an organization name');
 
             const btnCreate = document.getElementById('btn-create');
             btnCreate.disabled = true;
@@ -307,7 +315,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
-                    body: JSON.stringify({ sessionId })
+                    body: JSON.stringify({ sessionId, organizationName })
                 });
 
                 if (res.ok) {
@@ -353,6 +361,7 @@
             setupInitial.style.display = 'block';
             setupQr.style.display = 'none';
             sessionNameInput.value = '';
+            orgNameInput.value = '';
             addModal.style.display = 'flex'; 
         }
 

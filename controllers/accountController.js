@@ -20,7 +20,11 @@ exports.getAccounts = async (req, res) => {
 // @access  Private
 exports.createAccount = async (req, res) => {
     try {
-        const { sessionId } = req.body; // User provided name for the session
+        const { sessionId, organizationName } = req.body;
+
+        if (!organizationName) {
+            return res.status(400).json({ msg: 'Organization Name is required' });
+        }
 
         let account = await Account.findOne({ sessionId });
         if (account) {
@@ -30,6 +34,7 @@ exports.createAccount = async (req, res) => {
         account = new Account({
             user: req.user.id,
             sessionId,
+            organizationName,
             status: 'disconnected'
         });
 
@@ -37,7 +42,10 @@ exports.createAccount = async (req, res) => {
 
         // Create default settings for this account
         const settings = new Settings({
-            account: account._id
+            account: account._id,
+            aiConfig: {
+                organizationName: organizationName
+            }
         });
         await settings.save();
 

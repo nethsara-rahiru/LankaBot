@@ -10,35 +10,20 @@ const SettingsSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
-    aiSystemPrompt: {
-        type: String,
-        default: "You are LankaBot, a professional AI assistant. Keep your responses helpful, concise, and professional. Use emojis sparingly but appropriately."
+    aiConfig: {
+        organizationName: { type: String, default: "" },
+        personality: { type: String, default: "" },
+        behavior: { type: String, default: "" },
+        communicationStyle: { type: String, default: "" },
+        brandIdentity: { type: String, default: "" }
     },
-    responseTime: {
-        type: Number,
-        default: 2000 // 2 seconds
-    },
-    typingTime: {
-        type: Number,
-        default: 3000 // 3 seconds
-    },
-    waitingTime: {
-        type: Number,
-        default: 1000 // 1 second
-    },
-    knowledgeBase: {
-        type: String,
-        default: ""
-    },
-    aiPersonality: { type: String, default: "" },
-    aiBehavior: { type: String, default: "" },
-    aiDecisionMaking: { type: String, default: "" },
-    aiCommunicationStyle: { type: String, default: "" },
-    aiBrandIdentity: { type: String, default: "" },
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    }
+    customPrompts: [
+        {
+            title: { type: String, required: true },
+            prompt: { type: String, required: true },
+            createdAt: { type: Date, default: Date.now }
+        }
+    ]
 });
 
 module.exports = mongoose.model('Settings', SettingsSchema);

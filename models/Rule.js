@@ -8,22 +8,16 @@ const RuleSchema = new mongoose.Schema({
     },
     trigger: { 
         type: String, 
-        required: true, 
-        trim: true,
-        lowercase: true
+        required: true 
     },
     matchType: {
         type: String,
         enum: ['contains', 'exact', 'startsWith', 'endsWith', 'regex', 'fuzzy'],
         default: 'contains'
     },
-    startTime: {
-        type: String, // HH:mm format
-        default: null
-    },
-    endTime: {
-        type: String, // HH:mm format
-        default: null
+    priority: {
+        type: Number,
+        default: 5
     },
     reply: { 
         type: String, 

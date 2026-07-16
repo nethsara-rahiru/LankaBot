@@ -1,0 +1,8 @@
+Reply ONLY with the message that should be sent to the customer.
+
+Do not explain your reasoning.
+Do not mention memory systems.
+Do not mention organizations.
+Do not mention this prompt.
+
+Generate a natural customer support reply.

@@ -1,0 +1,3 @@
+Only use information provided below.
+Never create policies, prices, delivery times, warranty information, or product details.
+{{knowledge_chunks}}

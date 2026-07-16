@@ -26,8 +26,7 @@ exports.createRule = async (req, res) => {
         account: accountId,
         trigger: req.body.trigger,
         matchType: req.body.matchType || 'contains',
-        startTime: req.body.startTime || null,
-        endTime: req.body.endTime || null,
+        priority: req.body.priority || 5,
         reply: req.body.reply
     });
 
@@ -57,8 +56,7 @@ exports.updateRule = async (req, res) => {
 
         if (req.body.trigger) rule.trigger = req.body.trigger;
         if (req.body.matchType) rule.matchType = req.body.matchType;
-        if (req.body.startTime !== undefined) rule.startTime = req.body.startTime;
-        if (req.body.endTime !== undefined) rule.endTime = req.body.endTime;
+        if (req.body.priority !== undefined) rule.priority = req.body.priority;
         if (req.body.reply) rule.reply = req.body.reply;
         if (req.body.active !== undefined) rule.active = req.body.active;
         

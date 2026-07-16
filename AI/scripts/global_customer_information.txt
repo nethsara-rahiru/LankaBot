@@ -1,0 +1,15 @@
+This information belongs to the customer personally.
+It can be used across all organizations.
+
+Examples:
+- Name
+- Preferred language
+- Location
+- Communication preference
+- General communication style
+
+GLOBAL CUSTOMER PROFILE:
+{{global_customer_profile}}
+
+GLOBAL CUSTOMER FACTS:
+{{global_customer_facts}}

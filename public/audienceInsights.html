@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audience AI Insights | LankaBot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .top-bar {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border); padding: 1rem 2rem;
+        }
+        .top-bar-inner {
+            max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;
+        }
+        .back-btn {
+            background: var(--glass-heavy); border: 1px solid var(--glass-border); color: var(--text);
+            width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s; font-size: 1.2rem;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.1); border-color: var(--primary); color: var(--primary); }
+
+        .insights-layout {
+            display: grid; grid-template-columns: 350px 1fr; gap: 2rem; align-items: start;
+        }
+        
+        .contacts-list {
+            background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px;
+            padding: 1rem; max-height: calc(100vh - 120px); overflow-y: auto;
+        }
+        
+        .contact-item {
+            padding: 1rem; border-radius: 12px; cursor: pointer; transition: all 0.2s;
+            border: 1px solid transparent; margin-bottom: 0.5rem; background: var(--glass-heavy);
+        }
+        .contact-item:hover { background: rgba(255,255,255,0.08); border-color: var(--glass-border); }
+        .contact-item.active { background: rgba(232, 67, 147, 0.1); border-color: #e84393; }
+        
+        .contact-name { font-weight: 600; font-size: 1rem; margin-bottom: 0.2rem; display: flex; justify-content: space-between; }
+        .contact-number { font-size: 0.8rem; color: var(--text-dim); }
+        .contact-time { font-size: 0.75rem; color: var(--text-dim); }
+
+        .contact-details {
+            background: var(--glass); border: 1px solid var(--glass-border); border-radius: 20px;
+            padding: 2rem; min-height: 400px; display: flex; flex-direction: column; gap: 1.5rem;
+        }
+        
+        .detail-card {
+            background: rgba(0,0,0,0.2); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--glass-border);
+        }
+        
+        .detail-header {
+            display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; color: #e84393;
+        }
+        .detail-header i { font-size: 1.5rem; }
+        .detail-header h3 { margin: 0; font-size: 1.1rem; color: var(--text); }
+        
+        .analyze-btn {
+            background: #e84393; color: white; border: none; padding: 1rem 1.5rem; border-radius: 12px;
+            font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;
+            width: fit-content;
+        }
+        .analyze-btn:hover { background: #d63031; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(232, 67, 147, 0.3); }
+        .analyze-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+        .facts-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .facts-table th, .facts-table td { padding: 0.8rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .facts-table th { color: #e84393; font-weight: 600; width: 30%; }
+        .facts-table td { color: rgba(255,255,255,0.9); }
+        .facts-table tr:last-child th, .facts-table tr:last-child td { border-bottom: none; }
+
+        .messages-preview {
+            max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 12px;
+            font-size: 0.85rem; line-height: 1.4; color: var(--text-dim); white-space: pre-wrap; font-family: 'JetBrains Mono', monospace;
+        }
+
+        @media (max-width: 900px) { .insights-layout { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <nav class="top-bar">
+        <div class="top-bar-inner">
+            <div style="display: flex; align-items: center;">
+                <button class="back-btn" onclick="window.location.href='/dashboard.html'" title="Back to Dashboard">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <div class="logo" style="margin-left: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="ph-fill ph-users-four logo-icon" style="font-size: 1.8rem; color: #e84393;"></i>
+                    <h1 style="font-size: 1.3rem; margin: 0; font-weight: 700;">Audience<span style="color: #e84393;">Insights</span></h1>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 2rem;">
+        <div class="insights-layout">
+            <!-- Left: Contacts List -->
+            <div class="contacts-list" id="contacts-container">
+                <p style="text-align: center; color: var(--text-dim); padding: 2rem 0;"><i class="ph-bold ph-spinner ph-spin"></i> Loading contacts...</p>
+            </div>
+
+            <!-- Right: Details Pane -->
+            <div class="contact-details" id="details-container" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h2 id="detail-name" style="margin: 0 0 0.5rem 0; font-size: 1.8rem;">Select a contact</h2>
+                        <p id="detail-number" style="color: var(--text-dim); margin: 0; font-size: 1rem;"></p>
+                    </div>
+                    <div style="display: flex; gap: 1rem;">
+                        <button id="btn-clear-knowledge" class="analyze-btn" style="background: rgba(255, 82, 82, 0.1); color: #ff5252; border: 1px solid #ff5252; display: none;" onclick="clearCurrentContactKnowledge()">
+                            <i class="ph-bold ph-trash"></i> <span>Clear Knowledge</span>
+                        </button>
+                        <button id="btn-analyze" class="analyze-btn" onclick="analyzeCurrentContact()">
+                            <i class="ph-bold ph-sparkle"></i> <span>Analyze with AI</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-header">
+                        <i class="ph-bold ph-text-align-left"></i>
+                        <h3>AI Chat Summary</h3>
+                    </div>
+                    <p id="detail-summary" style="line-height: 1.6; color: rgba(255,255,255,0.9);">Not analyzed yet.</p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-header">
+                        <i class="ph-bold ph-user-focus"></i>
+                        <h3>Personality Profile</h3>
+                    </div>
+                    <p id="detail-personality" style="line-height: 1.6; color: rgba(255,255,255,0.9);">Not analyzed yet.</p>
+                </div>
+
+                <div class="detail-card">
+                    <div class="detail-header">
+                        <i class="ph-bold ph-identification-card"></i>
+                        <h3>Known Facts</h3>
+                    </div>
+                    <table class="facts-table" id="detail-facts-table">
+                        <tbody id="detail-facts-body">
+                            <tr><td colspan="2" style="text-align: center; color: var(--text-dim);">No facts extracted yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="detail-card" style="flex: 1;">
+                    <div class="detail-header">
+                        <i class="ph-bold ph-chat-circle-dots" style="color: var(--text-dim);"></i>
+                        <h3 style="color: var(--text-dim);">Recent Messages</h3>
+                    </div>
+                    <div class="messages-preview" id="detail-messages"></div>
+                </div>
+            </div>
+            
+            <div id="empty-state" style="text-align: center; padding: 4rem; color: var(--text-dim); background: var(--glass); border-radius: 20px;">
+                <i class="ph-bold ph-users-four" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                <h2>Select a contact</h2>
+                <p>Click on a contact from the list to view their AI insights.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px;"></div>
+
+    <script>
+        let contacts = [];
+        let currentContactId = null;
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = { success: '#2ecc71', error: '#ff5252', info: '#3498db' };
+            toast.style.cssText = `background: rgba(15,23,42,0.95); border-left: 4px solid ${colors[type] || colors.info}; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); font-size: 0.9rem; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; gap: 10px;`;
+            toast.innerHTML = `<i class="ph-bold ${type === 'success' ? 'ph-check-circle' : type === 'error' ? 'ph-warning-circle' : 'ph-info'}"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.style.transform = 'translateX(0)');
+            setTimeout(() => { toast.style.transform = 'translateX(100%)'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function authHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'x-account-id': localStorage.getItem('activeAccountId')
+            };
+        }
+
+        async function fetchContacts() {
+            if (!localStorage.getItem('activeAccountId')) {
+                document.getElementById('contacts-container').innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 2rem;">Please select an account from the dashboard first.</p>';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/contacts', { headers: authHeaders() });
+                if (res.ok) {
+                    contacts = await res.json();
+                    renderContacts();
+                } else {
+                    document.getElementById('contacts-container').innerHTML = '<p style="text-align: center; color: var(--danger); padding: 2rem;">Failed to load contacts.</p>';
+                }
+            } catch (err) {
+                document.getElementById('contacts-container').innerHTML = '<p style="text-align: center; color: var(--danger); padding: 2rem;">Connection error.</p>';
+            }
+        }
+
+        function renderContacts() {
+            const container = document.getElementById('contacts-container');
+            if (contacts.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: var(--text-dim); padding: 2rem;">No contacts yet. Wait for someone to message the bot.</p>';
+                return;
+            }
+
+            container.innerHTML = contacts.map(c => {
+                const date = new Date(c.lastMessageAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+                return `
+                    <div class="contact-item" id="contact-list-${c._id}" onclick="selectContact('${c._id}')">
+                        <div class="contact-name">
+                            <span>${c.pushName || 'Unknown'}</span>
+                            <span class="contact-time">${date}</span>
+                        </div>
+                        <div class="contact-number">${c.phoneNumber}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectContact(id) {
+            currentContactId = id;
+            document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`contact-list-${id}`).classList.add('active');
+            
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('details-container').style.display = 'flex';
+
+            const contact = contacts.find(c => c._id === id);
+            document.getElementById('detail-name').innerText = contact.pushName || 'Unknown';
+            document.getElementById('detail-number').innerText = contact.phoneNumber;
+            
+            // Show clear button if there is knowledge
+            if (contact.aiSummary || contact.aiPersonality || (contact.extractedDetails && Object.keys(contact.extractedDetails).length > 0)) {
+                document.getElementById('btn-clear-knowledge').style.display = 'flex';
+            } else {
+                document.getElementById('btn-clear-knowledge').style.display = 'none';
+            }
+            
+            document.getElementById('detail-summary').innerText = contact.aiSummary || 'Not analyzed yet.';
+            document.getElementById('detail-personality').innerText = contact.aiPersonality || 'Not analyzed yet.';
+
+            const factsBody = document.getElementById('detail-facts-body');
+            if (contact.extractedDetails && Object.keys(contact.extractedDetails).length > 0) {
+                factsBody.innerHTML = Object.entries(contact.extractedDetails).map(([key, val]) => `
+                    <tr>
+                        <th>${key}</th>
+                        <td>${val}</td>
+                    </tr>
+                `).join('');
+            } else {
+                factsBody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--text-dim);">No facts extracted yet.</td></tr>`;
+            }
+
+            const msgs = contact.messages.map(m => {
+                return `[${m.role.toUpperCase()}] ${new Date(m.timestamp).toLocaleTimeString()} - ${m.content}`;
+            }).join('\n\n');
+            document.getElementById('detail-messages').innerText = msgs || 'No messages.';
+        }
+
+        async function analyzeCurrentContact() {
+            if (!currentContactId) return;
+            const btn = document.getElementById('btn-analyze');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> <span>Analyzing...</span>';
+
+            try {
+                const res = await fetch(`/api/contacts/${currentContactId}/analyze`, {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+                
+                if (res.ok) {
+                    const updatedContact = await res.json();
+                    // Update in local array
+                    const idx = contacts.findIndex(c => c._id === currentContactId);
+                    if (idx !== -1) contacts[idx] = updatedContact;
+                    
+                    showToast('Analysis complete!', 'success');
+                    selectContact(currentContactId); // re-render details
+                } else {
+                    const data = await res.json();
+                    showToast(data.msg || 'Analysis failed', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph-bold ph-sparkle"></i> <span>Analyze with AI</span>';
+            }
+        }
+
+        async function clearCurrentContactKnowledge() {
+            if (!currentContactId) return;
+            if (!confirm('Are you sure you want to delete all AI-extracted knowledge (summary, personality, facts) for this contact?')) return;
+
+            const btn = document.getElementById('btn-clear-knowledge');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> <span>Clearing...</span>';
+
+            try {
+                const res = await fetch(`/api/contacts/${currentContactId}/clear`, {
+                    method: 'POST',
+                    headers: authHeaders()
+                });
+                
+                if (res.ok) {
+                    const updatedContact = await res.json();
+                    const idx = contacts.findIndex(c => c._id === currentContactId);
+                    if (idx !== -1) contacts[idx] = updatedContact;
+                    
+                    showToast('Knowledge cleared successfully', 'success');
+                    selectContact(currentContactId);
+                } else {
+                    const data = await res.json();
+                    showToast(data.msg || 'Failed to clear knowledge', 'error');
+                }
+            } catch (err) {
+                showToast('Connection error', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph-bold ph-trash"></i> <span>Clear Knowledge</span>';
+            }
+        }
+
+        // Initialize
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/index.html';
+        } else {
+            fetchContacts();
+        }
+    </script>
+</body>
+</html>

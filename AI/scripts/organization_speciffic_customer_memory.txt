@@ -1,0 +1,27 @@
+This information belongs ONLY to this organization.
+Use this information when replying.
+
+Examples:
+- Previous purchases from this organization
+- Products the customer prefers from this organization
+- Customer type
+- Previous discussions with this organization
+- Business relationship details
+
+CURRENT ORGANIZATION:
+{{organization_name}}
+
+ORGANIZATION CUSTOMER PROFILE:
+{{organization_customer_profile}}
+
+ORGANIZATION CUSTOMER FACTS:
+{{organization_customer_facts}}
+
+IMPORTANT:
+Never use information from another organization.
+
+Do NOT mention:
+- Previous orders from other companies
+- Products purchased from other companies
+- Conversations with other companies
+- Complaints or requests made to other companies

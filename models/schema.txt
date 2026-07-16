@@ -1,0 +1,469 @@
+================================================================================
+                        LankaBot — MongoDB Database Schema
+================================================================================
+
+Database:       MongoDB (via Mongoose ODM)
+Last Updated:   2026-07-16
+
+
+================================================================================
+  1. USER  (collection: "users")
+================================================================================
+
+  Field         | Type       | Required | Unique | Default    | Notes
+  --------------|------------|----------|--------|------------|---------------------
+  _id           | ObjectId   | auto     | yes    | auto       | Primary key
+  name          | String     | yes      | no     | —          | LankaBot account owner
+  email         | String     | yes      | yes    | —          | Login email
+  password      | String     | yes      | no     | —          | bcrypt hashed password
+  sessionID     | String     | no       | no     | null       | Login session
+  lastLogin     | Date       | no       | no     | null       | Last login
+  date          | Date       | no       | no     | Date.now   | Registration date
+
+
+  Hooks / Methods:
+    • pre('save')           → Hash password if modified
+    • comparePassword(pwd)  → Compare password hash
+
+
+
+================================================================================
+  2. ACCOUNT  (collection: "accounts")
+================================================================================
+
+  Represents a WhatsApp business account / organization.
+
+  Field          | Type       | Required | Unique | Default         | Notes
+  ---------------|------------|----------|--------|-----------------|---------------------
+  _id            | ObjectId   | auto     | yes    | auto            | Primary key
+  user           | ObjectId   | yes      | no     | —               | → ref: User
+
+  organizationName | String   | yes      | no     | —               | Business name
+
+  phoneNumber    | String     | no       | no     | —               | WhatsApp number
+  pushName       | String     | no       | no     | —               | WhatsApp display name
+  profilePic     | String     | no       | no     | ""              | Profile image URL
+
+  sessionId      | String     | yes      | yes    | —               | WhatsApp session ID
+
+  status         | String     | no       | no     | disconnected    | disconnected | connecting | ready | qr
+
+  lastQR         | String     | no       | no     | null            | QR data
+
+  paused         | Boolean    | no       | no     | false           | Pause bot
+
+  date           | Date       | no       | no     | Date.now        | Created date
+
+
+  Relationships:
+    • User 1:N Account
+
+
+
+================================================================================
+  3. CUSTOMER  (collection: "customers")
+================================================================================
+
+  Global customer identity.
+
+  This data can be shared between organizations.
+
+  Example:
+  Same person contacts two companies.
+
+  Allowed:
+    ✓ Name
+    ✓ Language
+    ✓ Location
+    ✓ Communication preference
+
+  Not allowed:
+    ✗ Orders
+    ✗ Purchased products
+    ✗ Previous company conversations
+
+
+  Field              | Type       | Required | Default | Notes
+  -------------------|------------|----------|---------|---------------------
+  _id                | ObjectId   | auto     | auto    | Primary key
+
+  phoneNumber        | String     | yes      | —       | Unique customer identifier
+
+  name               | String     | no       | ""      | Customer name
+
+  email              | String     | no       | ""      | Email
+
+
+  globalProfile      | Object     | no       | {}      | Shared information
+
+
+  ── globalProfile ─────────────────────────────────────────────────────────
+
+  preferredLanguage  | String     | no       | "auto"  |
+
+  location           | String     | no       | ""      |
+
+  communicationStyle | String     | no       | ""      |
+
+
+  globalPreferences  | Map        | no       | {}      |
+
+  Example:
+
+  {
+    prefersWhatsApp:true,
+    preferredTime:"evening"
+  }
+
+
+  globalFacts        | [Fact]     | no       | []      |
+
+
+  ── Embedded: Fact ───────────────────────────────────────────────────────
+
+  text               | String     | yes      | —       |
+  category           | String     | yes      | —       | profile/preference
+  confidence         | Number     | no       | 1       |
+  createdAt          | Date       | no       | Date.now |
+
+
+  createdAt          | Date       | no       | Date.now |
+
+
+
+================================================================================
+  4. ORGANIZATION_CONTACT
+     (collection: "organization_contacts")
+================================================================================
+
+  Represents customer's relationship with one organization.
+
+  Each organization has isolated memory.
+
+
+  Field              | Type       | Required | Default | Notes
+  -------------------|------------|----------|---------|---------------------
+
+  _id                | ObjectId   | auto     | auto    |
+
+  account            | ObjectId   | yes      | —       | → ref: Account
+
+  customer           | ObjectId   | yes      | —       | → ref: Customer
+
+
+  organizationProfile | Object   | no       | {}      |
+
+
+  ── Organization Memory ───────────────────────────────────────────────────
+
+  summary             | String    | no       | ""      | Company-specific summary
+
+
+  facts               | [Fact]    | no       | []      |
+
+
+  Example:
+
+  {
+    "Prefers Epson printers",
+    "Usually orders monthly"
+  }
+
+
+  tags                | [String]  | no       | []      |
+
+  customerType        | String    | no       | ""      | Retail/Wholesale
+
+
+  lastMessageAt       | Date      | no       | Date.now |
+
+  lastAnalyzedAt      | Date      | no       | null    |
+
+
+
+  Relationships:
+
+    • Account 1:N Organization_Contact
+    • Customer 1:N Organization_Contact
+
+
+
+================================================================================
+  5. MESSAGE  (collection: "messages")
+================================================================================
+
+  Stores organization-specific conversation history.
+
+
+  Field          | Type       | Required | Default | Notes
+  ---------------|------------|----------|---------|---------------------
+
+  _id            | ObjectId   | auto     | auto    |
+
+  organizationContact | ObjectId | yes    | —       | → ref OrganizationContact
+
+
+  role           | String     | yes      | —       | user | bot | system
+
+
+  content        | String     | yes      | —       | Message content
+
+
+  messageType    | String     | no       | text    | text/image/audio/file
+
+
+  timestamp      | Date       | no       | Date.now |
+
+
+
+  aiMetadata     | Object     | no       | {}      |
+
+
+  ── aiMetadata ────────────────────────────────────────────────────────────
+
+  model           | String     | no       | ""
+
+  inputTokens     | Number     | no       | 0
+
+  outputTokens    | Number     | no       | 0
+
+  responseTime    | Number     | no       | 0
+
+
+
+  Relationships:
+
+    • OrganizationContact 1:N Messages
+
+
+
+================================================================================
+  6. CONVERSATION  (collection: "conversations")
+================================================================================
+
+
+  Field          | Type       | Required | Default | Notes
+  ---------------|------------|----------|---------|---------------------
+
+  _id            | ObjectId   | auto     | auto    |
+
+  organizationContact | ObjectId | yes   | —       |
+
+
+  summary        | String     | no       | ""      |
+
+
+  status         | String     | no       | active  | active/closed
+
+
+  startedAt      | Date       | no       | Date.now |
+
+  lastMessageAt  | Date       | no       | Date.now |
+
+
+
+================================================================================
+  7. RULE  (collection: "rules")
+================================================================================
+
+  Field         | Type       | Required | Default      | Notes
+  --------------|------------|----------|--------------|----------------
+
+  _id           | ObjectId   | auto     | auto         |
+
+  account       | ObjectId   | yes      | —            |
+
+  trigger       | String     | yes      | —            |
+
+  matchType     | String     | no       | contains     |
+
+  priority      | Number     | no       | 5            |
+
+  reply         | String     | yes      | —            |
+
+  active        | Boolean    | no       | true         |
+
+  createdAt     | Date       | no       | Date.now     |
+
+
+
+================================================================================
+  8. SETTINGS  (collection: "settings")
+================================================================================
+
+
+  Field          | Type       | Required | Default | Notes
+  ---------------|------------|----------|---------|----------------
+
+  _id            | ObjectId   | auto     | auto    |
+
+  account        | ObjectId   | yes      | —       |
+
+
+  aiEnabled      | Boolean    | no       | true    |
+
+
+  aiConfig       | Object     | no       | {}      |
+
+
+  ── aiConfig ──────────────────────────────────────────────────────────────
+
+  personality
+
+  behavior
+
+  communicationStyle
+
+  brandIdentity
+
+
+  customPrompts  | Array      | no       | []      |
+
+
+
+================================================================================
+  9. KNOWLEDGE_CHUNK  (collection: "knowledge_chunks")
+================================================================================
+
+
+  Field          | Type       | Required | Default | Notes
+  ---------------|------------|----------|---------|---------------------
+
+  _id            | ObjectId   | auto     | auto    |
+
+  account        | ObjectId   | yes      | —       | Organization
+
+
+  title          | String     | yes      | —       |
+
+  category       | String     | yes      | —       | Product/FAQ/Policy
+
+
+  content        | String     | yes      | —       | Chunk text
+
+
+  embedding      | [Number]  | yes      | —       | Vector embedding
+
+
+  createdAt      | Date       | no       | Date.now |
+
+
+
+================================================================================
+  10. ORDER  (collection: "orders")
+================================================================================
+
+
+  Field          | Type       | Required | Default | Notes
+  ---------------|------------|----------|---------|---------------------
+
+  _id            | ObjectId   | auto     | auto    |
+
+  account        | ObjectId   | yes      | —       |
+
+  organizationContact | ObjectId | yes  | —       |
+
+
+  products       | Array      | yes      | []      | Purchased products
+
+
+  status         | String     | no       | pending |
+
+  paymentStatus  | String     | no       | unpaid  |
+
+  delivery       | Object     | no       | {}      |
+
+
+  createdAt      | Date       | no       | Date.now |
+
+
+
+================================================================================
+  11. AI_LOG  (collection: "ai_logs")
+================================================================================
+
+
+  Field          | Type       | Required | Default | Notes
+  ---------------|------------|----------|---------|---------------------
+
+  account        | ObjectId   | yes      | —       |
+
+  organizationContact | ObjectId | yes | —       |
+
+
+  userMessage    | String     | yes      | —       |
+
+
+  retrievedChunks | [ObjectId] | no     | []      | RAG sources
+
+
+  model          | String     | yes      | —       |
+
+  response       | String     | yes      | —       |
+
+
+  tokens         | Object     | no       | {}      |
+
+
+  createdAt      | Date       | no       | Date.now |
+
+
+
+================================================================================
+  ENTITY RELATIONSHIP DIAGRAM
+================================================================================
+
+
+                 ┌──────────┐
+                 │   USER   │
+                 └────┬─────┘
+                      │ 1:N
+                      ▼
+
+                 ┌───────────┐
+                 │ ACCOUNT   │
+                 │Organization│
+                 └────┬──────┘
+                      │
+      ┌───────────────┼──────────────────────┐
+      │               │                      │
+      ▼               ▼                      ▼
+
+ RULES          SETTINGS             KNOWLEDGE_CHUNKS
+
+
+                     
+
+
+                 ┌───────────┐
+                 │ CUSTOMER  │
+                 │  Global   │
+                 └────┬──────┘
+                      │
+                      │ 1:N
+                      ▼
+
+        ┌─────────────────────────┐
+        │ ORGANIZATION_CONTACT    │
+        │ Company Relationship    │
+        └───────────┬─────────────┘
+                    │
+          ┌─────────┼─────────┐
+          ▼                   ▼
+
+     MESSAGES              ORDERS
+
+
+                   
+
+ CUSTOMER:
+    Shared identity
+
+ ORGANIZATION_CONTACT:
+    Private company relationship
+
+ MESSAGES:
+    Private conversation
+
+ ORDERS:
+    Private business history

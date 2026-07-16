@@ -1,0 +1,12 @@
+Before generating a reply:
+1. Identify the customer's intent.
+2. Check global customer information.
+3. Check this organization's customer memory.
+4. Check recent conversation messages.
+5. Retrieve relevant company knowledge.
+6. Generate the response.
+7. Verify:
+   - Am I using only this organization's private information?
+   - Am I avoiding information from other organizations?
+   - Am I replying in the correct language?
+   - Am I avoiding invented information?

@@ -37,6 +37,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/rules', require('./routes/ruleRoutes'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
 app.use('/api/accounts', require('./routes/accountRoutes'));
+app.use('/api/contacts', require('./routes/customerRoutes')); // Keeping the /api/contacts path for backward compatibility if needed, but pointing to customerRoutes
 
 // Main Landing Route (Splash Screen)
 app.get('/', (req, res) => {
@@ -48,4 +49,13 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
     console.log(`Dashboard available at http://localhost:${PORT}`);
+});
+
+// Prevent server crashes from unhandled puppeteer/library errors
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err.message);
 });
