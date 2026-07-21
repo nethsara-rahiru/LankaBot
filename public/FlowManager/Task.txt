@@ -1,0 +1,10 @@
+Updates:
+- Add a field "AI prompt" in bolcks which get user inputs
+- when a user enters a input, collect the respond and send the,
+    1. user respond
+    2. user prompt
+    3. AI prompt
+    4. user options if avalabe
+    to fetch the correct data from the respond
+- user should be ablel to call variables anywhere (Message to send, prompt message, AI prompt) by using {{variableName}}
+

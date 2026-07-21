@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LankaBot | Flow Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="Simulator/simulator.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button class="icon-btn" onclick="window.location.href='/manageAccount.html'" title="Back to Dashboard">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <div class="logo-wrapper">
+                    <i class="ph-fill ph-git-branch logo-icon"></i>
+                    <div class="logo">
+                        <h1>Flow<span>Manager</span></h1>
+                        <p>Design conversation flows</p>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn-primary" id="run-simulator-btn" style="background: linear-gradient(135deg, #f39c12, #e67e22); margin-right: 0.5rem;">
+                    <i class="ph-bold ph-play-circle"></i> Run Simulator
+                </button>
+                <button class="btn-primary" id="save-flow-btn">
+                    <i class="ph-bold ph-floppy-disk"></i> Save Flow
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace -->
+        <main class="workspace">
+            <!-- Left Sidebar (Toolbox) -->
+            <aside class="sidebar left-sidebar">
+                <h3>Nodes</h3>
+                <div class="node-palette">
+                    <div class="palette-item" draggable="true" data-type="say">
+                        <i class="ph-bold ph-chat-circle-text"></i>
+                        <span>say()</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="get">
+                        <i class="ph-bold ph-download-simple"></i>
+                        <span>get(var)</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="getOption">
+                        <i class="ph-bold ph-list-dashes"></i>
+                        <span>getOption(list)</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="wait">
+                        <i class="ph-bold ph-clock"></i>
+                        <span>wait()</span>
+                    </div>
+                    <div class="palette-item" draggable="true" data-type="triggerIf">
+                        <i class="ph-bold ph-lightning"></i>
+                        <span>triggerIf(evt)</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Canvas -->
+            <section class="canvas-container" id="canvas-container">
+                <div class="canvas-wrapper" id="canvas-wrapper">
+                    <svg id="connections-layer"></svg>
+                    <div id="nodes-layer"></div>
+                </div>
+                <!-- Canvas Controls -->
+                <div class="canvas-controls">
+                    <button id="zoom-in" title="Zoom In"><i class="ph-bold ph-magnifying-glass-plus"></i></button>
+                    <button id="zoom-out" title="Zoom Out"><i class="ph-bold ph-magnifying-glass-minus"></i></button>
+                    <button id="zoom-reset" title="Reset Zoom"><i class="ph-bold ph-arrows-out"></i></button>
+                </div>
+            </section>
+
+            <!-- Right Sidebar (Variables) -->
+            <aside class="sidebar right-sidebar">
+                <h3>Variables</h3>
+                <div class="variables-panel">
+                    <div class="input-group">
+                        <input type="text" id="new-var-name" placeholder="Variable Name">
+                        <button class="btn-secondary" id="add-var-btn">Add</button>
+                    </div>
+                    <div class="variables-list" id="variables-list">
+                        <!-- Variables will appear here -->
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <script src="Compiler/compiler.js"></script>
+    <script src="Runtime/runtime.js"></script>
+    <script src="Simulator/simulator.js"></script>
+    <script src="scripts.js"></script>
+</body>
+</html>

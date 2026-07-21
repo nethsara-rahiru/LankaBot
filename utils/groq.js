@@ -26,7 +26,7 @@ let cachedPromptTemplate = null;
 
 const getPromptTemplate = () => {
     if (cachedPromptTemplate) return cachedPromptTemplate;
-    
+
     let template = '';
     if (fs.existsSync(AI_DIR)) {
         const files = fs.readdirSync(AI_DIR);
@@ -40,7 +40,7 @@ const getPromptTemplate = () => {
             }
         }
     }
-    
+
     cachedPromptTemplate = template;
     return template;
 };
@@ -53,7 +53,7 @@ const getGroqResponse = async (prompt, systemPrompt, retries = 3) => {
     }
 
     let finalSystemPrompt = "You are LankaBot, a professional AI assistant.";
-    
+
     if (systemPrompt && typeof systemPrompt === 'object') {
         let template = getPromptTemplate();
         for (const [key, value] of Object.entries(systemPrompt)) {
@@ -78,7 +78,7 @@ const getGroqResponse = async (prompt, systemPrompt, retries = 3) => {
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: "meta-llama/llama-4-scout-17b-16e-instruct",
+                    model: "llama-3.3-70b-versatile",
                     messages: [
                         {
                             role: "system",
