@@ -1,10 +1,12 @@
 Updates:
-- Add a field "AI prompt" in bolcks which get user inputs
-- when a user enters a input, collect the respond and send the,
-    1. user respond
-    2. user prompt
-    3. AI prompt
-    4. user options if avalabe
-    to fetch the correct data from the respond
-- user should be ablel to call variables anywhere (Message to send, prompt message, AI prompt) by using {{variableName}}
+    FlowManager:
+        - save Flow Manager instructions to the database when clicked the "Save Flow" button
+        - save the diagrame code which prints in concole when clicked the "Save Flow" button
+        - next time the user enters the Flow Manager, the last saved diagram should be loaded
+        - the compiled code also should be saved in the database.
 
+    manageAccount.html:
+        - add a dropdown menu to select in which method the bot should reply (Menu Reply, Auto Reply, Flow Reply, Direct AI)
+        
+    - when the Flow Reply is selected the bot should reply to whatsapp as it worked in the simulator
+    

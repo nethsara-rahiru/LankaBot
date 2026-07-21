@@ -9,11 +9,13 @@ const AILog = require('../models/AILog');
 const { getGroqResponse } = require('../utils/groq');
 const { queueCustomerAnalysis } = require('../controllers/customerController');
 const qrcodeImage = require('qrcode');
+const FlowRuntime = require('../public/FlowManager/Runtime/runtime');
 
 let ioInstance;
 const clients = new Map(); // accountId -> Client instance
 const aiBuffers = new Map(); // userId_accountId -> { messages: [], timeout: null }
 const sheetCache = new Map(); // accountId -> { data: string, fetchedAt: number }
+const activeFlows = new Map(); // orgContactId -> FlowRuntime
 
 // Fetches CSV from a Google Sheet URL with 60-second cache
 const fetchSheetData = async (accountId, url) => {
@@ -289,9 +291,100 @@ const startClient = async (accountId) => {
                 return; // Stop processing further if a rule was matched
             }
 
-            // AI Fallback for THIS account
+            // Flow Reply Mode
             const settings = await Settings.findOne({ account: accountId });
-            if (settings && settings.aiEnabled) {
+            
+            if (settings && settings.replyMethod === 'flow' && settings.compiledFlow) {
+                const orgId = msg.orgContactId.toString();
+                let flow = activeFlows.get(orgId);
+                
+                if (!flow) {
+                    flow = new FlowRuntime();
+                    
+                    try {
+                        const orgContact = await OrganizationContact.findById(msg.orgContactId);
+                        if (orgContact && orgContact.flowState && orgContact.flowState.status !== 'idle' && orgContact.flowState.currentNodeId) {
+                            flow.compiled = settings.compiledFlow;
+                            flow.variables = orgContact.flowState.variables || {};
+                            flow.status = orgContact.flowState.status;
+                            flow.currentNodeId = orgContact.flowState.currentNodeId;
+                        } else {
+                            flow.start(settings.compiledFlow);
+                        }
+                    } catch (err) {
+                        flow.start(settings.compiledFlow);
+                    }
+                    
+                    // Bind Callbacks
+                    flow.onBotMessage = async (text) => {
+                        await msg.reply(text);
+                        try {
+                            const botMsg = new Message({
+                                organizationContact: msg.orgContactId,
+                                role: 'bot',
+                                content: text,
+                                messageType: 'text'
+                            });
+                            await botMsg.save();
+                        } catch(e) {
+                            console.error('Error saving Flow bot message to DB:', e);
+                        }
+                    };
+                    
+                    flow.onWait = (seconds) => {
+                        return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+                    };
+                    
+                    flow.onAIExtract = async (data) => {
+                        const systemPrompt = `You are a strict data extraction AI.\nYour task is to extract information from the user's response based on the original question and the specific extraction instructions.\n\nORIGINAL QUESTION TO USER:\n"${data.userPrompt}"\n\nEXTRACTION INSTRUCTION (AI PROMPT):\n"${data.aiPrompt}"\n\nAVAILABLE OPTIONS:\n${data.options && data.options.length > 0 ? data.options.join(', ') : 'None'}\n\nRULES:\n1. Extract exactly what is asked in the EXTRACTION INSTRUCTION.\n2. Output ONLY the extracted value. Do not add conversational text.\n3. If the value cannot be found or determined, output "null".\n4. If options are provided, output the closest matching option.`;
+                        
+                        try {
+                            const res = await getGroqResponse(data.userInput, systemPrompt, 1);
+                            if (res) {
+                                flow.step(res);
+                            } else {
+                                flow.step(data.userInput);
+                            }
+                        } catch(e) {
+                            flow.step(data.userInput);
+                        }
+                    };
+
+                    flow.onStepChange = async () => {
+                        try {
+                            await OrganizationContact.findByIdAndUpdate(msg.orgContactId, {
+                                flowState: {
+                                    currentNodeId: flow.currentNodeId,
+                                    variables: flow.variables,
+                                    status: flow.status
+                                }
+                            });
+                        } catch(e) {}
+                    };
+                    
+                    flow.onFlowEnd = async () => {
+                        activeFlows.delete(orgId);
+                        try {
+                            await OrganizationContact.findByIdAndUpdate(msg.orgContactId, {
+                                flowState: { currentNodeId: null, variables: {}, status: 'idle' }
+                            });
+                        } catch(e) {}
+                    };
+                    
+                    activeFlows.set(orgId, flow);
+                }
+
+                if (flow.status === 'idle') {
+                    flow.start();
+                } else {
+                    flow.step(msg.body);
+                }
+                
+                return; // Stop processing further for Flow Reply
+            }
+
+            // Direct AI Mode (Fallback)
+            if (settings && (settings.replyMethod === 'ai' || (settings.replyMethod === undefined && settings.aiEnabled))) {
                 const bufferKey = `${msg.from}_${accountId}`;
                 if (!aiBuffers.has(bufferKey)) aiBuffers.set(bufferKey, { messages: [], timeout: null });
                 

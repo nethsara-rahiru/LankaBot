@@ -315,5 +315,9 @@ class FlowRuntime {
     }
 }
 
-// Export for browser
-window.FlowRuntime = FlowRuntime;
+// Export for browser and Node
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = FlowRuntime;
+} else {
+    window.FlowRuntime = FlowRuntime;
+}

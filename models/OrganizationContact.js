@@ -17,7 +17,13 @@ const OrganizationContactSchema = new mongoose.Schema({
         customerType: { type: String, default: "" }
     },
     lastMessageAt: { type: Date, default: Date.now },
-    lastAnalyzedAt: { type: Date, default: null }
+    lastAnalyzedAt: { type: Date, default: null },
+    flowState: {
+        currentNodeId: { type: String, default: null },
+        variables: { type: mongoose.Schema.Types.Mixed, default: {} },
+        status: { type: String, default: 'idle' },
+        executedSteps: [{ type: String }]
+    }
 });
 
 module.exports = mongoose.model('OrganizationContact', OrganizationContactSchema);

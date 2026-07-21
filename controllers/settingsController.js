@@ -71,6 +71,20 @@ exports.updateSettings = async (req, res) => {
         if (req.body.customCompanyDetails !== undefined) {
             settings.customCompanyDetails = req.body.customCompanyDetails;
         }
+
+        if (req.body.replyMethod !== undefined) {
+            settings.replyMethod = req.body.replyMethod;
+        }
+
+        if (req.body.flowData !== undefined) {
+            settings.flowData = req.body.flowData;
+            settings.markModified('flowData');
+        }
+
+        if (req.body.compiledFlow !== undefined) {
+            settings.compiledFlow = req.body.compiledFlow;
+            settings.markModified('compiledFlow');
+        }
         
         const updatedSettings = await settings.save();
         res.json(updatedSettings);

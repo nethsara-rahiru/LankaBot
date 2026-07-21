@@ -29,7 +29,20 @@ const SettingsSchema = new mongoose.Schema({
             prompt: { type: String, required: true },
             createdAt: { type: Date, default: Date.now }
         }
-    ]
+    ],
+    replyMethod: {
+        type: String,
+        enum: ['menu', 'auto', 'flow', 'ai'],
+        default: 'ai'
+    },
+    flowData: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    },
+    compiledFlow: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null
+    }
 });
 
 module.exports = mongoose.model('Settings', SettingsSchema);

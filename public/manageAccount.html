@@ -52,6 +52,35 @@
         <main style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
             <!-- Feature Grid -->
             <section class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <!-- Reply Method Selector -->
+                <div class="card feature-card" style="border-left: 4px solid var(--primary); grid-column: 1 / -1; cursor: default;">
+                    <div class="feature-icon-wrapper" style="background: rgba(var(--primary-rgb), 0.1);">
+                        <i class="ph-bold ph-chat-dots" style="color: var(--primary);"></i>
+                    </div>
+                    <div class="feature-content" style="flex: 1;">
+                        <h3>Bot Reply Method</h3>
+                        <p>Choose how the bot responds to incoming messages.</p>
+                    </div>
+                    <select id="reply-method-select" style="
+                        background: var(--glass-heavy, rgba(255,255,255,0.05));
+                        border: 1px solid var(--glass-border, rgba(255,255,255,0.1));
+                        color: var(--text, #fff);
+                        padding: 0.6rem 1rem;
+                        border-radius: 10px;
+                        font-family: 'Outfit', sans-serif;
+                        font-size: 0.9rem;
+                        font-weight: 600;
+                        min-width: 180px;
+                        cursor: pointer;
+                        outline: none;
+                    ">
+                        <option value="ai">🤖 Direct AI</option>
+                        <option value="auto">⚡ Auto Reply</option>
+                        <option value="flow">🔀 Flow Reply</option>
+                        <option value="menu">📋 Menu Reply</option>
+                    </select>
+                </div>
+
                 <!-- Auto-Reply Card -->
                 <div class="card feature-card" onclick="window.location.href='/rules.html'">
                     <div class="feature-icon-wrapper" style="background: rgba(var(--primary-rgb), 0.1);">
@@ -164,5 +193,47 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
+    <script>
+        // Reply Method Dropdown Logic
+        document.addEventListener('DOMContentLoaded', async () => {
+            const select = document.getElementById('reply-method-select');
+            const accountId = localStorage.getItem('activeAccountId');
+            if (!accountId || !select) return;
+
+            // Load current setting
+            try {
+                const res = await fetch('/api/settings', {
+                    headers: {
+                        'x-account-id': accountId,
+                        'x-auth-token': localStorage.getItem('token')
+                    }
+                });
+                const settings = await res.json();
+                if (settings.replyMethod) {
+                    select.value = settings.replyMethod;
+                }
+            } catch (err) {
+                console.error('Failed to load reply method:', err);
+            }
+
+            // Save on change
+            select.addEventListener('change', async () => {
+                try {
+                    await fetch('/api/settings', {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-account-id': accountId,
+                            'x-auth-token': localStorage.getItem('token')
+                        },
+                        body: JSON.stringify({ replyMethod: select.value })
+                    });
+                    console.log('Reply method updated to:', select.value);
+                } catch (err) {
+                    console.error('Failed to save reply method:', err);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

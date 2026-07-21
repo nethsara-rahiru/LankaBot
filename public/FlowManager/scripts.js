@@ -443,10 +443,94 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ----- Init -----
-    // Create start node
-    nextNodeId = 0; // Force start node to be node_0
-    createNode('start', 100, window.innerHeight / 2 - 100);
-    nextNodeId = 1; // Reset for other nodes
+    const accountId = localStorage.getItem('activeAccountId');
+
+    // Load a flow from saved data
+    const loadFlowData = (flowData) => {
+        // Clear existing state
+        nodesLayer.innerHTML = '';
+        connectionsLayer.innerHTML = '';
+        nodes.clear();
+        connections = [];
+        variables.clear();
+
+        // Restore variables first (needed for dropdown population)
+        if (flowData.variables && flowData.variables.length > 0) {
+            flowData.variables.forEach(v => variables.add(v));
+            updateVariablesList();
+        }
+
+        // Determine next node ID from existing data
+        let maxId = 0;
+        flowData.nodes.forEach(n => {
+            const num = parseInt(n.id.replace('node_', ''));
+            if (num > maxId) maxId = num;
+        });
+
+        // Create nodes
+        flowData.nodes.forEach(n => {
+            nextNodeId = parseInt(n.id.replace('node_', ''));
+            createNode(n.type, n.x, n.y);
+
+            // Populate data fields
+            const nodeEl = document.getElementById(n.id);
+            if (nodeEl && n.data) {
+                // Set simple fields
+                Object.entries(n.data).forEach(([key, value]) => {
+                    if (key === 'options') return; // handled separately
+                    const el = nodeEl.querySelector(`.node-data[data-key="${key}"]`);
+                    if (el) {
+                        el.value = value;
+                    }
+                });
+
+                // Set options for getOption nodes
+                if (n.type === 'getOption' && n.data.options) {
+                    const container = nodeEl.querySelector('.options-container');
+                    if (container) {
+                        // First option already exists from template
+                        const existingOptions = container.querySelectorAll('.node-option');
+                        n.data.options.forEach((opt, idx) => {
+                            if (idx === 0 && existingOptions[0]) {
+                                // Update the first existing option
+                                const input = existingOptions[0].querySelector('.option-input');
+                                if (input) {
+                                    input.value = opt.value;
+                                    input.dataset.optionId = opt.id;
+                                }
+                                const port = existingOptions[0].querySelector('.port-out');
+                                if (port) port.dataset.portId = opt.id;
+                            } else {
+                                // Add additional options
+                                addOption(n.id);
+                                const allOpts = container.querySelectorAll('.node-option');
+                                const lastOpt = allOpts[allOpts.length - 1];
+                                if (lastOpt) {
+                                    const input = lastOpt.querySelector('.option-input');
+                                    if (input) {
+                                        input.value = opt.value;
+                                        input.dataset.optionId = opt.id;
+                                    }
+                                    const port = lastOpt.querySelector('.port-out');
+                                    if (port) port.dataset.portId = opt.id;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        nextNodeId = maxId + 1;
+
+        // Restore connections
+        connections = flowData.connections ? [...flowData.connections] : [];
+
+        // Re-render connections after a tick so DOM is ready
+        requestAnimationFrame(() => {
+            updateConnections();
+        });
+    };
 
     // ----- Helper: extract current flow data -----
     const getFlowData = () => {
@@ -475,11 +559,85 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Save Flow logic
-    document.getElementById('save-flow-btn').addEventListener('click', () => {
+    document.getElementById('save-flow-btn').addEventListener('click', async () => {
         const flowData = getFlowData();
         console.log('Saved Flow Data:', flowData);
-        alert('Flow saved successfully! (Check console for output)');
+
+        let compiled = null;
+        try {
+            compiled = FlowCompiler.compile(flowData.nodes, flowData.connections, flowData.variables);
+            console.log('Compiled Flow:', compiled);
+        } catch (err) {
+            console.warn('Compilation failed, saving diagram only:', err.message);
+        }
+
+        if (!accountId) {
+            alert('No account selected. Please select an account first.');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-account-id': accountId,
+                    'x-auth-token': localStorage.getItem('token')
+                },
+                body: JSON.stringify({
+                    flowData: flowData,
+                    compiledFlow: compiled
+                })
+            });
+            if (res.ok) {
+                alert('Flow saved successfully!');
+            } else {
+                const errData = await res.json();
+                alert('Error saving flow: ' + (errData.message || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error('Save error:', err);
+            alert('Failed to save flow. Check your connection.');
+        }
     });
+
+    // Load saved flow on startup
+    const loadSavedFlow = async () => {
+        if (!accountId) {
+            // No account — just create a default start node
+            nextNodeId = 0;
+            createNode('start', 100, window.innerHeight / 2 - 100);
+            nextNodeId = 1;
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/settings', {
+                headers: {
+                    'x-account-id': accountId,
+                    'x-auth-token': localStorage.getItem('token')
+                }
+            });
+            const settings = await res.json();
+
+            if (settings.flowData && settings.flowData.nodes && settings.flowData.nodes.length > 0) {
+                loadFlowData(settings.flowData);
+                console.log('✅ Loaded saved flow from database.');
+            } else {
+                // No saved flow — create default start node
+                nextNodeId = 0;
+                createNode('start', 100, window.innerHeight / 2 - 100);
+                nextNodeId = 1;
+            }
+        } catch (err) {
+            console.error('Failed to load saved flow:', err);
+            nextNodeId = 0;
+            createNode('start', 100, window.innerHeight / 2 - 100);
+            nextNodeId = 1;
+        }
+    };
+
+    loadSavedFlow();
 
     // ----- Simulator -----
     const simulator = new FlowSimulator();
@@ -497,3 +655,4 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
