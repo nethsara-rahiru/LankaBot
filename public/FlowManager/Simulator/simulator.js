@@ -89,7 +89,7 @@ class FlowSimulator {
                             <i class="ph-bold ph-robot"></i>
                         </div>
                         <div class="sim-chat-info">
-                            <h4>LankaBot</h4>
+                            <h4>FrontDesk</h4>
                             <p id="sim-bot-status">Ready to simulate</p>
                         </div>
                     </div>

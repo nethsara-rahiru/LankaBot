@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontDesk | User Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .search-container {
+            position: relative;
+            width: 300px;
+        }
+        
+        .search-container i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-dim);
+        }
+        
+        .search-container input {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            border-radius: 20px;
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            color: var(--text);
+            outline: none;
+        }
+        
+        .users-table-container {
+            background: var(--glass);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 1.2rem;
+            text-align: left;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        th {
+            background: rgba(0,0,0,0.2);
+            color: var(--text-dim);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+        }
+        
+        tr.user-row {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        tr.user-row:hover {
+            background: var(--glass-heavy);
+        }
+        
+        .role-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .role-admin { background: rgba(155, 89, 182, 0.15); color: #9b59b6; border: 1px solid rgba(155, 89, 182, 0.3); }
+        .role-manager { background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.3); }
+        .role-analyzer { background: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3); }
+        .role-user { background: rgba(149, 165, 166, 0.15); color: #95a5a6; border: 1px solid rgba(149, 165, 166, 0.3); }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .status-online .status-dot { background: var(--primary); box-shadow: 0 0 8px var(--primary-glow); }
+        .status-offline .status-dot { background: #95a5a6; }
+        .status-blocked .status-dot { background: var(--danger); box-shadow: 0 0 8px var(--danger-glow); }
+        
+        .action-btns {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-icon {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 4px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        
+        .btn-icon:hover {
+            color: var(--text);
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .btn-icon.delete:hover {
+            color: var(--danger);
+            background: rgba(255,82,82,0.1);
+        }
+
+        .expanded-row {
+            display: none;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .expanded-row.active {
+            display: table-row;
+        }
+
+        .sessions-list {
+            padding: 1rem 2rem;
+            border-left: 3px solid var(--primary);
+            margin: 1rem 0;
+            background: var(--glass);
+            border-radius: 0 12px 12px 0;
+        }
+
+        .session-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.8rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        
+        .session-item:last-child {
+            border-bottom: none;
+        }
+
+        .add-session-btn {
+            margin-top: 1rem;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            border: 1px dashed var(--primary);
+            padding: 0.8rem;
+            border-radius: 12px;
+            width: 100%;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .add-session-btn:hover {
+            background: var(--primary);
+            color: #fff;
+        }
+        
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: var(--bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 { margin: 0; }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .account-select-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        
+        .account-select-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .account-select-item:hover {
+            background: var(--glass-heavy);
+            border-color: var(--primary);
+        }
+        .top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--glass-border);
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-bar">
+        <div style="max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem;">
+            <div class="header-left" style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn-icon" onclick="window.location.href='/manageAccount.html'" style="background: var(--glass-heavy); padding: 0.5rem; border-radius: 12px; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--glass-border);">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <div class="logo-wrapper" onclick="window.location.href='/manageAccount.html'" style="cursor: pointer; display: flex; align-items: center; gap: 0.8rem;">
+                    <i class="ph-fill ph-robot logo-icon" style="font-size: 2rem; color: var(--primary);"></i>
+                    <div class="logo">
+                        <h1 style="font-size: 1.5rem; font-weight: 700; margin: 0;">Front<span style="color: var(--primary);">Desk</span></h1>
+                        <p style="font-size: 0.85rem; color: var(--text-dim); margin: 0;">User Management</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="user-profile-header" class="user-profile-header" style="display: flex; align-items: center; gap: 1rem;">
+                <div class="header-user-details">
+                    <h4 id="header-account-name" style="margin: 0; color: var(--text);">Admin</h4>
+                </div>
+                <button id="logout-btn" class="logout-mini-btn" title="Logout" style="background: rgba(255, 82, 82, 0.1); border: 1px solid rgba(255, 82, 82, 0.3); color: var(--danger); width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: 0.5rem; transition: all 0.3s ease;">
+                    <i class="ph-bold ph-sign-out"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding-top: 2rem;">
+
+        <main style="display: block;">
+            <div class="page-header">
+                <h2>System Users</h2>
+                <div class="search-container">
+                    <i class="ph-bold ph-magnifying-glass"></i>
+                    <input type="text" id="searchInput" placeholder="Search users by name or email..." onkeyup="filterUsers()">
+                </div>
+            </div>
+            
+            <div class="users-table-container">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Name & Role</th>
+                            <th>Status</th>
+                            <th>Sessions Handled</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTbody">
+                        <!-- Users will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Role Modal -->
+    <div id="editRoleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit User Role</h2>
+                <button class="close-btn" onclick="closeModal('editRoleModal')"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <form id="roleForm" onsubmit="updateRole(event)">
+                <input type="hidden" id="editUserId">
+                <div class="input-group">
+                    <label>Select Role</label>
+                    <select id="roleSelect" required>
+                        <option value="user">User</option>
+                        <option value="analyzer">Analyzer</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-primary" style="margin-top: 1.5rem; width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Session Modal -->
+    <div id="assignSessionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Assign Session</h2>
+                <button class="close-btn" onclick="closeModal('assignSessionModal')"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div class="search-container" style="width: 100%;">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <input type="text" id="sessionSearch" placeholder="Search by name or number..." onkeyup="filterAccounts()">
+            </div>
+            <input type="hidden" id="assignUserId">
+            <div class="account-select-list" id="accountSelectList">
+                <!-- Accounts will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login.html';
+        
+        // Handle Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('activeAccountId');
+            window.location.href = '/login.html';
+        });
+
+        let allUsers = [];
+        let allAccounts = [];
+
+        async function loadData() {
+            try {
+                // Fetch Users
+                const userRes = await fetch('/api/users/admin', {
+                    headers: { 'x-auth-token': token }
+                });
+                
+                if (userRes.status === 401 || userRes.status === 403) {
+                    alert('Access Denied. Admin privileges required.');
+                    window.location.href = '/manageAccount.html';
+                    return;
+                }
+                
+                allUsers = await userRes.json();
+                
+                // Fetch all accounts to assign
+                const accRes = await fetch('/api/accounts', {
+                    headers: { 'x-auth-token': token }
+                });
+                allAccounts = await accRes.json();
+                
+                renderUsers(allUsers);
+            } catch (err) {
+                console.error('Failed to load data', err);
+            }
+        }
+
+        function renderUsers(users) {
+            const tbody = document.getElementById('usersTbody');
+            tbody.innerHTML = '';
+            
+            users.forEach(user => {
+                const isOnline = user.sessionID !== null && user.status !== 'blocked';
+                const statusClass = user.status === 'blocked' ? 'status-blocked' : (isOnline ? 'status-online' : 'status-offline');
+                const statusText = user.status === 'blocked' ? 'Blocked' : (isOnline ? 'Logged In' : 'Logged Out');
+                
+                // Main Row
+                const tr = document.createElement('tr');
+                tr.className = 'user-row';
+                tr.onclick = (e) => toggleExpanded(user._id, e);
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight: 600; margin-bottom: 4px;">${user.name}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 6px;">${user.email}</div>
+                        <span class="role-badge role-${user.role}">${user.role}</span>
+                    </td>
+                    <td>
+                        <div class="status-badge ${statusClass}">
+                            <div class="status-dot"></div>
+                            ${statusText}
+                        </div>
+                    </td>
+                    <td>${user.assignedAccounts.length} session(s)</td>
+                    <td class="action-btns">
+                        <button class="btn-icon" title="Edit Role" onclick="openEditRole('${user._id}', '${user.role}', event)">
+                            <i class="ph-bold ph-pencil-simple"></i>
+                        </button>
+                        <button class="btn-icon" title="${user.status === 'blocked' ? 'Unblock' : 'Block'}" onclick="toggleBlock('${user._id}', '${user.status}', event)">
+                            <i class="ph-bold ${user.status === 'blocked' ? 'ph-lock-open' : 'ph-lock'}"></i>
+                        </button>
+                        <button class="btn-icon delete" title="Delete User" onclick="deleteUser('${user._id}', event)">
+                            <i class="ph-bold ph-trash"></i>
+                        </button>
+                    </td>
+                `;
+                
+                // Expanded Details Row
+                const expandedTr = document.createElement('tr');
+                expandedTr.id = `expanded-${user._id}`;
+                expandedTr.className = 'expanded-row';
+                
+                let sessionsHtml = user.assignedAccounts.map(acc => `
+                    <div class="session-item">
+                        <div>
+                            <strong>${acc.organizationName}</strong>
+                            <div style="font-size: 0.8rem; color: var(--text-dim);">${acc.phoneNumber || 'No Number'}</div>
+                        </div>
+                        <button class="btn-icon delete" title="Remove Session" onclick="removeSession('${user._id}', '${acc._id}')">
+                            <i class="ph-bold ph-x-circle"></i>
+                        </button>
+                    </div>
+                `).join('');
+                
+                if (user.assignedAccounts.length === 0) {
+                    sessionsHtml = `<div style="padding: 1rem; color: var(--text-dim); font-style: italic;">No sessions assigned to this user.</div>`;
+                }
+                
+                expandedTr.innerHTML = `
+                    <td colspan="4" style="padding: 0;">
+                        <div class="sessions-list">
+                            <h4 style="margin-top: 0; margin-bottom: 1rem; color: var(--text-dim);">Assigned Sessions</h4>
+                            ${sessionsHtml}
+                            <div class="add-session-btn" onclick="openAssignSession('${user._id}')">
+                                <i class="ph-bold ph-plus"></i> Assign New Session
+                            </div>
+                        </div>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+                tbody.appendChild(expandedTr);
+            });
+        }
+
+        function filterUsers() {
+            const val = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allUsers.filter(u => 
+                u.name.toLowerCase().includes(val) || 
+                u.email.toLowerCase().includes(val)
+            );
+            renderUsers(filtered);
+        }
+
+        function toggleExpanded(userId, e) {
+            // Prevent toggling when clicking action buttons
+            if (e.target.closest('.action-btns')) return;
+            
+            const row = document.getElementById(`expanded-${userId}`);
+            row.classList.toggle('active');
+        }
+
+        // Action Functions
+        function openEditRole(id, role, e) {
+            e.stopPropagation();
+            document.getElementById('editUserId').value = id;
+            document.getElementById('roleSelect').value = role;
+            document.getElementById('editRoleModal').style.display = 'flex';
+        }
+
+        async function updateRole(e) {
+            e.preventDefault();
+            const id = document.getElementById('editUserId').value;
+            const role = document.getElementById('roleSelect').value;
+            
+            try {
+                await fetch(`/api/users/admin/${id}/role`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify({ role })
+                });
+                closeModal('editRoleModal');
+                loadData();
+            } catch (err) {
+                alert('Error updating role');
+            }
+        }
+
+        async function toggleBlock(id, currentStatus, e) {
+            e.stopPropagation();
+            const newStatus = currentStatus === 'blocked' ? 'active' : 'blocked';
+            if (!confirm(`Are you sure you want to ${newStatus === 'blocked' ? 'block' : 'unblock'} this user?`)) return;
+            
+            try {
+                await fetch(`/api/users/admin/${id}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                loadData();
+            } catch (err) {
+                alert('Error updating status');
+            }
+        }
+
+        async function deleteUser(id, e) {
+            e.stopPropagation();
+            if (!confirm('Are you sure you want to completely delete this user? This cannot be undone.')) return;
+            
+            try {
+                await fetch(`/api/users/admin/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'x-auth-token': token }
+                });
+                loadData();
+            } catch (err) {
+                alert('Error deleting user');
+            }
+        }
+
+        // Session Assignment
+        function openAssignSession(userId) {
+            document.getElementById('assignUserId').value = userId;
+            renderAccountsList(allAccounts); // reset list
+            document.getElementById('sessionSearch').value = '';
+            document.getElementById('assignSessionModal').style.display = 'flex';
+        }
+
+        function filterAccounts() {
+            const val = document.getElementById('sessionSearch').value.toLowerCase();
+            const filtered = allAccounts.filter(a => 
+                (a.organizationName && a.organizationName.toLowerCase().includes(val)) ||
+                (a.phoneNumber && a.phoneNumber.toLowerCase().includes(val))
+            );
+            renderAccountsList(filtered);
+        }
+
+        function renderAccountsList(accounts) {
+            const container = document.getElementById('accountSelectList');
+            const userId = document.getElementById('assignUserId').value;
+            const user = allUsers.find(u => u._id === userId);
+            
+            container.innerHTML = accounts.map(acc => {
+                // Check if already assigned
+                const isAssigned = user.assignedAccounts.some(a => a._id === acc._id);
+                
+                return `
+                <div class="account-select-item" ${isAssigned ? 'style="opacity: 0.5; pointer-events: none;"' : `onclick="assignSessionToUser('${acc._id}')"`}>
+                    <div>
+                        <strong>${acc.organizationName}</strong>
+                        <div style="font-size: 0.8rem; color: var(--text-dim);">${acc.phoneNumber || 'No Number'}</div>
+                    </div>
+                    ${isAssigned ? '<span style="font-size: 0.8rem; color: var(--primary);">Already Assigned</span>' : '<i class="ph-bold ph-plus-circle" style="color: var(--primary); font-size: 1.2rem;"></i>'}
+                </div>
+                `;
+            }).join('');
+            
+            if (accounts.length === 0) {
+                container.innerHTML = '<div style="padding: 1rem; text-align: center; color: var(--text-dim);">No accounts found.</div>';
+            }
+        }
+
+        async function assignSessionToUser(accountId) {
+            const userId = document.getElementById('assignUserId').value;
+            try {
+                await fetch(`/api/users/admin/${userId}/accounts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+                    body: JSON.stringify({ accountId })
+                });
+                closeModal('assignSessionModal');
+                loadData();
+                
+                // keep the row expanded
+                setTimeout(() => {
+                    const row = document.getElementById(`expanded-${userId}`);
+                    if(row) row.classList.add('active');
+                }, 500);
+            } catch (err) {
+                alert('Error assigning session');
+            }
+        }
+
+        async function removeSession(userId, accountId) {
+            if (!confirm('Remove this session from the user?')) return;
+            try {
+                await fetch(`/api/users/admin/${userId}/accounts/${accountId}`, {
+                    method: 'DELETE',
+                    headers: { 'x-auth-token': token }
+                });
+                loadData();
+                
+                // keep the row expanded
+                setTimeout(() => {
+                    const row = document.getElementById(`expanded-${userId}`);
+                    if(row) row.classList.add('active');
+                }, 500);
+            } catch (err) {
+                alert('Error removing session');
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Init
+        loadData();
+    </script>
+</body>
+</html>

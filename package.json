@@ -1,5 +1,5 @@
 {
-  "name": "lankabot",
+  "name": "frontdesk",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -10,15 +10,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nethsara-rahiru/LankaBot.git"
+    "url": "git+https://github.com/nethsara-rahiru/FrontDesk.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/nethsara-rahiru/LankaBot/issues"
+    "url": "https://github.com/nethsara-rahiru/FrontDesk/issues"
   },
-  "homepage": "https://github.com/nethsara-rahiru/LankaBot#readme",
+  "homepage": "https://github.com/nethsara-rahiru/FrontDesk#readme",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "body-parser": "^2.2.2",

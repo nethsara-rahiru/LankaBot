@@ -1,19 +1,18 @@
-Found some issues in the system
+Create a new page in public named "userManagment.html", to manage users in the system.
+in that page:
+    - Admins should be able to which sessions are handeled by who
+    - assign roles to users (user, admin, manageer, analyzer, etc)
+    - assign sessions to users to handel them
+    - admins should be able to delete users.
 
-1. currently in the system if user deletes its session, all the data with is also deletes (Rules, Flows, Menus and etc..)
-
-    Fix:
-    - Add a option to rescan the QR code and restore the session in the accounts.html
-    
-2. need a method to create sessions for remote customers. usualy a admin manages the system. so, if the client is not near by that can't scan the QR. need a solution for this.
-
-3. audienceInsights.html is not working.
-
-    Fix:
-    - Fully reupdate the page.
-    - datas are not properly frtching sence the database schema was changed.
-    - Add a button to restart the user's conversation.
-    - load a chatbox to show all the chats the user had done with the session.
-    - show all knowen data of it (Variables got in flow messaging)
-    - remove ai chat summary, and the button
-
+Frontend:
+    - all the users should be in a table
+    - columns should be:
+        1. name (show role if it is not a normal user)
+        2. status (loged in, loged out, blocked, online)
+        3. number of sessions handeled
+        4. action (edit, delete, block)
+    - when a row is clicked expan the row and show the sessions handeled by that user as a list
+    - add a button to the each row of the list to remove from him.
+    - add a button to add session to let him handel. the button should open a popup to search session by number and add it.
+    - A search bar should be there in the top right

@@ -23,6 +23,20 @@ const UserSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    role: {
+        type: String,
+        enum: ['user', 'admin', 'manager', 'analyzer'],
+        default: 'user'
+    },
+    status: {
+        type: String,
+        enum: ['active', 'blocked'],
+        default: 'active'
+    },
+    assignedAccounts: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Account'
+    }],
     date: {
         type: Date,
         default: Date.now

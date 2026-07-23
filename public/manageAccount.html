@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LankaBot | Premium WhatsApp Dashboard</title>
+    <title>FrontDesk | Premium WhatsApp Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -17,7 +17,7 @@
                 <div class="logo-wrapper">
                     <i class="ph-fill ph-robot logo-icon"></i>
                     <div class="logo">
-                        <h1>Lanka<span>Bot</span></h1>
+                        <h1>Front<span>Desk</span></h1>
                         <p>Advanced WhatsApp Automation</p>
                     </div>
                 </div>
@@ -183,11 +183,23 @@
                         <p>Add or switch between multiple WhatsApp numbers.</p>
                     </div>
                 </div>
+
+                <!-- User Management Card -->
+                <div class="card feature-card" id="userManagementCard" onclick="window.location.href='/userManagement.html'" style="display: none; border-left: 4px solid #9b59b6;">
+                    <div class="feature-icon-wrapper" style="background: rgba(155, 89, 182, 0.1);">
+                        <i class="ph-bold ph-user-gear" style="color: #9b59b6;"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>User Management</h3>
+                        <p>Manage system users, roles, and assign WhatsApp sessions.</p>
+                        <span class="badge-soon" style="background: rgba(155, 89, 182, 0.2); color: #9b59b6;">Admin Only</span>
+                    </div>
+                </div>
             </section>
         </main>
 
         <footer>
-            <p>&copy; 2026 LankaBot Premium Dashboard. Built for high-performance automation.</p>
+            <p>&copy; 2026 FrontDesk Premium Dashboard. Built for high-performance automation.</p>
         </footer>
     </div>
 
@@ -233,6 +245,22 @@
                     console.error('Failed to save reply method:', err);
                 }
             });
+            // Check User Role to display User Management card
+            try {
+                const userToken = localStorage.getItem('token');
+                if (userToken) {
+                    const payload = JSON.parse(atob(userToken.split('.')[1]));
+                    // Since role might not be in JWT, we should ideally fetch user profile
+                    // But as a quick UI toggle, we can fetch it, or just show it and let server block access
+                    const profileRes = await fetch('/api/users/admin', {
+                        headers: { 'x-auth-token': userToken }
+                    });
+                    if (profileRes.ok) {
+                        const card = document.getElementById('userManagementCard');
+                        if (card) card.style.display = 'flex';
+                    }
+                }
+            } catch (e) {}
         });
     </script>
 </body>

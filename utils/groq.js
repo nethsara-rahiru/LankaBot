@@ -1,5 +1,5 @@
 /**
- * Utility to interact with LankaBot AI API (OpenAI Compatible)
+ * Utility to interact with FrontDesk AI API (OpenAI Compatible)
  */
 
 const fs = require('fs');
@@ -52,7 +52,7 @@ const getGroqResponse = async (prompt, systemPrompt, retries = 3) => {
         return null;
     }
 
-    let finalSystemPrompt = "You are LankaBot, a professional AI assistant.";
+    let finalSystemPrompt = "You are FrontDesk, a professional AI assistant.";
 
     if (systemPrompt && typeof systemPrompt === 'object') {
         let template = getPromptTemplate();
@@ -104,12 +104,12 @@ const getGroqResponse = async (prompt, systemPrompt, retries = 3) => {
 
             if (response.status === 429 || response.status === 503) {
                 const waitTime = (i + 1) * 2000;
-                console.warn(`LankaBot API Busy (${response.status}). Retrying in ${waitTime / 1000}s... (${i + 1}/${retries})`);
+                console.warn(`FrontDesk API Busy (${response.status}). Retrying in ${waitTime / 1000}s... (${i + 1}/${retries})`);
                 await new Promise(res => setTimeout(res, waitTime));
                 continue;
             }
 
-            console.error('LankaBot API Error:', JSON.stringify(data));
+            console.error('FrontDesk API Error:', JSON.stringify(data));
             break;
 
         } catch (error) {

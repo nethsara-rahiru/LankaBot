@@ -1,6 +1,6 @@
-# 🤖 LankaBot
+# 🤖 FrontDesk
 
-LankaBot is a powerful, modern WhatsApp automation system integrated with an Express.js backend and a premium web-based dashboard. It allows you to manage your WhatsApp bot, send messages, and monitor activity in real-time through a beautiful web interface.
+FrontDesk is a powerful, modern WhatsApp automation system integrated with an Express.js backend and a premium web-based dashboard. It allows you to manage your WhatsApp bot, send messages, and monitor activity in real-time through a beautiful web interface.
 
 ## 🚀 Features
 
@@ -24,8 +24,8 @@ LankaBot is a powerful, modern WhatsApp automation system integrated with an Exp
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/nethsara-rahiru/LankaBot.git
-    cd LankaBot
+    git clone https://github.com/nethsara-rahiru/FrontDesk.git
+    cd FrontDesk
     ```
 
 2.  **Install dependencies**:
@@ -37,7 +37,7 @@ LankaBot is a powerful, modern WhatsApp automation system integrated with an Exp
     Create a `.env` file in the root directory:
     ```env
     PORT=5000
-    MONGO_URI=mongodb://localhost:27017/lankabot
+    MONGO_URI=mongodb://localhost:27017/frontdesk
     ```
 
 4.  **Add Media Assets**:
@@ -145,7 +145,7 @@ To test the API endpoints in Postman, set the `Content-Type` to `application/jso
 ## 📂 Project Structure
 
 ```text
-LankaBot/
+FrontDesk/
 ├── bot/                # WhatsApp bot logic & event handlers
 ├── config/             # Database & global configurations
 ├── controllers/        # Express route controllers

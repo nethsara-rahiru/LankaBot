@@ -129,8 +129,8 @@ const startClient = async (accountId) => {
             puppeteer: {
                 headless: 'new', // 'new' is often faster in modern Chrome
                 timeout: 60000,
-                executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',     //  Use in macos
-                // executablePath: '/usr/bin/chromium-browser',     // Use in linux server
+                // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',     //  Use in macos
+                executablePath: '/usr/bin/chromium-browser',     // Use in linux server
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',

@@ -1,9 +1,9 @@
 :root {
-    --primary: #2ecc71;
-    --primary-rgb: 46, 204, 113;
-    --primary-glow: rgba(46, 204, 113, 0.3);
-    --secondary: #1e8449;
-    --bg: #0f172a;
+    --primary: #cfa07d;
+    --primary-rgb: 207, 160, 125;
+    --primary-glow: rgba(207, 160, 125, 0.3);
+    --secondary: #a86448;
+    --bg: #1f1f1f;
     --glass: rgba(255, 255, 255, 0.03);
     --glass-border: rgba(255, 255, 255, 0.1);
     --glass-heavy: rgba(255, 255, 255, 0.05);
@@ -11,7 +11,7 @@
     --text-dim: #94a3b8;
     --danger: #ff5252;
     --danger-glow: rgba(255, 82, 82, 0.3);
-    --accent: #2ecc71;
+    --accent: #818cf8;
     --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
     --nav-bg: rgba(255, 255, 255, 0.05);
 }
@@ -93,9 +93,17 @@ header {
 }
 
 @keyframes pulseGlow {
-    0% { box-shadow: 0 0 5px var(--primary-glow); }
-    50% { box-shadow: 0 0 15px var(--primary-glow); }
-    100% { box-shadow: 0 0 5px var(--primary-glow); }
+    0% {
+        box-shadow: 0 0 5px var(--primary-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    100% {
+        box-shadow: 0 0 5px var(--primary-glow);
+    }
 }
 
 .status-indicator.connected {
@@ -449,7 +457,7 @@ select:focus {
 
 .btn-primary:hover {
     transform: translateY(-4px);
-    box-shadow: 0 15px 30px rgba(0, 255, 163, 0.3);
+    box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
 }
 
 .btn-secondary {

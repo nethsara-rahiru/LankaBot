@@ -1,5 +1,5 @@
 ================================================================================
-                        LankaBot — MongoDB Database Schema
+                        FrontDesk — MongoDB Database Schema
 ================================================================================
 
 Database:       MongoDB (via Mongoose ODM)
@@ -13,7 +13,7 @@ Last Updated:   2026-07-16
   Field         | Type       | Required | Unique | Default    | Notes
   --------------|------------|----------|--------|------------|---------------------
   _id           | ObjectId   | auto     | yes    | auto       | Primary key
-  name          | String     | yes      | no     | —          | LankaBot account owner
+  name          | String     | yes      | no     | —          | FrontDesk account owner
   email         | String     | yes      | yes    | —          | Login email
   password      | String     | yes      | no     | —          | bcrypt hashed password
   sessionID     | String     | no       | no     | null       | Login session
