@@ -297,10 +297,12 @@ const startClient = async (accountId) => {
             if (settings && settings.replyMethod === 'flow' && settings.compiledFlow) {
                 const orgId = msg.orgContactId.toString();
                 let flow = activeFlows.get(orgId);
+                let isNewFlowInstance = false;
                 
+                // 1. Initialize or Restore Flow State BEFORE routing
                 if (!flow) {
+                    isNewFlowInstance = true;
                     flow = new FlowRuntime();
-                    
                     try {
                         const orgContact = await OrganizationContact.findById(msg.orgContactId);
                         if (orgContact && orgContact.flowState && orgContact.flowState.status !== 'idle' && orgContact.flowState.currentNodeId) {
@@ -308,15 +310,80 @@ const startClient = async (accountId) => {
                             flow.variables = orgContact.flowState.variables || {};
                             flow.status = orgContact.flowState.status;
                             flow.currentNodeId = orgContact.flowState.currentNodeId;
+                            flow.nodeHistory = orgContact.flowState.nodeHistory || [];
                         } else {
                             flow.start(settings.compiledFlow);
                         }
                     } catch (err) {
                         flow.start(settings.compiledFlow);
                     }
+                }
+
+                // 2. GLOBAL AI ROUTING
+                const entrypoints = settings.compiledFlow.entrypoints || {};
+                const entryKeys = Object.keys(entrypoints);
+                let shouldRedirect = null;
+
+                if (entryKeys.length > 0) {
+                    const topics = entryKeys.map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description}`).join('\n');
+                    let currentContext = 'The user is starting a NEW conversation. There is no active flow.';
+                    if (flow && flow.status !== 'idle') {
+                        currentContext = `The user is currently in an ACTIVE flow. You MUST assume their message is a response to the ongoing flow (output "continue"), UNLESS they are explicitly demanding to change the subject to one of the available flows.`;
+                    }
+
+                    const routerPrompt = `You are a conversational router AI for a WhatsApp bot.
+The user sent a new message: "${msg.body}"
+
+CONTEXT:
+${currentContext}
+
+Available flows:
+${topics}
+
+Based on the user's message, decide if they are trying to start or switch to one of the available flows.
+If the message is a normal continuation of the current conversation and does NOT indicate a deliberate topic change, output "continue".
+If the message clearly matches one of the flow descriptions, output the EXACT Topic ID.
+Output ONLY "continue" or the Topic ID. Nothing else.`;
+                    
+                    try {
+                        const routeRes = (await getGroqResponse(msg.body, routerPrompt, 1)) || 'continue';
+                        const decidedRoute = routeRes.trim();
+                        if (decidedRoute !== 'continue' && entrypoints[decidedRoute]) {
+                            shouldRedirect = entrypoints[decidedRoute].id;
+                        } else if (flow.status === 'idle' && entrypoints['default']) {
+                            shouldRedirect = entrypoints['default'].id;
+                        }
+                    } catch(e) {
+                        console.error('Router error', e);
+                    }
+                }
+                
+                // 3. Bind Callbacks if it's a new instance
+                if (isNewFlowInstance) {
                     
                     // Bind Callbacks
+                    flow.resume = async () => {
+                        if (flow._isRunning) return;
+                        flow._isRunning = true;
+                        while (flow.status === 'running') {
+                            await flow.step(null);
+                            await new Promise(r => setTimeout(r, 100)); // small delay to ensure order
+                        }
+                        flow._isRunning = false;
+                    };
+                    
                     flow.onBotMessage = async (text) => {
+                        // Count words and wait 0.4 seconds per word, max 3 seconds
+                        const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+                        const typingMs = Math.min(wordCount * 400, 3000); 
+                        try {
+                            const chat = await msg.getChat();
+                            if (chat.sendPresence) await chat.sendPresence('composing');
+                            else if (chat.sendStateTyping) await chat.sendStateTyping();
+                        } catch(e) {}
+                        
+                        await new Promise(r => setTimeout(r, typingMs));
+
                         await msg.reply(text);
                         try {
                             const botMsg = new Message({
@@ -331,13 +398,52 @@ const startClient = async (accountId) => {
                         }
                     };
                     
+                    flow.onWaitingForInput = async (prompt) => {
+                        await msg.reply(prompt);
+                        try {
+                            const botMsg = new Message({
+                                organizationContact: msg.orgContactId,
+                                role: 'bot',
+                                content: prompt,
+                                messageType: 'text'
+                            });
+                            await botMsg.save();
+                        } catch(e) {
+                            console.error('Error saving Flow input prompt to DB:', e);
+                        }
+                    };
+                    
+                    flow.onWaitingForOption = async (prompt, options) => {
+                        let text = prompt;
+                        await msg.reply(text);
+                        try {
+                            const botMsg = new Message({
+                                organizationContact: msg.orgContactId,
+                                role: 'bot',
+                                content: text,
+                                messageType: 'text'
+                            });
+                            await botMsg.save();
+                        } catch(e) {
+                            console.error('Error saving Flow option prompt to DB:', e);
+                        }
+                    };
+                    
                     flow.onWait = (seconds) => {
-                        return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+                        setTimeout(() => {
+                            setTimeout(() => flow.resume(), 50); // Resume after runtime's internal timer
+                        }, seconds * 1000);
                     };
                     
                     flow.onAIExtract = async (data) => {
-                        const systemPrompt = `You are a strict data extraction AI.\nYour task is to extract information from the user's response based on the original question and the specific extraction instructions.\n\nORIGINAL QUESTION TO USER:\n"${data.userPrompt}"\n\nEXTRACTION INSTRUCTION (AI PROMPT):\n"${data.aiPrompt}"\n\nAVAILABLE OPTIONS:\n${data.options && data.options.length > 0 ? data.options.join(', ') : 'None'}\n\nRULES:\n1. Extract exactly what is asked in the EXTRACTION INSTRUCTION.\n2. Output ONLY the extracted value. Do not add conversational text.\n3. If the value cannot be found or determined, output "null".\n4. If options are provided, output the closest matching option.`;
+                        let systemPrompt = `You are a strict data extraction AI.\nYour task is to extract information from the user's response based on the original question and the specific extraction instructions.\n\nORIGINAL QUESTION TO USER:\n"${data.userPrompt}"\n\nEXTRACTION INSTRUCTION (AI PROMPT):\n"${data.aiPrompt}"\n\nAVAILABLE OPTIONS:\n${data.options && data.options.length > 0 ? data.options.join(', ') : 'None'}\n\nRULES:\n`;
                         
+                        if (data.isBoolean) {
+                            systemPrompt += `1. Evaluate the boolean condition.\n2. Output a JSON object: {"value": true} or {"value": false}\n3. Output ONLY valid JSON.`;
+                        } else {
+                            systemPrompt += `1. Extract exactly what is asked in the EXTRACTION INSTRUCTION.\n2. If the user successfully provided the requested information, output a JSON object: {"status": "success", "value": "extracted_value"}\n3. If the user's input is invalid, ambiguous, or missing the required information, output a JSON object: {"status": "fail", "followUp": "A helpful response to ask the user again for the correct information."}\n4. If options are provided, "value" must be the closest matching option.\n5. Output ONLY valid JSON.`;
+                        }
+
                         try {
                             const res = await getGroqResponse(data.userInput, systemPrompt, 1);
                             if (res) {
@@ -348,6 +454,7 @@ const startClient = async (accountId) => {
                         } catch(e) {
                             flow.step(data.userInput);
                         }
+                        flow.resume();
                     };
 
                     flow.onStepChange = async () => {
@@ -374,11 +481,30 @@ const startClient = async (accountId) => {
                     activeFlows.set(orgId, flow);
                 }
 
-                if (flow.status === 'idle') {
-                    flow.start();
+                if (shouldRedirect) {
+                    // Reset to the new flow entrypoint
+                    flow.variables = {};
+                    flow.status = 'idle';
+                    flow.start(settings.compiledFlow);
+                    flow.currentNodeId = shouldRedirect;
+                    flow.status = 'running';
+                    flow.step(null);
+                } else if (flow.status === 'idle') {
+                    // Start the flow because of the first message
+                    flow.start(settings.compiledFlow);
+                    if (entrypoints['default']) {
+                        flow.currentNodeId = entrypoints['default'].id;
+                    } else if (entryKeys.length > 0) {
+                        flow.currentNodeId = entrypoints[entryKeys[0]].id; // fallback
+                    }
+                    flow.status = 'running';
+                    flow.step(null);
                 } else {
                     flow.step(msg.body);
                 }
+                
+                // Automatically run until user input is required
+                flow.resume();
                 
                 return; // Stop processing further for Flow Reply
             }
@@ -581,4 +707,21 @@ const stopClient = async (accountId) => {
     }
 };
 
-module.exports = { init, startClient, stopClient };
+const resetActiveFlows = async (accountId) => {
+    try {
+        const contacts = await OrganizationContact.find({ account: accountId });
+        for (const contact of contacts) {
+            const orgId = contact._id.toString();
+            activeFlows.delete(orgId);
+            await OrganizationContact.findByIdAndUpdate(contact._id, {
+                flowState: { currentNodeId: null, variables: {}, status: 'idle' }
+            });
+        }
+        console.log(`[WhatsApp Manager] ♻️ Reset active flows for account ${accountId}`);
+    } catch(e) {
+        console.error(`[WhatsApp Manager] ❌ Error resetting active flows for account ${accountId}:`, e.message);
+        throw e;
+    }
+};
+
+module.exports = { init, startClient, stopClient, resetActiveFlows };

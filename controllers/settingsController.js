@@ -1,5 +1,6 @@
 const Settings = require('../models/Settings');
 const { getPromptTemplate, getPromptScripts } = require('../utils/groq');
+const { resetActiveFlows } = require('../bot/whatsapp');
 
 // @desc    Get settings for specific account
 // @route   GET /api/settings
@@ -156,5 +157,20 @@ exports.deleteCustomPrompt = async (req, res) => {
         res.json(settings.customPrompts);
     } catch (err) {
         res.status(400).json({ message: err.message });
+    }
+};
+
+// @desc    Reset all active flows for an account
+// @route   POST /api/settings/reset-flows
+// @access  Private
+exports.resetFlows = async (req, res) => {
+    try {
+        const accountId = req.header('x-account-id');
+        if (!accountId) return res.status(400).json({ message: 'Account ID required' });
+
+        await resetActiveFlows(accountId);
+        res.json({ message: 'Flows reset successfully' });
+    } catch (err) {
+        res.status(500).json({ message: err.message });
     }
 };

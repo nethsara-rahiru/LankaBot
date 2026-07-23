@@ -85,7 +85,7 @@ class FlowRuntime {
      * @param {string|null} userInput – text from the user (for get/getOption)
      * @returns {string} status after this step
      */
-    step(userInput = null) {
+    async step(userInput = null) {
         if (!this.compiled || this.status === 'finished' || this.status === 'idle') {
             return this.status;
         }
@@ -102,28 +102,54 @@ class FlowRuntime {
 
         switch (currentStep.type) {
             case 'start':
-                // Start node just passes through to next
+            case 'newFlow':
+                // Start and newFlow nodes just pass through to next
                 this._advance(currentStep.next);
                 break;
 
             case 'say':
                 if (this.onBotMessage) {
                     const msg = this._interpolate(currentStep.data.message || '');
-                    this.onBotMessage(msg);
+                    await this.onBotMessage(msg);
                 }
                 this._advance(currentStep.next);
                 break;
 
             case 'get':
                 if (this.status === 'waiting_ai' && userInput !== null) {
-                    // AI finished extracting — store in variable
-                    const varName = currentStep.data.variable;
-                    if (varName) {
-                        this.variables[varName] = userInput;
-                        this._emitVariables();
+                    try {
+                        let parsed = null;
+                        const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
+                        try {
+                            parsed = JSON.parse(cleanInput);
+                        } catch(e) {
+                            // fallback if AI didn't return strict JSON
+                            parsed = { status: 'fail', followUp: "I'm sorry, I didn't quite catch that. Could you please clarify?" };
+                        }
+
+                        if (parsed.status === 'fail') {
+                            if (this.onBotMessage && parsed.followUp) {
+                                await this.onBotMessage(parsed.followUp);
+                                if (!this.nodeHistory) this.nodeHistory = [];
+                                this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                            }
+                            this.status = 'waiting_input'; // Wait for input again
+                            return this.status;
+                        }
+
+                        this.nodeHistory = []; // clear history on success
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = parsed.value !== undefined ? parsed.value : userInput;
+                            this._emitVariables();
+                        }
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    } catch(e) {
+                        this.status = 'running';
+                        this._advance(currentStep.next);
                     }
-                    this.status = 'running';
-                    this._advance(currentStep.next);
                 } else if (this.status === 'waiting_input' && userInput !== null) {
                     // User provided input
                     const aiPrompt = currentStep.data.aiPrompt;
@@ -131,7 +157,13 @@ class FlowRuntime {
                         this.status = 'waiting_ai';
                         const interpolatedAiPrompt = this._interpolate(aiPrompt);
                         const userPrompt = this._interpolate(currentStep.data.prompt || '');
-                        this.onAIExtract({ userInput, userPrompt, aiPrompt: interpolatedAiPrompt, options: [] });
+                        
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: [], expectJson: true });
                     } else {
                         // No AI prompt, just store raw input
                         const varName = currentStep.data.variable;
@@ -147,28 +179,54 @@ class FlowRuntime {
                     this.status = 'waiting_input';
                     if (this.onWaitingForInput) {
                         const prompt = this._interpolate(currentStep.data.prompt || 'Please enter a value:');
-                        this.onWaitingForInput(prompt);
+                        await this.onWaitingForInput(prompt);
                     }
                 }
                 break;
 
             case 'getOption':
                 if (this.status === 'waiting_ai' && userInput !== null) {
-                    const options = currentStep.options || [];
-                    const matched = this._matchOption(userInput, options);
+                    try {
+                        let parsed = null;
+                        const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
+                        try {
+                            parsed = JSON.parse(cleanInput);
+                        } catch(e) {
+                            parsed = { status: 'fail', followUp: "I'm sorry, I couldn't understand that. Could you please choose one of the options?" };
+                        }
 
-                    const varName = currentStep.data.variable;
-                    if (varName) {
-                        this.variables[varName] = matched ? matched.value : userInput;
-                        this._emitVariables();
-                    }
+                        if (parsed.status === 'fail') {
+                            if (this.onBotMessage && parsed.followUp) {
+                                await this.onBotMessage(parsed.followUp);
+                                if (!this.nodeHistory) this.nodeHistory = [];
+                                this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                            }
+                            this.status = 'waiting_option';
+                            return this.status;
+                        }
 
-                    this.status = 'running';
-                    if (matched && matched.next) {
-                        this._advance(matched.next);
-                    } else {
-                        const fallback = options.length > 0 && options[0].next ? options[0].next : null;
-                        this._advance(fallback);
+                        this.nodeHistory = [];
+
+                        const val = parsed.value !== undefined ? parsed.value : userInput;
+                        const options = currentStep.options || [];
+                        const matched = this._matchOption(val, options);
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = matched ? matched.value : val;
+                            this._emitVariables();
+                        }
+
+                        this.status = 'running';
+                        if (matched && matched.next) {
+                            this._advance(matched.next);
+                        } else {
+                            const fallback = options.length > 0 && options[0].next ? options[0].next : null;
+                            this._advance(fallback);
+                        }
+                    } catch(e) {
+                        this.status = 'running';
+                        this._advance(currentStep.next);
                     }
                 } else if (this.status === 'waiting_option' && userInput !== null) {
                     const aiPrompt = currentStep.data.aiPrompt;
@@ -177,7 +235,12 @@ class FlowRuntime {
                         const interpolatedAiPrompt = this._interpolate(aiPrompt);
                         const userPrompt = this._interpolate(currentStep.data.prompt || '');
                         const opts = (currentStep.options || []).map(o => o.value);
-                        this.onAIExtract({ userInput, userPrompt, aiPrompt: interpolatedAiPrompt, options: opts });
+                        
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+
+                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: opts, expectJson: true });
                     } else {
                         // Match user input to an option (case-insensitive fuzzy)
                         const options = currentStep.options || [];
@@ -204,7 +267,7 @@ class FlowRuntime {
                     if (this.onWaitingForOption) {
                         const prompt = this._interpolate(currentStep.data.prompt || 'Choose an option:');
                         const opts = (currentStep.options || []).map(o => o.value);
-                        this.onWaitingForOption(prompt, opts);
+                        await this.onWaitingForOption(prompt, opts);
                     }
                 }
                 break;
@@ -220,15 +283,54 @@ class FlowRuntime {
                 }, duration * 1000);
                 break;
 
-            case 'triggerIf':
-                const condition = currentStep.data.condition || '';
-                const result = this._evaluateCondition(condition);
+            case 'if':
+                const var1 = this._interpolate(currentStep.data.var1 || '');
+                const var2 = this._interpolate(currentStep.data.var2 || '');
+                const op = currentStep.data.condition || '==';
+                
+                let result = false;
+                try {
+                    // Safe evaluation
+                    const v1 = isNaN(Number(var1)) ? `"${var1}"` : var1;
+                    const v2 = isNaN(Number(var2)) ? `"${var2}"` : var2;
+                    result = new Function(`return ${v1} ${op} ${v2}`)();
+                } catch(e) {
+                    result = false;
+                }
+
                 if (result) {
-                    this._advance(currentStep.next);
+                    this._advance(currentStep.nextTrue);
                 } else {
-                    // Condition failed — skip to end or just stop
-                    this.status = 'finished';
-                    if (this.onFlowEnd) this.onFlowEnd();
+                    this._advance(currentStep.nextFalse);
+                }
+                break;
+
+            case 'ifAI':
+                if (this.status === 'waiting_ai' && userInput !== null) {
+                    let result = false;
+                    try {
+                        const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
+                        const parsed = JSON.parse(cleanInput);
+                        result = parsed.value === true || parsed.value === 'true';
+                    } catch(e) {
+                        result = (userInput || '').toLowerCase().includes('true');
+                    }
+
+                    this.status = 'running';
+                    if (result) {
+                        this._advance(currentStep.nextTrue);
+                    } else {
+                        this._advance(currentStep.nextFalse);
+                    }
+                } else {
+                    this.status = 'waiting_ai';
+                    if (this.onAIExtract) {
+                        const prompt = this._interpolate(currentStep.data.prompt || '');
+                        this.onAIExtract({ userInput: 'Evaluate boolean', userPrompt: '', aiPrompt: prompt, options: [], expectJson: true, isBoolean: true });
+                    } else {
+                        this.status = 'running';
+                        this._advance(currentStep.nextFalse);
+                    }
                 }
                 break;
 

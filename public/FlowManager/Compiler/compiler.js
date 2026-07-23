@@ -34,16 +34,15 @@ class FlowCompiler {
             edgeMap[`${c.source}:${c.sourcePort}`] = c.target;
         });
 
-        // Find the start node
-        const startNode = nodesArray.find(n => n.type === 'start');
-        if (!startNode) {
-            throw new Error('No start node found. Add a Start node to the flow.');
+        // Find entry nodes
+        const entryNodes = nodesArray.filter(n => n.type === 'start' || n.type === 'newFlow');
+        if (entryNodes.length === 0) {
+            throw new Error('No entry node found. Add a Start or New Flow node.');
         }
 
-        // Walk the graph from the start node using BFS to build the steps list
         const steps = [];
         const visited = new Set();
-        const queue = [startNode.id];
+        const queue = entryNodes.map(n => n.id);
 
         while (queue.length > 0) {
             const nodeId = queue.shift();
@@ -72,6 +71,13 @@ class FlowCompiler {
                     };
                 });
                 step.options = options;
+            } else if (node.type === 'if' || node.type === 'ifAI') {
+                const trueTargetId = edgeMap[`${node.id}:true`] || null;
+                const falseTargetId = edgeMap[`${node.id}:false`] || null;
+                step.nextTrue = trueTargetId;
+                step.nextFalse = falseTargetId;
+                if (trueTargetId && !visited.has(trueTargetId)) queue.push(trueTargetId);
+                if (falseTargetId && !visited.has(falseTargetId)) queue.push(falseTargetId);
             } else {
                 // Standard single-output node
                 const targetId = edgeMap[`${node.id}:out`] || null;
@@ -86,8 +92,22 @@ class FlowCompiler {
         const variables = {};
         variableNames.forEach(v => { variables[v] = null; });
 
+        // Build entrypoints map
+        const entrypoints = {};
+        const defaultStart = entryNodes.find(n => n.type === 'start');
+        
+        entryNodes.forEach(n => {
+            if (n.type === 'start') {
+                entrypoints['default'] = { id: n.id, topic: 'default', description: 'Default greeting/start flow' };
+            } else {
+                const topic = n.data.topic || n.id;
+                entrypoints[topic] = { id: n.id, topic: topic, description: n.data.description || '' };
+            }
+        });
+
         return {
-            entrypoint: startNode.id,
+            entrypoint: defaultStart ? defaultStart.id : entryNodes[0].id,
+            entrypoints,
             steps,
             variables
         };
@@ -123,6 +143,13 @@ class FlowCompiler {
                         });
                     }
                 });
+            } else if (step.type === 'if' || step.type === 'ifAI') {
+                if (step.nextTrue) {
+                    connections.push({ source: step.id, sourcePort: 'true', target: step.nextTrue });
+                }
+                if (step.nextFalse) {
+                    connections.push({ source: step.id, sourcePort: 'false', target: step.nextFalse });
+                }
             } else if (step.next) {
                 connections.push({
                     source: step.id,

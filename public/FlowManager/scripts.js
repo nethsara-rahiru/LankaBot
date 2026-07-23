@@ -141,6 +141,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="port port-out" data-node-id="${id}" data-port-id="out"></div>
                 `;
+            case 'newFlow':
+                content = `
+                    <input type="text" placeholder="Topic (Flow ID)" class="node-data" data-key="topic">
+                    <input type="text" placeholder="Description" class="node-data" data-key="description" style="margin-top: 0.5rem; font-size: 0.8rem;">
+                `;
+                break;
             case 'say':
                 content = `<textarea placeholder="Message to send..." class="node-data" data-key="message"></textarea>`;
                 break;
@@ -174,8 +180,22 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'wait':
                 content = `<input type="number" placeholder="Seconds" class="node-data" data-key="duration">`;
                 break;
-            case 'triggerIf':
-                content = `<input type="text" placeholder="Condition (e.g. var == 'val')" class="node-data" data-key="condition">`;
+            case 'if':
+                content = `
+                    <input type="text" placeholder="Variable 1 or Value" class="node-data" data-key="var1">
+                    <select class="node-data" data-key="condition" style="margin-top: 0.5rem;">
+                        <option value="==">==</option>
+                        <option value="!=">!=</option>
+                        <option value="<">&lt;</option>
+                        <option value="<=">&lt;=</option>
+                        <option value=">">&gt;</option>
+                        <option value=">=">&gt;=</option>
+                    </select>
+                    <input type="text" placeholder="Variable 2 or Value" class="node-data" data-key="var2" style="margin-top: 0.5rem;">
+                `;
+                break;
+            case 'ifAI':
+                content = `<input type="text" placeholder="AI Prompt (returns true/false)" class="node-data" data-key="prompt">`;
                 break;
         }
 
@@ -189,7 +209,12 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="node-content">
                 ${content}
             </div>
-            ${type !== 'getOption' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : ''}
+            ${(type === 'if' || type === 'ifAI') ? `
+                <div class="port-container" style="display: flex; justify-content: space-between; position: relative; bottom: -8px; width: 100%;">
+                    <div class="port port-out" data-node-id="${id}" data-port-id="true" style="position: static; margin-left: -5px; transform: none; background: #2ecc71; border-color: #27ae60;" title="True"></div>
+                    <div class="port port-out" data-node-id="${id}" data-port-id="false" style="position: static; margin-right: -5px; transform: none; background: #e74c3c; border-color: #c0392b;" title="False"></div>
+                </div>
+            ` : (type !== 'getOption' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
         `;
     };
 

@@ -29,6 +29,12 @@ body {
     gap: 1.5rem;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .icon-btn {
     background: var(--glass-heavy);
     border: 1px solid var(--glass-border);

@@ -15,6 +15,9 @@ router.get('/', auth, settingsController.getSettings);
 // Update settings for specific account
 router.patch('/', auth, settingsController.updateSettings);
 
+// Reset flows for account
+router.post('/reset-flows', auth, settingsController.resetFlows);
+
 // Custom Prompts
 router.get('/custom-prompts', auth, settingsController.getCustomPrompts);
 router.post('/custom-prompts', auth, settingsController.addCustomPrompt);

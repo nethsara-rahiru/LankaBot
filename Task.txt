@@ -1,0 +1,63 @@
+need to update the flow messaging system.
+
+1. Update the User input block
+    Issue:
+    - while the fetching the data from the user input with AI, if the AI was unable to find the data or if the user has provide a wrong input the variable remains null.
+    
+    Fix:
+    - let the AI to deside the state (sucsess / fail).
+        - if the state is sucssess, move to the next node
+        - if the state is false, get the user input again as the AI guides
+    - if the AI was failed to fetch the data from the user input (Fail state), genarate a message from AI to prompt the user to enter the requide input and send it.
+    - this process should repeat untill the AI diside it sucsessfuly fetch the data.
+    - send all the conversation only related to the node(block) when failed to fatch data. 
+
+2. Add a new block to start a new flow
+    Issue:
+    - if the user change the conversation topic the system is unable to haddel it.
+
+    Fix:
+    - Add a new block called "new flow" to start a new flow
+    - it should have two textboxes incliuded
+        1. topic
+        2. description
+    - the topic will act like the id of the new flow.
+    - when recived a user input, with the defualt prompt, send the topic and description of all avalable flows.
+    - Let the AI diside to continue the same flow or to redirect to another flow.
+    - if redirecting, give the topic as the state.
+    - when redirecting, start the flow who's topic matches the recived topic in the state.
+
+3. Remove the block "triggerIf(evt)"
+
+4. Add a block "If"
+    - it should have three parameters
+        1. variable 01
+        2. condition (<, >, ==, <=, >=, !=)
+        3. variable 02
+    - it should have two outputs
+        1. if true
+        2. if false
+    - if the condition is true, move to the true output
+    - if the condition is false, move to the false output
+    - user can keep variable as null which reprecents null or empty text or 0
+
+5. Add a block "If (AI)"
+    - it should have one parameter
+        1. prompt
+    - it should have two outputs
+        1. if true
+        2. if false
+    - AI will recive the prompt and the value( variable will be given as {{variableName}} inject values before sending to AI ) of the variable.
+    - if the prompt returns true, move to the true output
+    - if the prompt returns false, move to the false output
+    
+6. show typing to the user in whatsapp to make the user to feel he is chating with a human
+    Issue:
+    - currently the system is sending the response immidiatly without any delay in whatsapp outputs.
+
+    Fix:
+    - before sending the response, show typing to the user.
+    - in outputs wait as the text length.
+    - count the words of the text and wait for 0.4 seconds for each word.
+    - mamximun spent 3 seconds for typing. if it takes more just output the message.
+    

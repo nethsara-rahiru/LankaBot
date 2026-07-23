@@ -92,10 +92,16 @@ header {
     border: 1px solid var(--glass-border);
 }
 
+@keyframes pulseGlow {
+    0% { box-shadow: 0 0 5px var(--primary-glow); }
+    50% { box-shadow: 0 0 15px var(--primary-glow); }
+    100% { box-shadow: 0 0 5px var(--primary-glow); }
+}
+
 .status-indicator.connected {
     color: var(--primary);
     border-color: var(--primary-glow);
-    box-shadow: 0 0 10px var(--primary-glow);
+    animation: pulseGlow 2s infinite ease-in-out;
 }
 
 .status-indicator.disconnected {
@@ -186,8 +192,13 @@ main {
 .feature-card:hover {
     transform: translateY(-8px);
     border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+.feature-card:hover .feature-icon-wrapper i {
+    transform: scale(1.15) rotate(5deg);
+    filter: brightness(1.2);
 }
 
 .feature-icon-wrapper {
@@ -202,6 +213,7 @@ main {
 
 .feature-icon-wrapper i {
     font-size: 1.8rem;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .feature-content h3 {

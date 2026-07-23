@@ -310,10 +310,9 @@ class FlowSimulator {
 
         this.runtime.onWaitingForOption = (prompt, options) => {
             this._addBotMessage(prompt);
-            this._addOptionButtons(options);
             this._enableInput();
             this._updateButtonStates('waiting');
-            document.getElementById('sim-bot-status').textContent = 'Choose an option...';
+            document.getElementById('sim-bot-status').textContent = 'Waiting for input...';
         };
 
         this.runtime.onAIExtract = async (data) => {
