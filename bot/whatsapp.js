@@ -16,6 +16,7 @@ const clients = new Map(); // accountId -> Client instance
 const aiBuffers = new Map(); // userId_accountId -> { messages: [], timeout: null }
 const sheetCache = new Map(); // accountId -> { data: string, fetchedAt: number }
 const activeFlows = new Map(); // orgContactId -> FlowRuntime
+const pairingNumbers = new Map(); // accountId -> phoneNumber (for pairing code mode)
 
 // Fetches CSV from a Google Sheet URL with 60-second cache
 const fetchSheetData = async (accountId, url) => {
@@ -148,6 +149,27 @@ const startClient = async (accountId) => {
     clients.set(accountId, client);
 
     client.on('qr', async (qr) => {
+        // If a pairing number was set, request pairing code instead of showing QR
+        const pairingPhone = pairingNumbers.get(accountId);
+        if (pairingPhone) {
+            try {
+                const code = await client.requestPairingCode(pairingPhone);
+                console.log(`[WhatsApp ${account.sessionId}] 🔗 Pairing code generated: ${code}`);
+                await Account.findByIdAndUpdate(accountId, { status: 'qr' });
+                ioInstance.emit('account_pairing_code', { accountId, code });
+                ioInstance.emit('system_log', `[${account.sessionId}] Pairing code generated for ${pairingPhone}`);
+                pairingNumbers.delete(accountId);
+            } catch (e) {
+                console.error(`[WhatsApp ${account.sessionId}] ❌ Pairing code error:`, e.message);
+                // Fallback to QR
+                const url = await qrcodeImage.toDataURL(qr);
+                await Account.findByIdAndUpdate(accountId, { status: 'qr', lastQR: url });
+                ioInstance.emit('account_qr', { accountId, qr: url });
+                pairingNumbers.delete(accountId);
+            }
+            return;
+        }
+
         console.log(`[WhatsApp ${account.sessionId}] 🔄 QR Code generated, waiting for scan...`);
         const url = await qrcodeImage.toDataURL(qr);
         await Account.findByIdAndUpdate(accountId, { status: 'qr', lastQR: url });
@@ -240,6 +262,19 @@ const startClient = async (accountId) => {
                 messageType: msg.type || 'text'
             });
             await newMsg.save();
+
+            // Emit real-time message for audience insights chatbox
+            ioInstance.emit('new_message', {
+                accountId,
+                orgContactId: orgContact._id.toString(),
+                message: {
+                    _id: newMsg._id,
+                    role: newMsg.role,
+                    content: newMsg.content,
+                    messageType: newMsg.messageType,
+                    timestamp: newMsg.timestamp
+                }
+            });
             
             // Note: attach orgContact._id to msg object for later use
             msg.orgContactId = orgContact._id;
@@ -284,6 +319,11 @@ const startClient = async (accountId) => {
                             messageType: 'text'
                         });
                         await botMsg.save();
+                        ioInstance.emit('new_message', {
+                            accountId,
+                            orgContactId: msg.orgContactId.toString(),
+                            message: { _id: botMsg._id, role: 'bot', content: matchedRule.reply, messageType: 'text', timestamp: botMsg.timestamp }
+                        });
                     }
                 } catch(e) {
                     console.error(`[WhatsApp ${account.sessionId}] ❌ Error saving Rule reply to DB:`, e.message);
@@ -393,6 +433,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 messageType: 'text'
                             });
                             await botMsg.save();
+                            ioInstance.emit('new_message', {
+                                accountId,
+                                orgContactId: msg.orgContactId.toString(),
+                                message: { _id: botMsg._id, role: 'bot', content: text, messageType: 'text', timestamp: botMsg.timestamp }
+                            });
                         } catch(e) {
                             console.error('Error saving Flow bot message to DB:', e);
                         }
@@ -408,6 +453,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 messageType: 'text'
                             });
                             await botMsg.save();
+                            ioInstance.emit('new_message', {
+                                accountId,
+                                orgContactId: msg.orgContactId.toString(),
+                                message: { _id: botMsg._id, role: 'bot', content: prompt, messageType: 'text', timestamp: botMsg.timestamp }
+                            });
                         } catch(e) {
                             console.error('Error saving Flow input prompt to DB:', e);
                         }
@@ -424,6 +474,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 messageType: 'text'
                             });
                             await botMsg.save();
+                            ioInstance.emit('new_message', {
+                                accountId,
+                                orgContactId: msg.orgContactId.toString(),
+                                message: { _id: botMsg._id, role: 'bot', content: text, messageType: 'text', timestamp: botMsg.timestamp }
+                            });
                         } catch(e) {
                             console.error('Error saving Flow option prompt to DB:', e);
                         }
@@ -654,6 +709,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                     messageType: 'text'
                                 });
                                 await botMsg.save();
+                                ioInstance.emit('new_message', {
+                                    accountId,
+                                    orgContactId: msg.orgContactId.toString(),
+                                    message: { _id: botMsg._id, role: 'bot', content: aiResponse, messageType: 'text', timestamp: botMsg.timestamp }
+                                });
                             }
 
                             if (orgContactIdForAnalysis) {
@@ -724,4 +784,22 @@ const resetActiveFlows = async (accountId) => {
     }
 };
 
-module.exports = { init, startClient, stopClient, resetActiveFlows };
+// Start a client specifically in pairing code mode
+const startClientWithPairing = async (accountId, phoneNumber) => {
+    accountId = accountId.toString();
+    // Store the phone number so the QR handler uses pairing instead
+    pairingNumbers.set(accountId, phoneNumber);
+    // Start the client normally — the QR event will detect the pairing number
+    startClient(accountId);
+};
+
+// Clear active flow for a single organization contact
+const clearActiveFlow = (orgContactId) => {
+    const orgId = orgContactId.toString();
+    if (activeFlows.has(orgId)) {
+        activeFlows.delete(orgId);
+        console.log(`[WhatsApp Manager] ♻️ Cleared active flow for contact ${orgId}`);
+    }
+};
+
+module.exports = { init, startClient, stopClient, resetActiveFlows, startClientWithPairing, clearActiveFlow };

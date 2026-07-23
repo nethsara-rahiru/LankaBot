@@ -15,4 +15,10 @@ router.delete('/:id', auth, accountController.deleteAccount);
 // @route   PATCH api/accounts/:id/pause
 router.patch('/:id/pause', auth, accountController.togglePause);
 
+// @route   POST api/accounts/:id/reconnect
+router.post('/:id/reconnect', auth, accountController.reconnectAccount);
+
+// @route   POST api/accounts/:id/pair
+router.post('/:id/pair', auth, accountController.requestPairingCode);
+
 module.exports = router;

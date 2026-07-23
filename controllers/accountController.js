@@ -104,3 +104,60 @@ exports.togglePause = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+// @route   POST api/accounts/:id/reconnect
+// @desc    Reconnect a WhatsApp session (stop + restart client, preserve all data)
+// @access  Private
+exports.reconnectAccount = async (req, res) => {
+    try {
+        const account = await Account.findById(req.params.id);
+        if (!account) return res.status(404).json({ msg: 'Account not found' });
+        if (account.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
+
+        // Stop existing client if running
+        await whatsappBot.stopClient(account._id);
+
+        // Reset status so a fresh QR is generated
+        account.status = 'disconnected';
+        account.lastQR = null;
+        await account.save();
+
+        // Start the client again — it will emit a new QR via socket
+        whatsappBot.startClient(account._id);
+
+        res.json({ msg: 'Reconnecting session...', account });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// @route   POST api/accounts/:id/pair
+// @desc    Request a pairing code for a remote client's phone number
+// @access  Private
+exports.requestPairingCode = async (req, res) => {
+    try {
+        const { phoneNumber } = req.body;
+        if (!phoneNumber) return res.status(400).json({ msg: 'Phone number is required' });
+
+        const account = await Account.findById(req.params.id);
+        if (!account) return res.status(404).json({ msg: 'Account not found' });
+        if (account.user.toString() !== req.user.id) return res.status(401).json({ msg: 'Not authorized' });
+
+        // Stop existing client if running
+        await whatsappBot.stopClient(account._id);
+
+        // Reset status
+        account.status = 'disconnected';
+        account.lastQR = null;
+        await account.save();
+
+        // Start client with pairing mode — the phone number is passed to the bot
+        whatsappBot.startClientWithPairing(account._id, phoneNumber);
+
+        res.json({ msg: 'Requesting pairing code...', account });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};

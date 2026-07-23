@@ -181,3 +181,56 @@ exports.clearCustomerKnowledge = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+// @desc    Get messages for a specific organization contact
+// @route   GET /api/contacts/:id/messages
+// @access  Private
+exports.getMessages = async (req, res) => {
+    try {
+        const orgContactId = req.params.id;
+        const messages = await Message.find({ organizationContact: orgContactId })
+            .sort({ timestamp: 1 })
+            .limit(200);
+        res.json(messages);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// @desc    Reset/restart a customer's flow conversation
+// @route   POST /api/contacts/:id/reset-flow
+// @access  Private
+exports.resetFlow = async (req, res) => {
+    try {
+        const orgContactId = req.params.id;
+        const orgContact = await OrganizationContact.findById(orgContactId);
+        
+        if (!orgContact) {
+            return res.status(404).json({ msg: 'Organization contact not found' });
+        }
+
+        // Clear flow state in DB
+        orgContact.flowState = {
+            currentNodeId: null,
+            variables: {},
+            status: 'idle',
+            executedSteps: []
+        };
+        await orgContact.save();
+
+        // Clear in-memory active flow via bot module
+        try {
+            const whatsappBot = require('../bot/whatsapp');
+            whatsappBot.clearActiveFlow(orgContactId);
+        } catch (e) {
+            // Bot module may not export this yet, non-critical
+            console.warn('Could not clear in-memory active flow:', e.message);
+        }
+
+        res.json({ msg: 'Flow conversation restarted', orgContact });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};

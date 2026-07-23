@@ -148,14 +148,52 @@
             </div>
 
             <div id="setup-qr" style="display: none; text-align: center;">
-                <h2 style="margin-top: 0; margin-bottom: 1rem;">Scan QR Code</h2>
-                <p style="color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Open WhatsApp on your phone and scan this code to link the account.</p>
-                <div id="modal-qr-container" style="background: white; padding: 1rem; border-radius: 20px; display: inline-block; margin-bottom: 1.5rem;">
-                    <div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 10px;">
-                        <i class="ph-bold ph-circle-notch ph-spin" style="font-size: 2rem; color: #333;"></i>
+                <h2 style="margin-top: 0; margin-bottom: 1rem;">Link Your WhatsApp</h2>
+                <p style="color: var(--text-dim); margin-bottom: 1rem; font-size: 0.9rem;">Choose how to link the WhatsApp account.</p>
+                
+                <!-- Tab Switcher -->
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 4px;">
+                    <button id="tab-qr" class="btn-primary" onclick="switchTab('qr')" style="flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 0.85rem;">
+                        <i class="ph-bold ph-qr-code"></i> Scan QR
+                    </button>
+                    <button id="tab-pair" class="btn-secondary" onclick="switchTab('pair')" style="flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 0.85rem; border: none;">
+                        <i class="ph-bold ph-link"></i> Phone Number
+                    </button>
+                </div>
+
+                <!-- QR Tab -->
+                <div id="qr-tab-content">
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Open WhatsApp on your phone → Linked Devices → Link a Device → Scan QR.</p>
+                    <div id="modal-qr-container" style="background: white; padding: 1rem; border-radius: 20px; display: inline-block; margin-bottom: 1.5rem;">
+                        <div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 10px;">
+                            <i class="ph-bold ph-circle-notch ph-spin" style="font-size: 2rem; color: #333;"></i>
+                        </div>
                     </div>
                 </div>
-                <p id="setup-status" style="color: var(--primary); font-weight: 600; font-size: 0.9rem; margin: 0;">Initializing client...</p>
+
+                <!-- Pairing Code Tab -->
+                <div id="pair-tab-content" style="display: none;">
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Enter the client's phone number (with country code). A code will be generated that they enter on their phone.</p>
+                    <div id="pair-input-section">
+                        <div class="input-group" style="text-align: left;">
+                            <label>Client Phone Number</label>
+                            <i class="ph-bold ph-phone"></i>
+                            <input type="text" id="pairPhoneNumber" placeholder="e.g. 94771234567">
+                        </div>
+                        <button class="btn-primary" id="btn-request-pair" onclick="requestPairingCode()" style="width: 100%; margin-top: 1rem;">
+                            <i class="ph-bold ph-link"></i> Generate Pairing Code
+                        </button>
+                    </div>
+                    <div id="pair-code-section" style="display: none;">
+                        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Send this code to your client. They should enter it in:<br><strong>WhatsApp → Linked Devices → Link a Device → Link with phone number instead</strong></p>
+                        <div style="background: rgba(46, 204, 113, 0.1); border: 2px solid #2ecc71; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
+                            <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0 0 0.5rem 0;">Pairing Code</p>
+                            <h1 id="pairing-code-display" style="margin: 0; font-size: 2.5rem; letter-spacing: 8px; color: #2ecc71; font-weight: 700;">--------</h1>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="setup-status" style="color: var(--primary); font-weight: 600; font-size: 0.9rem; margin: 0.5rem 0 0 0;">Initializing client...</p>
                 <button class="btn-secondary" onclick="closeModal()" style="margin-top: 1.5rem; width: 100%;">Cancel Setup</button>
             </div>
         </div>
@@ -190,6 +228,16 @@
                     closeModal();
                     fetchAccounts();
                 }, 1500);
+            }
+        });
+
+        socket.on('account_pairing_code', (data) => {
+            if (data.accountId === pendingAccountId) {
+                const codeDisplay = document.getElementById('pairing-code-display');
+                codeDisplay.textContent = data.code;
+                document.getElementById('pair-input-section').style.display = 'none';
+                document.getElementById('pair-code-section').style.display = 'block';
+                setupStatus.textContent = 'Waiting for client to enter the code...';
             }
         });
 
@@ -252,7 +300,12 @@
                         </div>
                     </td>
                     <td style="padding: 1rem; text-align: right;">
-                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
+                            ${acc.status !== 'ready' ? `
+                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; border-radius: 8px; background: rgba(46, 204, 113, 0.1); color: #2ecc71; border-color: #2ecc71;" onclick="reconnectAccount('${acc._id}')">
+                                <i class="ph-bold ph-arrows-clockwise"></i> Reconnect
+                            </button>
+                            ` : ''}
                             <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; border-radius: 8px; ${acc.paused ? 'background: rgba(230, 126, 34, 0.1); color: #e67e22; border-color: #e67e22;' : ''}" onclick="togglePause('${acc._id}')">
                                 <i class="ph-bold ${acc.paused ? 'ph-play' : 'ph-pause'}"></i>
                                 ${acc.paused ? 'Resume' : 'Pause'}
@@ -287,6 +340,88 @@
             window.location.href = '/manageAccount.html';
         }
 
+        async function reconnectAccount(id) {
+            if (!confirm('This will restart the WhatsApp session. You will need to scan a new QR code or use a pairing code. Continue?')) return;
+            
+            pendingAccountId = id;
+            setupInitial.style.display = 'none';
+            setupQr.style.display = 'block';
+            switchTab('qr');
+            addModal.style.display = 'flex';
+            setupStatus.textContent = 'Reconnecting session...';
+            
+            try {
+                const res = await fetch(`/api/accounts/${id}/reconnect`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.msg || 'Error reconnecting');
+                    closeModal();
+                }
+            } catch (err) {
+                alert('Connection error');
+                closeModal();
+            }
+        }
+
+        async function requestPairingCode() {
+            const phoneInput = document.getElementById('pairPhoneNumber');
+            const phone = phoneInput.value.trim();
+            if (!phone) return alert('Please enter a phone number');
+
+            const btn = document.getElementById('btn-request-pair');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Generating...';
+            setupStatus.textContent = 'Requesting pairing code...';
+
+            const targetId = pendingAccountId;
+            if (!targetId) return alert('No account selected');
+
+            try {
+                const res = await fetch(`/api/accounts/${targetId}/pair`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ phoneNumber: phone })
+                });
+                if (!res.ok) {
+                    const data = await res.json();
+                    alert(data.msg || 'Error requesting pairing code');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ph-bold ph-link"></i> Generate Pairing Code';
+                }
+            } catch (err) {
+                alert('Connection error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph-bold ph-link"></i> Generate Pairing Code';
+            }
+        }
+
+        function switchTab(tab) {
+            const qrTab = document.getElementById('tab-qr');
+            const pairTab = document.getElementById('tab-pair');
+            const qrContent = document.getElementById('qr-tab-content');
+            const pairContent = document.getElementById('pair-tab-content');
+
+            if (tab === 'qr') {
+                qrTab.className = 'btn-primary';
+                pairTab.className = 'btn-secondary';
+                pairTab.style.border = 'none';
+                qrContent.style.display = 'block';
+                pairContent.style.display = 'none';
+            } else {
+                qrTab.className = 'btn-secondary';
+                qrTab.style.border = 'none';
+                pairTab.className = 'btn-primary';
+                qrContent.style.display = 'none';
+                pairContent.style.display = 'block';
+            }
+        }
+
         async function createAccount() {
             const sessionId = sessionNameInput.value;
             const organizationName = orgNameInput.value;
@@ -312,6 +447,7 @@
                     pendingAccountId = data._id;
                     setupInitial.style.display = 'none';
                     setupQr.style.display = 'block';
+                    switchTab('qr');
                 } else {
                     const data = await res.json();
                     alert(data.msg || 'Error creating account');
@@ -351,11 +487,20 @@
             setupQr.style.display = 'none';
             sessionNameInput.value = '';
             orgNameInput.value = '';
+            // Reset pairing UI
+            const pairInput = document.getElementById('pair-input-section');
+            const pairCode = document.getElementById('pair-code-section');
+            const pairPhone = document.getElementById('pairPhoneNumber');
+            const pairBtn = document.getElementById('btn-request-pair');
+            if (pairInput) pairInput.style.display = 'block';
+            if (pairCode) pairCode.style.display = 'none';
+            if (pairPhone) pairPhone.value = '';
+            if (pairBtn) { pairBtn.disabled = false; pairBtn.innerHTML = '<i class="ph-bold ph-link"></i> Generate Pairing Code'; }
             addModal.style.display = 'flex'; 
         }
 
         function closeModal() { 
-            addModal.style.display = 'none'; 
+            addModal.style.display = 'none';
             if (pendingAccountId) fetchAccounts();
         }
 
