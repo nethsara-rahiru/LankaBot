@@ -121,7 +121,7 @@ const startClient = async (accountId) => {
     }
 
     console.log(`[WhatsApp ${account.sessionId}] 🚀 Starting WhatsApp Client initialization...`);
-    
+
     let client;
     try {
         client = new Client({
@@ -129,9 +129,10 @@ const startClient = async (accountId) => {
             puppeteer: {
                 headless: 'new', // 'new' is often faster in modern Chrome
                 timeout: 60000,
-                executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',     //  Use in macos
+                // executablePath: '/usr/bin/chromium-browser',     // Use in linux server
                 args: [
-                    '--no-sandbox', 
+                    '--no-sandbox',
                     '--disable-setuid-sandbox',
                     '--disable-dev-shm-usage',
                     '--disable-accelerated-2d-canvas',
@@ -180,10 +181,10 @@ const startClient = async (accountId) => {
     client.on('ready', async () => {
         const info = client.info;
         console.log(`[WhatsApp ${account.sessionId}] ✅ Client is READY and connected as ${info.pushname} (${info.wid.user})`);
-        
+
         let profilePicUrl = '';
-        try { 
-            profilePicUrl = await client.getProfilePicUrl(info.wid._serialized); 
+        try {
+            profilePicUrl = await client.getProfilePicUrl(info.wid._serialized);
         } catch (e) {
             console.warn(`[WhatsApp ${account.sessionId}] ⚠️ Could not fetch profile picture:`, e.message);
         }
@@ -210,7 +211,7 @@ const startClient = async (accountId) => {
     client.on('message_create', async (msg) => {
         // Only process incoming messages (not ones sent by the bot itself)
         if (msg.fromMe) return;
-        
+
         // Ignore system messages, stickers, and empty bodies
         const ignoredTypes = ['sticker', 'e2e_notification', 'protocol', 'gp2', 'call_log'];
         if (ignoredTypes.includes(msg.type) || msg.from === 'status@broadcast' || !msg.body) {
@@ -231,7 +232,7 @@ const startClient = async (accountId) => {
 
         try {
             const pushName = (await msg.getContact()).pushname || '';
-            
+
             // 1. Find or create Global Customer
             let customer = await Customer.findOne({ phoneNumber: user });
             if (!customer) {
@@ -275,13 +276,13 @@ const startClient = async (accountId) => {
                     timestamp: newMsg.timestamp
                 }
             });
-            
+
             // Note: attach orgContact._id to msg object for later use
             msg.orgContactId = orgContact._id;
             msg.customerId = customer._id;
 
-        } catch(e) { 
-            console.error(`[WhatsApp ${account.sessionId}] ❌ Customer/Message logging error:`, e.message); 
+        } catch (e) {
+            console.error(`[WhatsApp ${account.sessionId}] ❌ Customer/Message logging error:`, e.message);
         }
 
         try {
@@ -291,11 +292,11 @@ const startClient = async (accountId) => {
                 const body = (msg.body || '').toLowerCase();
                 const trigger = r.trigger.toLowerCase();
 
-                switch(r.matchType) {
+                switch (r.matchType) {
                     case 'exact': return body === trigger;
                     case 'startsWith': return body.startsWith(trigger);
                     case 'endsWith': return body.endsWith(trigger);
-                    case 'fuzzy': 
+                    case 'fuzzy':
                         const triggerWords = trigger.split(/\s+/);
                         return triggerWords.every(word => body.includes(word)) || body.includes(trigger);
                     case 'regex':
@@ -325,7 +326,7 @@ const startClient = async (accountId) => {
                             message: { _id: botMsg._id, role: 'bot', content: matchedRule.reply, messageType: 'text', timestamp: botMsg.timestamp }
                         });
                     }
-                } catch(e) {
+                } catch (e) {
                     console.error(`[WhatsApp ${account.sessionId}] ❌ Error saving Rule reply to DB:`, e.message);
                 }
                 return; // Stop processing further if a rule was matched
@@ -333,12 +334,12 @@ const startClient = async (accountId) => {
 
             // Flow Reply Mode
             const settings = await Settings.findOne({ account: accountId });
-            
+
             if (settings && settings.replyMethod === 'flow' && settings.compiledFlow) {
                 const orgId = msg.orgContactId.toString();
                 let flow = activeFlows.get(orgId);
                 let isNewFlowInstance = false;
-                
+
                 // 1. Initialize or Restore Flow State BEFORE routing
                 if (!flow) {
                     isNewFlowInstance = true;
@@ -384,7 +385,7 @@ Based on the user's message, decide if they are trying to start or switch to one
 If the message is a normal continuation of the current conversation and does NOT indicate a deliberate topic change, output "continue".
 If the message clearly matches one of the flow descriptions, output the EXACT Topic ID.
 Output ONLY "continue" or the Topic ID. Nothing else.`;
-                    
+
                     try {
                         const routeRes = (await getGroqResponse(msg.body, routerPrompt, 1)) || 'continue';
                         const decidedRoute = routeRes.trim();
@@ -393,14 +394,14 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         } else if (flow.status === 'idle' && entrypoints['default']) {
                             shouldRedirect = entrypoints['default'].id;
                         }
-                    } catch(e) {
+                    } catch (e) {
                         console.error('Router error', e);
                     }
                 }
-                
+
                 // 3. Bind Callbacks if it's a new instance
                 if (isNewFlowInstance) {
-                    
+
                     // Bind Callbacks
                     flow.resume = async () => {
                         if (flow._isRunning) return;
@@ -411,17 +412,17 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         }
                         flow._isRunning = false;
                     };
-                    
+
                     flow.onBotMessage = async (text) => {
                         // Count words and wait 0.4 seconds per word, max 3 seconds
                         const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
-                        const typingMs = Math.min(wordCount * 400, 3000); 
+                        const typingMs = Math.min(wordCount * 400, 3000);
                         try {
                             const chat = await msg.getChat();
                             if (chat.sendPresence) await chat.sendPresence('composing');
                             else if (chat.sendStateTyping) await chat.sendStateTyping();
-                        } catch(e) {}
-                        
+                        } catch (e) { }
+
                         await new Promise(r => setTimeout(r, typingMs));
 
                         await msg.reply(text);
@@ -438,11 +439,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 orgContactId: msg.orgContactId.toString(),
                                 message: { _id: botMsg._id, role: 'bot', content: text, messageType: 'text', timestamp: botMsg.timestamp }
                             });
-                        } catch(e) {
+                        } catch (e) {
                             console.error('Error saving Flow bot message to DB:', e);
                         }
                     };
-                    
+
                     flow.onWaitingForInput = async (prompt) => {
                         await msg.reply(prompt);
                         try {
@@ -458,11 +459,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 orgContactId: msg.orgContactId.toString(),
                                 message: { _id: botMsg._id, role: 'bot', content: prompt, messageType: 'text', timestamp: botMsg.timestamp }
                             });
-                        } catch(e) {
+                        } catch (e) {
                             console.error('Error saving Flow input prompt to DB:', e);
                         }
                     };
-                    
+
                     flow.onWaitingForOption = async (prompt, options) => {
                         let text = prompt;
                         await msg.reply(text);
@@ -479,20 +480,20 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 orgContactId: msg.orgContactId.toString(),
                                 message: { _id: botMsg._id, role: 'bot', content: text, messageType: 'text', timestamp: botMsg.timestamp }
                             });
-                        } catch(e) {
+                        } catch (e) {
                             console.error('Error saving Flow option prompt to DB:', e);
                         }
                     };
-                    
+
                     flow.onWait = (seconds) => {
                         setTimeout(() => {
                             setTimeout(() => flow.resume(), 50); // Resume after runtime's internal timer
                         }, seconds * 1000);
                     };
-                    
+
                     flow.onAIExtract = async (data) => {
                         let systemPrompt = `You are a strict data extraction AI.\nYour task is to extract information from the user's response based on the original question and the specific extraction instructions.\n\nORIGINAL QUESTION TO USER:\n"${data.userPrompt}"\n\nEXTRACTION INSTRUCTION (AI PROMPT):\n"${data.aiPrompt}"\n\nAVAILABLE OPTIONS:\n${data.options && data.options.length > 0 ? data.options.join(', ') : 'None'}\n\nRULES:\n`;
-                        
+
                         if (data.isBoolean) {
                             systemPrompt += `1. Evaluate the boolean condition.\n2. Output a JSON object: {"value": true} or {"value": false}\n3. Output ONLY valid JSON.`;
                         } else {
@@ -506,7 +507,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             } else {
                                 flow.step(data.userInput);
                             }
-                        } catch(e) {
+                        } catch (e) {
                             flow.step(data.userInput);
                         }
                         flow.resume();
@@ -521,18 +522,18 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                     status: flow.status
                                 }
                             });
-                        } catch(e) {}
+                        } catch (e) { }
                     };
-                    
+
                     flow.onFlowEnd = async () => {
                         activeFlows.delete(orgId);
                         try {
                             await OrganizationContact.findByIdAndUpdate(msg.orgContactId, {
                                 flowState: { currentNodeId: null, variables: {}, status: 'idle' }
                             });
-                        } catch(e) {}
+                        } catch (e) { }
                     };
-                    
+
                     activeFlows.set(orgId, flow);
                 }
 
@@ -557,10 +558,10 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                 } else {
                     flow.step(msg.body);
                 }
-                
+
                 // Automatically run until user input is required
                 flow.resume();
-                
+
                 return; // Stop processing further for Flow Reply
             }
 
@@ -568,7 +569,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
             if (settings && (settings.replyMethod === 'ai' || (settings.replyMethod === undefined && settings.aiEnabled))) {
                 const bufferKey = `${msg.from}_${accountId}`;
                 if (!aiBuffers.has(bufferKey)) aiBuffers.set(bufferKey, { messages: [], timeout: null });
-                
+
                 const buffer = aiBuffers.get(bufferKey);
                 buffer.messages.push(msg.body);
                 clearTimeout(buffer.timeout);
@@ -578,7 +579,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                 buffer.timeout = setTimeout(async () => {
                     const combinedMsg = buffer.messages.join('\n');
                     aiBuffers.delete(bufferKey);
-                    
+
                     console.log(`[WhatsApp ${account.sessionId}] 🧠 Sending message batch to AI for ${msg.from}...`);
 
                     const promptData = {
@@ -599,7 +600,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     let configStr = '';
-                    
+
                     // Include any legacy AI Config text if they still exist
                     if (settings.aiConfig) {
                         if (settings.aiConfig.personality) configStr += `PERSONALITY:\n${settings.aiConfig.personality}\n\n`;
@@ -616,7 +617,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         });
                         configStr += `\n`;
                     }
-                    
+
                     if (configStr) {
                         promptData.knowledge_chunks = configStr + (promptData.knowledge_chunks === 'No additional knowledge provided.' ? '' : promptData.knowledge_chunks);
                         promptData.knowledge = promptData.knowledge_chunks;
@@ -630,8 +631,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 promptData.knowledge_chunks += `\nLIVE DATABASE (Google Sheet):\n${sheetData}`;
                                 promptData.knowledge += `\nLIVE DATABASE (Google Sheet):\n${sheetData}`;
                             }
-                        } catch(e) { 
-                            console.error(`[WhatsApp ${account.sessionId}] ❌ Google Sheet injection error:`, e.message); 
+                        } catch (e) {
+                            console.error(`[WhatsApp ${account.sessionId}] ❌ Google Sheet injection error:`, e.message);
                         }
                     }
 
@@ -640,37 +641,37 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         if (msg.orgContactId) {
                             orgContactIdForAnalysis = msg.orgContactId;
                             const orgContact = await OrganizationContact.findById(msg.orgContactId).populate('customer');
-                            
+
                             if (orgContact) {
                                 promptData.organization_contact_data = JSON.stringify(orgContact.organizationProfile || {});
                                 promptData.organization_customer_profile = JSON.stringify(orgContact.organizationProfile || {});
-                                
+
                                 if (orgContact.organizationProfile?.summary) {
                                     promptData.conversation_summary = orgContact.organizationProfile.summary;
                                 }
-                                
+
                                 if (orgContact.organizationProfile?.facts && orgContact.organizationProfile.facts.length > 0) {
                                     promptData.organization_customer_facts = orgContact.organizationProfile.facts.map(f => `- ${f.text}`).join('\n');
                                 }
-                                
+
                                 if (orgContact.customer) {
                                     promptData.global_customer_data = JSON.stringify(orgContact.customer.globalProfile || {});
                                     promptData.global_customer_profile = JSON.stringify(orgContact.customer.globalProfile || {});
-                                    
+
                                     if (orgContact.customer.globalProfile?.preferredLanguage) {
                                         promptData.preferred_language = orgContact.customer.globalProfile.preferredLanguage;
                                     }
                                 }
                             }
                         }
-                    } catch(e) { 
-                        console.error(`[WhatsApp ${account.sessionId}] ❌ Error fetching context for AI:`, e.message); 
+                    } catch (e) {
+                        console.error(`[WhatsApp ${account.sessionId}] ❌ Error fetching context for AI:`, e.message);
                     }
-                    
+
                     const aiResponse = await getGroqResponse(combinedMsg, promptData);
                     if (aiResponse) {
                         console.log(`[WhatsApp ${account.sessionId}] ✨ AI response generated for ${msg.from}`);
-                        
+
                         try {
                             try {
                                 const chat = await msg.getChat();
@@ -682,9 +683,9 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             } catch (chatErr) {
                                 console.warn(`[WhatsApp ${account.sessionId}] ⚠️ Skipping typing indicator: could not fetch chat window for ${msg.from}`);
                             }
-                            
+
                             await new Promise(r => setTimeout(r, settings.typingTime || 3000));
-                            
+
                             try {
                                 await msg.reply(aiResponse);
                                 console.log(`[WhatsApp ${account.sessionId}] 📤 AI reply sent successfully to ${msg.from}`);
@@ -720,8 +721,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 queueCustomerAnalysis(orgContactIdForAnalysis);
                                 console.log(`[WhatsApp ${account.sessionId}] 🔄 Queued customer analysis for contact ${orgContactIdForAnalysis}`);
                             }
-                        } catch(e) { 
-                            console.error(`[WhatsApp ${account.sessionId}] ❌ Error saving AI reply to DB:`, e.message); 
+                        } catch (e) {
+                            console.error(`[WhatsApp ${account.sessionId}] ❌ Error saving AI reply to DB:`, e.message);
                         }
                     } else {
                         console.warn(`[WhatsApp ${account.sessionId}] ⚠️ AI returned an empty response for ${msg.from}`);
@@ -745,7 +746,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
     client.initialize().catch(async (err) => {
         console.error(`[WhatsApp ${account.sessionId}] ❌ Failed to initialize client:`, err.message);
         // Clean up the dead client so it doesn't linger
-        try { await client.destroy(); } catch(_) {}
+        try { await client.destroy(); } catch (_) { }
         clients.delete(accountId);
         await Account.findByIdAndUpdate(accountId, { status: 'disconnected' });
     });
@@ -778,7 +779,7 @@ const resetActiveFlows = async (accountId) => {
             });
         }
         console.log(`[WhatsApp Manager] ♻️ Reset active flows for account ${accountId}`);
-    } catch(e) {
+    } catch (e) {
         console.error(`[WhatsApp Manager] ❌ Error resetting active flows for account ${accountId}:`, e.message);
         throw e;
     }
