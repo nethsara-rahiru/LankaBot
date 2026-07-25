@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,6 +11,7 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <header>
@@ -35,12 +37,14 @@
             </div>
 
             <div id="user-profile-header" class="user-profile-header" style="display: none;">
-                <img id="header-account-pic" src="https://ui-avatars.com/api/?name=User&background=2ecc71&color=fff" alt="Profile">
+                <img id="header-account-pic" src="https://ui-avatars.com/api/?name=User&background=2ecc71&color=fff"
+                    alt="Profile">
                 <div class="header-user-details">
                     <h4 id="header-account-name">...</h4>
                     <p id="header-account-number" style="display: none;">...</p>
                 </div>
-                <button class="logout-mini-btn" title="Switch Account" onclick="window.location.href='/accounts.html'" style="margin-left: 0.5rem; background: rgba(52, 152, 219, 0.1); color: #3498db;">
+                <button class="logout-mini-btn" title="Switch Account" onclick="window.location.href='/accounts.html'"
+                    style="margin-left: 0.5rem; background: rgba(52, 152, 219, 0.1); color: #3498db;">
                     <i class="ph-bold ph-arrows-left-right"></i>
                 </button>
                 <button id="logout-btn" class="logout-mini-btn" title="Logout" style="margin-left: 0.5rem;">
@@ -51,9 +55,11 @@
 
         <main style="display: grid; grid-template-columns: 1fr; gap: 2rem;">
             <!-- Feature Grid -->
-            <section class="features-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            <section class="features-grid"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
                 <!-- Reply Method Selector -->
-                <div class="card feature-card" style="border-left: 4px solid var(--primary); grid-column: 1 / -1; cursor: default;">
+                <div class="card feature-card"
+                    style="border-left: 4px solid var(--primary); grid-column: 1 / -1; cursor: default;">
                     <div class="feature-icon-wrapper" style="background: rgba(var(--primary-rgb), 0.1);">
                         <i class="ph-bold ph-chat-dots" style="color: var(--primary);"></i>
                     </div>
@@ -127,31 +133,36 @@
                 </div>
 
                 <!-- AI Status Card -->
-                <div class="card feature-card" onclick="window.location.href='/aiBot.html'" style="border-left: 4px solid #f1c40f;">
+                <div class="card feature-card" onclick="window.location.href='/aiBot.html'"
+                    style="border-left: 4px solid #f1c40f;">
                     <div class="feature-icon-wrapper" style="background: rgba(241, 196, 15, 0.1);">
                         <i class="ph-bold ph-sparkle" style="color: #f1c40f;"></i>
                     </div>
                     <div class="feature-content">
                         <h3>Groq AI Config</h3>
                         <p>Configure how AI handles messages and define its personality.</p>
-                        <span class="badge-soon" style="background: rgba(241, 196, 15, 0.2); color: #f1c40f;">Powered by Groq Llama 3.1</span>
+                        <span class="badge-soon" style="background: rgba(241, 196, 15, 0.2); color: #f1c40f;">Powered by
+                            Groq Llama 3.1</span>
                     </div>
                 </div>
 
                 <!-- Audience Insights Card -->
-                <div class="card feature-card" onclick="window.location.href='/audienceInsights.html'" style="border-left: 4px solid #e84393;">
+                <div class="card feature-card" onclick="window.location.href='/audienceInsights.html'"
+                    style="border-left: 4px solid #e84393;">
                     <div class="feature-icon-wrapper" style="background: rgba(232, 67, 147, 0.1);">
                         <i class="ph-bold ph-users-four" style="color: #e84393;"></i>
                     </div>
                     <div class="feature-content">
                         <h3>Audience AI Insights</h3>
                         <p>View AI summaries and personality profiles of your chat contacts.</p>
-                        <span class="badge-soon" style="background: rgba(232, 67, 147, 0.2); color: #e84393;">New Feature</span>
+                        <span class="badge-soon" style="background: rgba(232, 67, 147, 0.2); color: #e84393;">New
+                            Feature</span>
                     </div>
                 </div>
 
                 <!-- Flow Manager Card -->
-                <div class="card feature-card" onclick="window.location.href='/FlowManager/flowManager.html'" style="border-left: 4px solid #00cec9;">
+                <div class="card feature-card" onclick="window.location.href='/FlowManager/flowManager.html'"
+                    style="border-left: 4px solid #00cec9;">
                     <div class="feature-icon-wrapper" style="background: rgba(0, 206, 201, 0.1);">
                         <i class="ph-bold ph-git-branch" style="color: #00cec9;"></i>
                     </div>
@@ -185,14 +196,17 @@
                 </div>
 
                 <!-- User Management Card -->
-                <div class="card feature-card" id="userManagementCard" onclick="window.location.href='/userManagement.html'" style="display: none; border-left: 4px solid #9b59b6;">
+                <div class="card feature-card" id="userManagementCard"
+                    onclick="window.location.href='/userManagement.html'"
+                    style="display: none; border-left: 4px solid #9b59b6;">
                     <div class="feature-icon-wrapper" style="background: rgba(155, 89, 182, 0.1);">
                         <i class="ph-bold ph-user-gear" style="color: #9b59b6;"></i>
                     </div>
                     <div class="feature-content">
                         <h3>User Management</h3>
                         <p>Manage system users, roles, and assign WhatsApp sessions.</p>
-                        <span class="badge-soon" style="background: rgba(155, 89, 182, 0.2); color: #9b59b6;">Admin Only</span>
+                        <span class="badge-soon" style="background: rgba(155, 89, 182, 0.2); color: #9b59b6;">Admin
+                            Only</span>
                     </div>
                 </div>
             </section>
@@ -260,8 +274,9 @@
                         if (card) card.style.display = 'flex';
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         });
     </script>
 </body>
+
 </html>

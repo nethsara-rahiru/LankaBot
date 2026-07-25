@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,6 +17,7 @@
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
+
         .unit-label {
             position: absolute;
             right: 15px;
@@ -25,12 +27,15 @@
             font-size: 0.85rem;
             pointer-events: none;
         }
+
         .input-group {
             position: relative;
         }
+
         .input-group input {
             padding-right: 45px;
         }
+
         .settings-card {
             background: rgba(255, 255, 255, 0.03);
             border-radius: 24px;
@@ -38,6 +43,7 @@
             border: 1px solid var(--glass-border);
             margin-bottom: 2rem;
         }
+
         .settings-card h3 {
             margin-top: 0;
             display: flex;
@@ -49,35 +55,85 @@
         }
     </style>
 </head>
+
 <body>
+    <header>
+        <div class="header-left">
+            <div class="logo-wrapper" onclick="window.location.href='/manageAccount.html'" style="cursor: pointer;">
+                <button class="btn-secondary" onclick="window.location.href='/manageAccount.html'"
+                    style="width: auto; height: 100%; border-radius: 12px; padding: 8px 16px; font-size: 0.85rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <i class="ph-fill ph-robot logo-icon"></i>
+                <div class="logo">
+                    <h1>Front<span>Desk</span></h1>
+                    <p>Advanced Automation</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="user-profile-header" class="user-profile-header" style="display: none;">
+            <img id="header-account-pic" src="" alt="Profile">
+            <div class="header-user-details">
+                <h4 id="header-account-name">...</h4>
+                <p id="header-account-number">...</p>
+            </div>
+        </div>
+    </header>
     <div class="container">
         <div style="margin-bottom: 1rem; display: flex; justify-content: flex-start;">
-            <button class="btn-secondary" onclick="window.location.href='/manageAccount.html'" style="width: auto; border-radius: 12px; padding: 8px 16px; font-size: 0.85rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
-                <i class="ph-bold ph-arrow-left"></i> Back to Dashboard
-            </button>
-        </div>
-        <header>
-            <div class="header-left">
-                <div class="logo-wrapper" onclick="window.location.href='/manageAccount.html'" style="cursor: pointer;">
-                    <i class="ph-fill ph-robot logo-icon"></i>
-                    <div class="logo">
-                        <h1>Front<span>Desk</span></h1>
-                        <p>Advanced Automation</p>
-                    </div>
-                </div>
-            </div>
 
-            <div id="user-profile-header" class="user-profile-header" style="display: none;">
-                <img id="header-account-pic" src="" alt="Profile">
-                <div class="header-user-details">
-                    <h4 id="header-account-name">...</h4>
-                    <p id="header-account-number">...</p>
-                </div>
-            </div>
-        </header>
+        </div>
 
         <main>
             <div style="grid-column: 1 / -1; max-width: 800px; margin: 0 auto; width: 100%;">
+                <section class="card" style="margin-bottom: 2rem;">
+                    <div class="card-header">
+                        <i class="ph-bold ph-user-circle"></i>
+                        <h2>My Profile</h2>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3><i class="ph-bold ph-identification-card"></i> Account Details</h3>
+                        <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                            Update your personal information. Leave password blank to keep it unchanged.
+                        </p>
+
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label>Full Name</label>
+                                <i class="ph-bold ph-user"></i>
+                                <input type="text" id="profileName" placeholder="Your name">
+                            </div>
+
+                            <div class="input-group">
+                                <label>Email Address</label>
+                                <i class="ph-bold ph-envelope"></i>
+                                <input type="email" id="profileEmail" placeholder="you@example.com">
+                            </div>
+                        </div>
+
+                        <div class="input-row" style="margin-bottom: 0;">
+                            <div class="input-group">
+                                <label>New Password</label>
+                                <i class="ph-bold ph-lock"></i>
+                                <input type="password" id="profilePassword" placeholder="Leave blank to keep current">
+                            </div>
+
+                            <div class="input-group">
+                                <label>Confirm Password</label>
+                                <i class="ph-bold ph-lock-key"></i>
+                                <input type="password" id="profilePasswordConfirm" placeholder="Re-enter new password">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="save-profile" class="btn-primary" style="margin-top: 1rem;">
+                        <span>Update Profile</span>
+                        <i class="ph-bold ph-check"></i>
+                    </button>
+                </section>
+
                 <section class="card">
                     <div class="card-header">
                         <i class="ph-bold ph-sliders"></i>
@@ -87,16 +143,18 @@
                     <div class="settings-card">
                         <h3><i class="ph-bold ph-clock"></i> Response Timing</h3>
                         <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1.5rem;">
-                            Adjust these values to make the bot appear more human-like. All values are in milliseconds (1000ms = 1s).
+                            Adjust these values to make the bot appear more human-like. All values are in milliseconds
+                            (1000ms = 1s).
                         </p>
-                        
+
                         <div class="input-row">
                             <div class="input-group">
                                 <label>Initial Delay</label>
                                 <i class="ph-bold ph-timer"></i>
                                 <input type="number" id="responseTime" placeholder="e.g. 2000">
                                 <span class="unit-label">ms</span>
-                                <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Time before bot starts processing.</small>
+                                <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Time before
+                                    bot starts processing.</small>
                             </div>
 
                             <div class="input-group">
@@ -104,7 +162,8 @@
                                 <i class="ph-bold ph-keyboard"></i>
                                 <input type="number" id="typingTime" placeholder="e.g. 3000">
                                 <span class="unit-label">ms</span>
-                                <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">How long "typing..." is shown.</small>
+                                <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">How long
+                                    "typing..." is shown.</small>
                             </div>
 
                             <div class="input-group">
@@ -112,7 +171,8 @@
                                 <i class="ph-bold ph-hourglass"></i>
                                 <input type="number" id="waitingTime" placeholder="e.g. 1000">
                                 <span class="unit-label">ms</span>
-                                <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Delay before sending the message.</small>
+                                <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Delay before
+                                    sending the message.</small>
                             </div>
                         </div>
                     </div>
@@ -129,9 +189,12 @@
                         <h2>Human-like Interaction Tips</h2>
                     </div>
                     <div style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.6;">
-                        <p>• <strong>Randomness</strong>: The bot uses these values as base points. Small variations are added automatically.</p>
-                        <p>• <strong>Realistic Typing</strong>: Setting typing duration to 3-5 seconds makes the interaction feel natural.</p>
-                        <p>• <strong>Initial Delay</strong>: A 1-2 second delay simulates the time taken to read the message.</p>
+                        <p>• <strong>Randomness</strong>: The bot uses these values as base points. Small variations are
+                            added automatically.</p>
+                        <p>• <strong>Realistic Typing</strong>: Setting typing duration to 3-5 seconds makes the
+                            interaction feel natural.</p>
+                        <p>• <strong>Initial Delay</strong>: A 1-2 second delay simulates the time taken to read the
+                            message.</p>
                     </div>
                 </section>
 
@@ -140,10 +203,12 @@
                         <i class="ph-bold ph-warning-circle" style="color: var(--danger);"></i>
                         <h2 style="color: var(--danger);">Danger Zone</h2>
                     </div>
-                    <div class="settings-card" style="background: rgba(255,82,82,0.05); border-color: rgba(255,82,82,0.1);">
+                    <div class="settings-card"
+                        style="background: rgba(255,82,82,0.05); border-color: rgba(255,82,82,0.1);">
                         <h3 style="color: var(--danger);"><i class="ph-bold ph-trash"></i> Reset Conversations</h3>
                         <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1.5rem;">
-                            This action will instantly clear the current flow memory and state for all active users. Users will start their flows from the very beginning the next time they message.
+                            This action will instantly clear the current flow memory and state for all active users.
+                            Users will start their flows from the very beginning the next time they message.
                         </p>
                         <button id="reset-flows-btn" class="btn-danger" style="width: auto; padding: 1rem 2rem;">
                             <i class="ph-bold ph-arrows-clockwise"></i> Force Reset All Conversations
@@ -176,7 +241,7 @@
                     }
                 });
                 const data = await res.json();
-                
+
                 responseTimeInput.value = data.responseTime || 2000;
                 typingTimeInput.value = data.typingTime || 3000;
                 waitingTimeInput.value = data.waitingTime || 1000;
@@ -202,7 +267,7 @@
             try {
                 const res = await fetch('/api/settings', {
                     method: 'PATCH',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                         'x-account-id': activeAccountId
@@ -256,7 +321,85 @@
             }
         });
 
+        // --- Profile Management ---
+        const profileNameInput = document.getElementById('profileName');
+        const profileEmailInput = document.getElementById('profileEmail');
+        const profilePasswordInput = document.getElementById('profilePassword');
+        const profilePasswordConfirmInput = document.getElementById('profilePasswordConfirm');
+        const saveProfileBtn = document.getElementById('save-profile');
+
+        async function fetchProfile() {
+            try {
+                const res = await fetch('/api/users', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const users = await res.json();
+                // Decode the token to find current user
+                const token = localStorage.getItem('token');
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const me = users.find(u => u._id === payload.id);
+                if (me) {
+                    profileNameInput.value = me.name || '';
+                    profileEmailInput.value = me.email || '';
+                }
+            } catch (err) {
+                console.error('Error fetching profile:', err);
+            }
+        }
+
+        saveProfileBtn.addEventListener('click', async () => {
+            const name = profileNameInput.value.trim();
+            const email = profileEmailInput.value.trim();
+            const password = profilePasswordInput.value;
+            const confirmPassword = profilePasswordConfirmInput.value;
+
+            if (!name || !email) {
+                alert('Name and email are required.');
+                return;
+            }
+
+            if (password && password !== confirmPassword) {
+                alert('Passwords do not match.');
+                return;
+            }
+
+            saveProfileBtn.disabled = true;
+            saveProfileBtn.innerHTML = '<span>Saving...</span><i class="ph-bold ph-spinner"></i>';
+
+            try {
+                const body = { name, email };
+                if (password) body.password = password;
+
+                const res = await fetch('/api/users/profile', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert('Profile updated successfully!');
+                    profilePasswordInput.value = '';
+                    profilePasswordConfirmInput.value = '';
+                    fetchProfile();
+                } else {
+                    alert(data.msg || 'Error updating profile');
+                }
+            } catch (err) {
+                alert('Connection error');
+            } finally {
+                saveProfileBtn.disabled = false;
+                saveProfileBtn.innerHTML = '<span>Update Profile</span><i class="ph-bold ph-check"></i>';
+            }
+        });
+
+        fetchProfile();
         fetchSettings();
     </script>
 </body>
+
 </html>

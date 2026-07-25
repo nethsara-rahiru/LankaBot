@@ -13,6 +13,9 @@ router.post('/register', userController.registerUser);
 // @route   POST api/users/login
 router.post('/login', userController.loginUser);
 
+// @route   PUT api/users/profile
+router.put('/profile', auth, userController.updateProfile);
+
 // --- Admin Routes ---
 router.get('/admin', auth, admin, userController.getAllUsersAdmin);
 router.put('/admin/:id/role', auth, admin, userController.updateUserRole);

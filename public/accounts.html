@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,22 +16,26 @@
             align-items: center;
             gap: 1rem;
         }
+
         .account-avatar {
             width: 50px;
             height: 50px;
             border-radius: 50%;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             object-fit: cover;
         }
+
         .account-info h3 {
             margin: 0;
             font-size: 1.1rem;
         }
+
         .account-info p {
             margin: 0;
             font-size: 0.85rem;
             color: var(--text-dim);
         }
+
         .account-status {
             display: flex;
             align-items: center;
@@ -40,10 +45,22 @@
             border-radius: 20px;
             width: fit-content;
         }
-        .status-ready { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
-        .status-qr { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
-        .status-disconnected { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
-        
+
+        .status-ready {
+            background: rgba(46, 204, 113, 0.15);
+            color: #2ecc71;
+        }
+
+        .status-qr {
+            background: rgba(241, 196, 15, 0.15);
+            color: #f1c40f;
+        }
+
+        .status-disconnected {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+        }
+
 
         .modal {
             position: fixed;
@@ -51,13 +68,14 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0, 0, 0, 0.8);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
             backdrop-filter: blur(5px);
         }
+
         .modal-content {
             background: #111;
             padding: 2.5rem;
@@ -68,48 +86,50 @@
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div style="margin-bottom: 1rem; display: flex; justify-content: flex-start;">
-            <button class="btn-secondary" onclick="window.location.href='/manageAccount.html'" style="width: auto; border-radius: 12px; padding: 8px 16px; font-size: 0.85rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
-                <i class="ph-bold ph-arrow-left"></i> Back to Dashboard
-            </button>
-        </div>
-        <header>
-            <div class="header-left">
-                <div class="logo-wrapper" onclick="window.location.href='/manageAccount.html'" style="cursor: pointer;">
-                    <i class="ph-fill ph-robot logo-icon"></i>
-                    <div class="logo">
-                        <h1>Front<span>Desk</span></h1>
-                        <p>Multi-Account Manager</p>
-                    </div>
-                </div>
-            </div>
-            <div id="user-profile-header" class="user-profile-header">
-                <img id="header-account-pic" src="" alt="Profile">
-                <div class="header-user-details">
-                    <h4 id="header-account-name">...</h4>
-                </div>
-            </div>
-        </header>
 
+<body>
+    <header>
+        <div class="header-left">
+            <div class="logo-wrapper" onclick="window.location.href='/manageAccount.html'" style="cursor: pointer;">
+                <i class="ph-fill ph-robot logo-icon"></i>
+                <div class="logo">
+                    <h1>Front<span>Desk</span></h1>
+                    <p>Multi-Account Manager</p>
+                </div>
+            </div>
+        </div>
+        <div id="user-profile-header" class="user-profile-header">
+            <img id="header-account-pic" src="" alt="Profile">
+            <div class="header-user-details">
+                <h4 id="header-account-name">...</h4>
+            </div>
+    </header>
+    <div class="container">
         <main>
             <div style="grid-column: 1 / -1;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
                     <h2 style="margin: 0;">Your WhatsApp Sessions</h2>
-                    <button class="btn-primary" onclick="openModal()" style="display: flex; align-items: center; gap: 5px; padding: 8px 16px;">
+                    <button class="btn-primary" onclick="openModal()"
+                        style="display: flex; align-items: center; gap: 5px; padding: 8px 16px;">
                         <i class="ph-bold ph-plus-circle"></i> Add New WhatsApp
                     </button>
                 </div>
-                
-                <div style="background: rgba(15,15,20,0.6); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; backdrop-filter: blur(20px);">
+
+                <div
+                    style="background: rgba(15,15,20,0.6); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; backdrop-filter: blur(20px);">
                     <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                        <thead style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--glass-border);">
+                        <thead
+                            style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--glass-border);">
                             <tr>
-                                <th style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim); width: 80px; text-align: center;">Profile</th>
-                                <th style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim);">Session & Number</th>
+                                <th
+                                    style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim); width: 80px; text-align: center;">
+                                    Profile</th>
+                                <th style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim);">Session &
+                                    Number</th>
                                 <th style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim);">Status</th>
-                                <th style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim); text-align: right;">Actions</th>
+                                <th
+                                    style="padding: 1.2rem 1rem; font-weight: 600; color: var(--text-dim); text-align: right;">
+                                    Actions</th>
                             </tr>
                         </thead>
                         <tbody id="account-table-body">
@@ -130,7 +150,8 @@
         <div class="modal-content">
             <div id="setup-initial">
                 <h2 style="margin-top: 0; margin-bottom: 1.5rem;">New Session</h2>
-                <p style="color: var(--text-dim); margin-bottom: 2rem;">Give this session a name to identify it (e.g. "Personal", "Business").</p>
+                <p style="color: var(--text-dim); margin-bottom: 2rem;">Give this session a name to identify it (e.g.
+                    "Personal", "Business").</p>
                 <div class="input-group">
                     <label>Session Name</label>
                     <i class="ph-bold ph-tag"></i>
@@ -143,29 +164,37 @@
                 </div>
                 <div style="display: flex; gap: 1rem; margin-top: 2rem;">
                     <button class="btn-secondary" onclick="closeModal()" style="flex: 1;">Cancel</button>
-                    <button class="btn-primary" id="btn-create" onclick="createAccount()" style="flex: 2;">Create Session</button>
+                    <button class="btn-primary" id="btn-create" onclick="createAccount()" style="flex: 2;">Create
+                        Session</button>
                 </div>
             </div>
 
             <div id="setup-qr" style="display: none; text-align: center;">
                 <h2 style="margin-top: 0; margin-bottom: 1rem;">Link Your WhatsApp</h2>
-                <p style="color: var(--text-dim); margin-bottom: 1rem; font-size: 0.9rem;">Choose how to link the WhatsApp account.</p>
-                
+                <p style="color: var(--text-dim); margin-bottom: 1rem; font-size: 0.9rem;">Choose how to link the
+                    WhatsApp account.</p>
+
                 <!-- Tab Switcher -->
-                <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 4px;">
-                    <button id="tab-qr" class="btn-primary" onclick="switchTab('qr')" style="flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 0.85rem;">
+                <div
+                    style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 4px;">
+                    <button id="tab-qr" class="btn-primary" onclick="switchTab('qr')"
+                        style="flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 0.85rem;">
                         <i class="ph-bold ph-qr-code"></i> Scan QR
                     </button>
-                    <button id="tab-pair" class="btn-secondary" onclick="switchTab('pair')" style="flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 0.85rem; border: none;">
+                    <button id="tab-pair" class="btn-secondary" onclick="switchTab('pair')"
+                        style="flex: 1; border-radius: 10px; padding: 8px 12px; font-size: 0.85rem; border: none;">
                         <i class="ph-bold ph-link"></i> Phone Number
                     </button>
                 </div>
 
                 <!-- QR Tab -->
                 <div id="qr-tab-content">
-                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Open WhatsApp on your phone → Linked Devices → Link a Device → Scan QR.</p>
-                    <div id="modal-qr-container" style="background: white; padding: 1rem; border-radius: 20px; display: inline-block; margin-bottom: 1.5rem;">
-                        <div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 10px;">
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Open WhatsApp on your
+                        phone → Linked Devices → Link a Device → Scan QR.</p>
+                    <div id="modal-qr-container"
+                        style="background: white; padding: 1rem; border-radius: 20px; display: inline-block; margin-bottom: 1.5rem;">
+                        <div
+                            style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; background: #f0f0f0; border-radius: 10px;">
                             <i class="ph-bold ph-circle-notch ph-spin" style="font-size: 2rem; color: #333;"></i>
                         </div>
                     </div>
@@ -173,28 +202,38 @@
 
                 <!-- Pairing Code Tab -->
                 <div id="pair-tab-content" style="display: none;">
-                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Enter the client's phone number (with country code). A code will be generated that they enter on their phone.</p>
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Enter the client's phone
+                        number (with country code). A code will be generated that they enter on their phone.</p>
                     <div id="pair-input-section">
                         <div class="input-group" style="text-align: left;">
                             <label>Client Phone Number</label>
                             <i class="ph-bold ph-phone"></i>
                             <input type="text" id="pairPhoneNumber" placeholder="e.g. 94771234567">
                         </div>
-                        <button class="btn-primary" id="btn-request-pair" onclick="requestPairingCode()" style="width: 100%; margin-top: 1rem;">
+                        <button class="btn-primary" id="btn-request-pair" onclick="requestPairingCode()"
+                            style="width: 100%; margin-top: 1rem;">
                             <i class="ph-bold ph-link"></i> Generate Pairing Code
                         </button>
                     </div>
                     <div id="pair-code-section" style="display: none;">
-                        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Send this code to your client. They should enter it in:<br><strong>WhatsApp → Linked Devices → Link a Device → Link with phone number instead</strong></p>
-                        <div style="background: rgba(46, 204, 113, 0.1); border: 2px solid #2ecc71; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
+                        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1rem;">Send this code to
+                            your client. They should enter it in:<br><strong>WhatsApp → Linked Devices → Link a Device →
+                                Link with phone number instead</strong></p>
+                        <div
+                            style="background: rgba(46, 204, 113, 0.1); border: 2px solid #2ecc71; border-radius: 16px; padding: 1.5rem; margin: 1rem 0;">
                             <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0 0 0.5rem 0;">Pairing Code</p>
-                            <h1 id="pairing-code-display" style="margin: 0; font-size: 2.5rem; letter-spacing: 8px; color: #2ecc71; font-weight: 700;">--------</h1>
+                            <h1 id="pairing-code-display"
+                                style="margin: 0; font-size: 2.5rem; letter-spacing: 8px; color: #2ecc71; font-weight: 700;">
+                                --------</h1>
                         </div>
                     </div>
                 </div>
 
-                <p id="setup-status" style="color: var(--primary); font-weight: 600; font-size: 0.9rem; margin: 0.5rem 0 0 0;">Initializing client...</p>
-                <button class="btn-secondary" onclick="closeModal()" style="margin-top: 1.5rem; width: 100%;">Cancel Setup</button>
+                <p id="setup-status"
+                    style="color: var(--primary); font-weight: 600; font-size: 0.9rem; margin: 0.5rem 0 0 0;">
+                    Initializing client...</p>
+                <button class="btn-secondary" onclick="closeModal()" style="margin-top: 1.5rem; width: 100%;">Cancel
+                    Setup</button>
             </div>
         </div>
     </div>
@@ -257,29 +296,29 @@
             const tableBody = document.getElementById('account-table-body');
             if (!tableBody) return;
             tableBody.innerHTML = '';
-            
+
             if (accounts.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-dim);">No WhatsApp sessions found. Create one to get started!</td></tr>`;
                 return;
             }
-            
+
             accounts.forEach(acc => {
                 const tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
                 tr.style.transition = 'background 0.2s';
-                
+
                 const isActive = localStorage.getItem('activeAccountId') === acc._id;
-                
+
                 if (isActive) {
                     tr.style.background = 'rgba(var(--primary-rgb), 0.05)';
                 }
-                
+
                 tr.onmouseover = () => tr.style.background = 'rgba(255,255,255,0.02)';
                 tr.onmouseout = () => tr.style.background = isActive ? 'rgba(var(--primary-rgb), 0.05)' : 'transparent';
-                
+
                 const statusClass = `status-${acc.status}`;
                 const statusIcon = acc.status === 'ready' ? 'ph-check-circle' : (acc.status === 'qr' ? 'ph-qr-code' : 'ph-x-circle');
-                
+
                 tr.innerHTML = `
                     <td style="padding: 1rem; text-align: center;">
                         <img class="account-avatar" src="${acc.profilePic || 'https://ui-avatars.com/api/?name=' + acc.sessionId}" alt="Avatar" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin: 0 auto; display: block;">
@@ -302,18 +341,18 @@
                     <td style="padding: 1rem; text-align: right;">
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
                             ${acc.status !== 'ready' ? `
-                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; border-radius: 8px; background: rgba(46, 204, 113, 0.1); color: #2ecc71; border-color: #2ecc71;" onclick="reconnectAccount('${acc._id}')">
+                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; align-items: center; width: 120px; gap: 5px; border-radius: 8px; background: rgba(46, 204, 113, 0.1); color: #2ecc71; border-color: #2ecc71;" onclick="reconnectAccount('${acc._id}')">
                                 <i class="ph-bold ph-arrows-clockwise"></i> Reconnect
                             </button>
                             ` : ''}
-                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; border-radius: 8px; ${acc.paused ? 'background: rgba(230, 126, 34, 0.1); color: #e67e22; border-color: #e67e22;' : ''}" onclick="togglePause('${acc._id}')">
+                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; align-items: center; width: 120px; gap: 5px; border-radius: 8px; ${acc.paused ? 'background: rgba(230, 126, 34, 0.1); color: #e67e22; border-color: #e67e22;' : ''}" onclick="togglePause('${acc._id}')">
                                 <i class="ph-bold ${acc.paused ? 'ph-play' : 'ph-pause'}"></i>
                                 ${acc.paused ? 'Resume' : 'Pause'}
                             </button>
-                            <button class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; display: flex; align-items: center; gap: 5px;" onclick="selectAccount('${acc._id}')">
+                            <button class="btn-primary" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 8px; display: flex; align-items: center; width: 120px; gap: 5px;" onclick="selectAccount('${acc._id}')">
                                 <i class="ph-bold ph-arrow-square-out"></i> Manage
                             </button>
-                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; color: #e74c3c; border-color: rgba(231,76,60,0.3); border-radius: 8px; display: flex; align-items: center; gap: 5px;" onclick="deleteAccount('${acc._id}')">
+                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; color: #e74c3c; border-color: rgba(231,76,60,0.3); border-radius: 8px; display: flex; align-items: center; align-items: center; width: 120px; gap: 5px;" onclick="deleteAccount('${acc._id}')">
                                 <i class="ph-bold ph-trash"></i> Delete
                             </button>
                         </div>
@@ -342,14 +381,14 @@
 
         async function reconnectAccount(id) {
             if (!confirm('This will restart the WhatsApp session. You will need to scan a new QR code or use a pairing code. Continue?')) return;
-            
+
             pendingAccountId = id;
             setupInitial.style.display = 'none';
             setupQr.style.display = 'block';
             switchTab('qr');
             addModal.style.display = 'flex';
             setupStatus.textContent = 'Reconnecting session...';
-            
+
             try {
                 const res = await fetch(`/api/accounts/${id}/reconnect`, {
                     method: 'POST',
@@ -435,7 +474,7 @@
             try {
                 const res = await fetch('/api/accounts', {
                     method: 'POST',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     },
@@ -481,7 +520,7 @@
             }
         }
 
-        function openModal() { 
+        function openModal() {
             pendingAccountId = null;
             setupInitial.style.display = 'block';
             setupQr.style.display = 'none';
@@ -496,10 +535,10 @@
             if (pairCode) pairCode.style.display = 'none';
             if (pairPhone) pairPhone.value = '';
             if (pairBtn) { pairBtn.disabled = false; pairBtn.innerHTML = '<i class="ph-bold ph-link"></i> Generate Pairing Code'; }
-            addModal.style.display = 'flex'; 
+            addModal.style.display = 'flex';
         }
 
-        function closeModal() { 
+        function closeModal() {
             addModal.style.display = 'none';
             if (pendingAccountId) fetchAccounts();
         }
@@ -507,4 +546,5 @@
         fetchAccounts();
     </script>
 </body>
+
 </html>

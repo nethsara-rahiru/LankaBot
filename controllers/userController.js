@@ -104,6 +104,43 @@ exports.loginUser = async (req, res) => {
     }
 };
 
+// @route   PUT api/users/profile
+// @desc    Update user profile
+// @access  Private
+exports.updateProfile = async (req, res) => {
+    const { name, email, password } = req.body;
+
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        if (name) user.name = name;
+        if (email) {
+            // Check if email is already taken by another user
+            const existingUser = await User.findOne({ email });
+            if (existingUser && existingUser._id.toString() !== req.user.id) {
+                return res.status(400).json({ msg: 'Email is already in use' });
+            }
+            user.email = email;
+        }
+        if (password) user.password = password;
+
+        await user.save();
+
+        res.json({
+            msg: 'Profile updated successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
+    } catch (err) {
+        console.error('Update Profile Error:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
+    }
+};
+
 // --- Admin Endpoints ---
 
 // @route   GET api/users/admin
