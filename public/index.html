@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,9 +11,10 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <style>
         :root {
-            --primary: #2ecc71;
+            --primary: #cfa07d;
             --bg: #000000;
         }
+
         body {
             background-color: var(--bg);
             color: white;
@@ -25,6 +27,7 @@
             justify-content: center;
             overflow: hidden;
         }
+
         .logo {
             font-size: 4rem;
             margin-bottom: 2rem;
@@ -33,17 +36,24 @@
             gap: 1rem;
             animation: pulse 2s infinite ease-in-out;
         }
-        .logo i { color: var(--primary); }
-        .logo span { color: var(--primary); }
-        
+
+        .logo i {
+            color: var(--primary);
+        }
+
+        .logo span {
+            color: var(--primary);
+        }
+
         .loading-container {
             width: 250px;
             height: 4px;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             overflow: hidden;
             position: relative;
         }
+
         .loading-bar {
             width: 40%;
             height: 100%;
@@ -56,13 +66,27 @@
         }
 
         @keyframes loading {
-            0% { left: -40%; }
-            100% { left: 100%; }
+            0% {
+                left: -40%;
+            }
+
+            100% {
+                left: 100%;
+            }
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+            }
         }
 
         .status-text {
@@ -74,6 +98,7 @@
             max-width: 300px;
             text-align: center;
         }
+
         .error-link {
             margin-top: 1rem;
             font-size: 0.8rem;
@@ -84,18 +109,20 @@
         }
     </style>
 </head>
+
 <body>
     <div class="logo">
         <i class="ph-fill ph-robot"></i>
         <div>Front<span>Desk</span></div>
     </div>
-    
+
     <div class="loading-container">
         <div class="loading-bar"></div>
     </div>
-    
+
     <p id="status-text" class="status-text">Booting System...</p>
-    <div id="error-action" class="error-link" onclick="window.location.reload()">System taking too long? Click to refresh</div>
+    <div id="error-action" class="error-link" onclick="window.location.reload()">System taking too long? Click to
+        refresh</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -120,4 +147,5 @@
         });
     </script>
 </body>
+
 </html>

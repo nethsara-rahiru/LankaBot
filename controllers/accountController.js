@@ -3,11 +3,19 @@ const Settings = require('../models/Settings');
 const whatsappBot = require('../bot/whatsapp');
 
 // @route   GET api/accounts
-// @desc    Get all accounts for the logged in user
+// @desc    Get all accounts for the logged in user (owned and assigned)
 // @access  Private
 exports.getAccounts = async (req, res) => {
     try {
-        const accounts = await Account.find({ user: req.user.id });
+        const User = require('../models/User');
+        const user = await User.findById(req.user.id);
+        
+        const accounts = await Account.find({
+            $or: [
+                { user: req.user.id },
+                { _id: { $in: user ? user.assignedAccounts : [] } }
+            ]
+        });
         res.json(accounts);
     } catch (err) {
         console.error(err.message);
