@@ -30,8 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     canvasContainer.addEventListener('mousedown', (e) => {
-        // Only pan if clicking directly on container/svg (not on nodes)
-        if (e.target === canvasContainer || e.target.tagName === 'svg') {
+        // Pan if clicking on any empty canvas area (not on a node or its children)
+        const isCanvasArea = e.target === canvasContainer 
+            || e.target === canvasWrapper 
+            || e.target === nodesLayer 
+            || e.target === connectionsLayer
+            || e.target.tagName === 'svg';
+        
+        if (isCanvasArea && !e.target.closest('.flow-node')) {
             isPanning = true;
             startPanX = e.clientX - panX;
             startPanY = e.clientY - panY;

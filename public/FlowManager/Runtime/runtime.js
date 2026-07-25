@@ -127,6 +127,14 @@ class FlowRuntime {
                             parsed = { status: 'fail', followUp: "I'm sorry, I didn't quite catch that. Could you please clarify?" };
                         }
 
+                        if (parsed.status === 'redirect' && parsed.topicId) {
+                            this.nodeHistory = [];
+                            const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
+                            this.currentNodeId = entrypoint ? entrypoint.id : parsed.topicId;
+                            this.status = 'running';
+                            return this.status;
+                        }
+
                         if (parsed.status === 'fail') {
                             if (this.onBotMessage && parsed.followUp) {
                                 await this.onBotMessage(parsed.followUp);
@@ -152,18 +160,20 @@ class FlowRuntime {
                     }
                 } else if (this.status === 'waiting_input' && userInput !== null) {
                     // User provided input
-                    const aiPrompt = currentStep.data.aiPrompt;
-                    if (aiPrompt && this.onAIExtract) {
+                    if (this.onAIExtract) {
                         this.status = 'waiting_ai';
-                        const interpolatedAiPrompt = this._interpolate(aiPrompt);
+                        const aiPrompt = currentStep.data.aiPrompt;
+                        const interpolatedAiPrompt = aiPrompt ? this._interpolate(aiPrompt) : '';
                         const userPrompt = this._interpolate(currentStep.data.prompt || '');
                         
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
                         
                         const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description}`).join('\n');
 
-                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: [], expectJson: true });
+                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: [], expectJson: true, flowTopics, noAiPrompt: !aiPrompt });
                     } else {
                         // No AI prompt, just store raw input
                         const varName = currentStep.data.variable;
@@ -193,6 +203,14 @@ class FlowRuntime {
                             parsed = JSON.parse(cleanInput);
                         } catch(e) {
                             parsed = { status: 'fail', followUp: "I'm sorry, I couldn't understand that. Could you please choose one of the options?" };
+                        }
+
+                        if (parsed.status === 'redirect' && parsed.topicId) {
+                            this.nodeHistory = [];
+                            const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
+                            this.currentNodeId = entrypoint ? entrypoint.id : parsed.topicId;
+                            this.status = 'running';
+                            return this.status;
                         }
 
                         if (parsed.status === 'fail') {
@@ -229,18 +247,20 @@ class FlowRuntime {
                         this._advance(currentStep.next);
                     }
                 } else if (this.status === 'waiting_option' && userInput !== null) {
-                    const aiPrompt = currentStep.data.aiPrompt;
-                    if (aiPrompt && this.onAIExtract) {
+                    if (this.onAIExtract) {
                         this.status = 'waiting_ai';
-                        const interpolatedAiPrompt = this._interpolate(aiPrompt);
+                        const aiPrompt = currentStep.data.aiPrompt;
+                        const interpolatedAiPrompt = aiPrompt ? this._interpolate(aiPrompt) : '';
                         const userPrompt = this._interpolate(currentStep.data.prompt || '');
                         const opts = (currentStep.options || []).map(o => o.value);
                         
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
                         const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description}`).join('\n');
 
-                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: opts, expectJson: true });
+                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: opts, expectJson: true, flowTopics, noAiPrompt: !aiPrompt });
                     } else {
                         // Match user input to an option (case-insensitive fuzzy)
                         const options = currentStep.options || [];

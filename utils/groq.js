@@ -144,4 +144,17 @@ const getPromptScripts = () => {
     return scripts;
 };
 
-module.exports = { getGroqResponse, getPromptTemplate, getPromptScripts };
+const buildExtractionPrompt = (data) => {
+    let systemPrompt = `You are a strict data extraction AI.\nYour task is to extract information from the user's response based on the original question and the specific extraction instructions.\n\nORIGINAL QUESTION TO USER:\n"${data.userPrompt || ''}"\n\nEXTRACTION INSTRUCTION (AI PROMPT):\n"${data.aiPrompt || ''}"\n\nAVAILABLE OPTIONS:\n${data.options && data.options.length > 0 ? data.options.join(', ') : 'None'}\n\nAVAILABLE FLOW TOPICS:\n${data.flowTopics || 'None'}\n\nRULES:\n`;
+    
+    if (data.isBoolean) {
+        systemPrompt += `1. Evaluate the boolean condition.\n2. Output a JSON object: {"value": true} or {"value": false}\n3. Output ONLY valid JSON.`;
+    } else if (data.noAiPrompt) {
+        systemPrompt += `CRITICAL INSTRUCTION: FIRST, evaluate if the user's input is explicitly ignoring the current question and asking about one of the AVAILABLE FLOW TOPICS. If they are asking about a topic, you MUST output a JSON object: {"status": "redirect", "topicId": "matching_topic_id"} and STOP.\n\nIf they are NOT asking about a different topic, simply output a JSON object with the user's raw input as the value: {"status": "success", "value": "the exact user input"}\n\nOutput ONLY valid JSON.`;
+    } else {
+        systemPrompt += `CRITICAL INSTRUCTION: FIRST, evaluate if the user's input is explicitly ignoring the current question and instead asking about one of the AVAILABLE FLOW TOPICS. If they are asking about a topic, you MUST immediately output a JSON object: {"status": "redirect", "topicId": "matching_topic_id"} and STOP.\n\nONLY if they are NOT asking about a different topic, proceed with the following rules:\n1. Extract exactly what is asked in the EXTRACTION INSTRUCTION.\n2. If the user successfully provided the requested information, output a JSON object: {"status": "success", "value": "extracted_value"}\n3. If the user's input is invalid, ambiguous, or missing the required information, output a JSON object: {"status": "fail", "followUp": "A helpful response to ask the user again for the correct information."}\n4. If options are provided, "value" must be the closest matching option.\n5. Output ONLY valid JSON.`;
+    }
+    return systemPrompt;
+};
+
+module.exports = { getGroqResponse, getPromptTemplate, getPromptScripts, buildExtractionPrompt };

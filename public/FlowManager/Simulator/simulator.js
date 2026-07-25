@@ -330,18 +330,29 @@ class FlowSimulator {
                 
                 if (result.result) {
                     this._addSystemMessage(`✨ AI extracted: "${result.result}"`);
-                    this.runtime.step(result.result);
+                    await this.runtime.step(result.result);
                 } else {
                     throw new Error('No result from AI');
                 }
             } catch (err) {
                 console.error(err);
                 this._addSystemMessage('❌ AI extraction failed, falling back to raw input.');
-                this.runtime.step(data.userInput);
+                await this.runtime.step(data.userInput);
             }
             
-            if (this.runtime.status === 'running' && this.autoPlay) {
-                this._startAutoPlay();
+            // If the AI returned a follow-up question, the runtime goes back to
+            // waiting_input / waiting_option — re-enable the chat input so the
+            // user can answer the follow-up.
+            if (this.runtime.status === 'waiting_input' || this.runtime.status === 'waiting_option') {
+                this._enableInput();
+                this._updateButtonStates('waiting');
+                document.getElementById('sim-bot-status').textContent = 'Waiting for input...';
+            } else if (this.runtime.status === 'running') {
+                if (this.autoPlay) {
+                    this._startAutoPlay();
+                } else {
+                    this.stepOnce();
+                }
             }
         };
 
