@@ -154,7 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 break;
             case 'say':
-                content = `<textarea placeholder="Message to send..." class="node-data" data-key="message"></textarea>`;
+                content = `
+                    <textarea placeholder="Message to send..." class="node-data" data-key="message"></textarea>
+                    <input type="text" placeholder="Optional Media ID (from Storage)" class="node-data" data-key="mediaId" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
+                `;
                 break;
             case 'get':
                 content = `

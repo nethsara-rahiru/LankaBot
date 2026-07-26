@@ -110,7 +110,8 @@ class FlowRuntime {
             case 'say':
                 if (this.onBotMessage) {
                     const msg = this._interpolate(currentStep.data.message || '');
-                    await this.onBotMessage(msg);
+                    const mediaId = currentStep.data.mediaId ? this._interpolate(currentStep.data.mediaId) : null;
+                    await this.onBotMessage(msg, mediaId);
                 }
                 this._advance(currentStep.next);
                 break;

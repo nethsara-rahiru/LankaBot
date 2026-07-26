@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resource Manager | FrontDesk Premium</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <div class="logo-wrapper" style="cursor: pointer;" onclick="window.location.href='../manageAccount.html'">
+                    <i class="ph-fill ph-folder logo-icon"></i>
+                    <div class="logo">
+                        <h1>Resource<span>Manager</span></h1>
+                        <p>Manage files for WhatsApp Flows</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <button class="btn-secondary back-btn" onclick="window.location.href='../manageAccount.html'">
+                    <i class="ph-bold ph-arrow-left"></i> Back to Dashboard
+                </button>
+            </div>
+        </header>
+
+        <main class="rm-layout">
+            <!-- Sidebar / Folder Tree -->
+            <aside class="rm-sidebar card">
+                <div class="sidebar-header">
+                    <h3>Folders</h3>
+                    <button class="icon-btn" id="new-folder-btn" title="New Folder">
+                        <i class="ph-bold ph-folder-plus"></i>
+                    </button>
+                </div>
+                <div class="folder-tree" id="folder-tree">
+                    <!-- Tree items injected by JS -->
+                </div>
+
+                <div class="storage-widget">
+                    <div class="storage-info">
+                        <span id="storage-used-text">0 MB</span> / <span id="storage-total-text">100 MB</span>
+                    </div>
+                    <div class="storage-bar-bg">
+                        <div class="storage-bar-fill" id="storage-bar-fill" style="width: 0%;"></div>
+                    </div>
+                    <p class="storage-percent" id="storage-percent-text">0% used</p>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <section class="rm-main card">
+                <!-- Toolbar -->
+                <div class="rm-toolbar">
+                    <div class="toolbar-left">
+                        <div class="breadcrumb" id="breadcrumb">
+                            <span class="crumb" data-id="root">Root</span>
+                        </div>
+                    </div>
+                    <div class="toolbar-right">
+                        <div class="search-box">
+                            <i class="ph-bold ph-magnifying-glass"></i>
+                            <input type="text" id="search-input" placeholder="Search files...">
+                        </div>
+                        <button class="btn-primary upload-btn" id="upload-btn">
+                            <i class="ph-bold ph-upload-simple"></i> Upload
+                        </button>
+                        <button class="icon-btn" id="refresh-btn" title="Refresh">
+                            <i class="ph-bold ph-arrows-clockwise"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- File List/Grid -->
+                <div class="rm-content" id="rm-content">
+                    <div class="empty-state" id="empty-state" style="display: none;">
+                        <i class="ph-fill ph-folder-open"></i>
+                        <h3>This folder is empty</h3>
+                        <p>Drag & drop files here or click Upload</p>
+                    </div>
+                    
+                    <div class="file-grid" id="file-grid">
+                        <!-- File items injected by JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- File Preview Panel -->
+            <aside class="rm-preview card" id="preview-panel">
+                <div class="preview-empty" id="preview-empty">
+                    <i class="ph-fill ph-file"></i>
+                    <p>Select a file to preview</p>
+                </div>
+                
+                <div class="preview-content" id="preview-content" style="display: none;">
+                    <div class="preview-visual" id="preview-visual">
+                        <!-- Image/Video/Icon goes here -->
+                    </div>
+                    
+                    <div class="preview-details">
+                        <h3 id="preview-filename">filename.jpg</h3>
+                        <p class="preview-type" id="preview-type">Image</p>
+                        
+                        <div class="detail-row">
+                            <span>Size:</span>
+                            <span id="preview-size">1.2 MB</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Uploaded:</span>
+                            <span id="preview-date">Oct 24, 2026</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>ID:</span>
+                            <span id="preview-id" class="code-span">12345</span>
+                        </div>
+                    </div>
+
+                    <div class="preview-actions">
+                        <button class="btn-secondary" id="preview-download-btn">
+                            <i class="ph-bold ph-download-simple"></i> Download
+                        </button>
+                        <button class="btn-danger" id="preview-delete-btn">
+                            <i class="ph-bold ph-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="upload-modal">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h3>Upload Files</h3>
+                <button class="close-btn"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="upload-dropzone" id="upload-dropzone">
+                    <i class="ph-fill ph-cloud-arrow-up"></i>
+                    <p>Drag & drop files here or click to browse</p>
+                    <input type="file" id="file-input" multiple style="display: none;">
+                </div>
+                <div class="upload-progress-list" id="upload-progress-list">
+                    <!-- Progress bars injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for drag & drop global -->
+    <input type="file" id="global-file-input" multiple style="display: none;">
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

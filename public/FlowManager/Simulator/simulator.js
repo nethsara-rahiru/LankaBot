@@ -296,8 +296,8 @@ class FlowSimulator {
     // ──────────────────────────────
 
     _bindRuntimeCallbacks() {
-        this.runtime.onBotMessage = (text) => {
-            this._addBotMessage(text);
+        this.runtime.onBotMessage = (text, mediaId) => {
+            this._addBotMessage(text, mediaId);
             // Continue auto-stepping if autoPlay is on
         };
 
@@ -385,7 +385,7 @@ class FlowSimulator {
     //  Chat UI Helpers
     // ──────────────────────────────
 
-    _addBotMessage(text) {
+    _addBotMessage(text, mediaId) {
         // Show typing indicator briefly
         const typing = document.createElement('div');
         typing.className = 'sim-typing';
@@ -393,11 +393,39 @@ class FlowSimulator {
         this.messagesEl.appendChild(typing);
         this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
 
-        setTimeout(() => {
+        setTimeout(async () => {
             typing.remove();
             const msg = document.createElement('div');
             msg.className = 'sim-msg bot';
-            msg.innerHTML = `${this._escapeHtml(text)}<span class="msg-time">${this._getTime()}</span>`;
+            
+            let mediaHtml = '';
+            if (mediaId) {
+                try {
+                    const res = await fetch(`/api/storage/metadata/${mediaId}`, {
+                        headers: { 'x-auth-token': localStorage.getItem('token') }
+                    });
+                    if (res.ok) {
+                        const resource = await res.json();
+                        // Passing token in query so the browser can fetch it easily in img/video src
+                        const downloadUrl = `/api/storage/download/${resource._id}?token=${localStorage.getItem('token')}`;
+                        if (resource.type === 'image') {
+                            mediaHtml = `<img src="${downloadUrl}" style="max-width:100%; border-radius:8px; margin-bottom: 5px;" alt="Image">`;
+                        } else if (resource.type === 'video') {
+                            mediaHtml = `<video src="${downloadUrl}" controls style="max-width:100%; border-radius:8px; margin-bottom: 5px;"></video>`;
+                        } else if (resource.type === 'audio') {
+                            mediaHtml = `<audio src="${downloadUrl}" controls style="max-width:100%; margin-bottom: 5px;"></audio>`;
+                        } else {
+                            mediaHtml = `<div style="background: rgba(0,0,0,0.1); padding: 8px; border-radius: 8px; display: flex; align-items: center; gap: 8px; margin-bottom: 5px;"><i class="ph-bold ph-file"></i> <span>${resource.originalName}</span></div>`;
+                        }
+                    } else {
+                        mediaHtml = `<div style="color: #e74c3c; font-size: 0.8rem; margin-bottom: 5px;">[Media not found]</div>`;
+                    }
+                } catch (e) {
+                    mediaHtml = `<div style="color: #e74c3c; font-size: 0.8rem; margin-bottom: 5px;">[Error loading media]</div>`;
+                }
+            }
+            
+            msg.innerHTML = `${mediaHtml}${text ? this._escapeHtml(text) : ''}<span class="msg-time">${this._getTime()}</span>`;
             this.messagesEl.appendChild(msg);
             this.messagesEl.scrollTop = this.messagesEl.scrollHeight;
         }, 400);

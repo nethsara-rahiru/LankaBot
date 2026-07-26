@@ -1,0 +1,285 @@
+==========================================
+RESOURCE MANAGER - IMPLEMENTATION PLAN
+==========================================
+
+Overview
+--------
+Create a Resource Manager that allows users to upload, organize and manage files (images, PDFs, videos, audio, documents, etc.) which can later be shared by the bot during WhatsApp conversations.
+
+The Resource Manager should provide a modern file manager experience and integrate with the Flow Manager, Compiler, Runtime and Simulator.
+
+==================================================
+1. FRONTEND
+==================================================
+
+Use the existing files:
+- index.html
+- style.css
+- scripts.js
+
+Create additional files/folders as needed.
+
+Workspace
+---------
+- Modern file manager layout.
+- Storage usage bar at the top.
+- Toolbar with common actions.
+- Folder tree (optional).
+- File list in the centre.
+- File preview panel on the right.
+- Breadcrumb navigation.
+- Search bar.
+- Sort options.
+- Multi-selection support.
+
+Storage Bar
+-----------
+Display:
+- Used storage
+- Total storage
+- Remaining storage
+- Percentage used
+- Warning when storage is nearly full
+
+Example:
+23.5 MB / 100 MB (23%)
+
+Toolbar
+-------
+- Upload
+- New Folder
+- Rename
+- Move
+- Copy
+- Paste
+- Delete
+- Download
+- Refresh
+- Search
+
+File Operations
+---------------
+Users should be able to:
+- Upload files
+- Download files
+- Preview files
+- Rename files
+- Move files
+- Copy files
+- Paste files
+- Delete files
+- Drag & drop files
+- Drag files from desktop to upload
+- Multi-select files
+- Double-click folders to open
+
+File Preview
+------------
+Support previews for:
+- Images
+- PDFs
+- Videos
+- Audio
+- Text files
+
+Display metadata:
+- File name
+- Type
+- Size
+- Upload date
+- Modified date
+- File path
+
+Helpful Features
+----------------
+- Right-click context menu
+- Keyboard shortcuts
+- Loading indicators
+- Upload progress bar
+- Empty folder placeholder
+- Delete confirmation dialog
+
+==================================================
+2. BACKEND
+==================================================
+
+Storage Structure
+-----------------
+
+assets/
+
+    userId/
+
+        folder1/
+
+        folder2/
+
+        image.jpg
+
+        pdf.pdf
+
+Each user must only access their own folder.
+
+Database
+--------
+Store:
+- User storage limit (Default: 100 MB)
+- Used storage
+- Folder structure
+- File metadata
+- Upload timestamps
+
+Do NOT store file contents inside MongoDB.
+
+File Rules
+----------
+- Generate unique stored filenames.
+- Preserve original filename for display.
+- Prevent duplicate filename conflicts.
+- Validate file types.
+- Validate upload size.
+- Prevent uploads exceeding storage quota.
+- Prevent directory traversal attacks.
+
+API Endpoints
+-------------
+- Upload file
+- Download file
+- Delete file
+- Rename file
+- Move file
+- Copy file
+- Create folder
+- Delete folder
+- Rename folder
+- List folder contents
+- Get storage usage
+- Get file metadata
+
+==================================================
+3. DATABASE
+==================================================
+
+Create models for:
+- Resource
+- Folder
+- UserStorage
+
+Each Resource should store:
+- id
+- ownerId
+- originalName
+- storedName
+- type
+- mimeType
+- extension
+- size
+- folder
+- uploadDate
+- modifiedDate
+
+==================================================
+4. SIMULATOR
+==================================================
+
+Update the Simulator to support media messages.
+
+Supported message types:
+- Text
+- Image
+- PDF
+- Video
+- Audio
+- Document
+
+Simulator should display media similar to WhatsApp.
+
+Images:
+- Thumbnail preview
+
+Videos:
+- Video preview
+
+Documents:
+- Icon
+- Filename
+- File size
+
+==================================================
+5. BOT INTEGRATION
+==================================================
+
+Uploaded resources should be available to the Runtime.
+
+The bot should be able to send:
+- Images
+- PDFs
+- Videos
+- Audio
+- Documents
+
+The Runtime should reference files using resource IDs instead of physical file paths.
+
+==================================================
+6. FUTURE INTEGRATION
+==================================================
+
+Resource Manager
+        │
+        ▼
+Upload File
+        │
+        ▼
+assets/userId/
+        │
+        ▼
+Database Metadata
+        │
+        ▼
+Flow Manager
+        │
+        ▼
+Compiler
+        │
+        ▼
+Runtime
+        │
+        ▼
+Simulator / WhatsApp Bot
+
+==================================================
+7. OPTIONAL IMPROVEMENTS
+==================================================
+
+- Drag & drop uploads
+- Grid view
+- Favourite files
+- Recent uploads
+- Recycle Bin
+- Import / Export
+- Image thumbnails
+- File deduplication
+- Audit logs
+- File version history
+- Storage analytics
+- File sharing between flows
+- Bulk upload
+- Bulk download
+- Bulk delete
+- File tags
+- Advanced search
+- Filter by file type
+- Filter by upload date
+- Storage usage charts
+
+==================================================
+8. IMPLEMENTATION GOALS
+==================================================
+
+- Clean and modern file manager UI.
+- Fast and responsive file operations.
+- Secure file storage.
+- Stable resource IDs.
+- Easy integration with the Flow Manager.
+- Reusable by the Runtime, Simulator and WhatsApp Bot.
+- Scalable architecture for future features.

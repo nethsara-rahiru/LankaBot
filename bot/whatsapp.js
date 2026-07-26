@@ -10,6 +10,9 @@ const { getGroqResponse } = require('../utils/groq');
 const { queueCustomerAnalysis } = require('../controllers/customerController');
 const qrcodeImage = require('qrcode');
 const FlowRuntime = require('../public/FlowManager/Runtime/runtime');
+const Resource = require('../models/Resource');
+const fs = require('fs');
+const path = require('path');
 
 let ioInstance;
 const clients = new Map(); // accountId -> Client instance
@@ -129,8 +132,8 @@ const startClient = async (accountId) => {
             puppeteer: {
                 headless: 'new', // 'new' is often faster in modern Chrome
                 timeout: 60000,
-                // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',     //  Use in macos
-                executablePath: '/usr/bin/chromium-browser',     // Use in linux server
+                executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',     //  Use in macos
+                // executablePath: '/usr/bin/chromium-browser',     // Use in linux server
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -413,7 +416,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         flow._isRunning = false;
                     };
 
-                    flow.onBotMessage = async (text) => {
+                    flow.onBotMessage = async (text, mediaId) => {
                         // Count words and wait 0.4 seconds per word, max 3 seconds
                         const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
                         const typingMs = Math.min(wordCount * 400, 3000);
@@ -425,13 +428,34 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                         await new Promise(r => setTimeout(r, typingMs));
 
-                        await msg.reply(text);
+                        let mediaContent = null;
+                        if (mediaId) {
+                            try {
+                                const accountData = await Account.findById(accountId);
+                                const resource = await Resource.findOne({ _id: mediaId, ownerId: accountData.user });
+                                if (resource) {
+                                    const filePath = path.join(__dirname, '..', 'assets', accountData.user.toString(), resource.storedName);
+                                    if (fs.existsSync(filePath)) {
+                                        mediaContent = MessageMedia.fromFilePath(filePath);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error fetching media for flow reply:', e);
+                            }
+                        }
+
+                        if (mediaContent) {
+                            await msg.reply(mediaContent, undefined, { caption: text || undefined });
+                        } else {
+                            await msg.reply(text);
+                        }
+                        
                         try {
                             const botMsg = new Message({
                                 organizationContact: msg.orgContactId,
                                 role: 'bot',
-                                content: text,
-                                messageType: 'text'
+                                content: text || (mediaContent ? '[Media Message]' : ''),
+                                messageType: mediaContent ? 'image' : 'text' // Ideally mapped to exact resource type
                             });
                             await botMsg.save();
                             ioInstance.emit('new_message', {
