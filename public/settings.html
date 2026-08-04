@@ -185,6 +185,69 @@
 
                 <section class="card" style="margin-top: 2rem;">
                     <div class="card-header">
+                        <i class="ph-bold ph-translate"></i>
+                        <h2>Supported Languages</h2>
+                    </div>
+                    <div class="settings-card">
+                        <h3><i class="ph-bold ph-globe"></i> Allowed Response Languages</h3>
+                        <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1.5rem;">
+                            Select which languages FrontDesk is allowed to reply in. Outgoing messages will automatically be translated if the user speaks a supported non-English language.
+                        </p>
+
+                        <div class="input-group" style="margin-bottom: 1.5rem;">
+                            <label style="margin-bottom: 0.75rem; display: block; font-weight: 600;">Enabled Reply Languages</label>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;" id="language-checkboxes">
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="en" class="lang-checkbox"> English
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="si" class="lang-checkbox"> Sinhala
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="ta" class="lang-checkbox"> Tamil
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="ja" class="lang-checkbox"> Japanese
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="fr" class="lang-checkbox"> French
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="de" class="lang-checkbox"> German
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="es" class="lang-checkbox"> Spanish
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="ar" class="lang-checkbox"> Arabic
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #fff;">
+                                    <input type="checkbox" value="hi" class="lang-checkbox"> Hindi
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Default Language (Fallback)</label>
+                            <i class="ph-bold ph-flag"></i>
+                            <select id="defaultLanguage" style="width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: #fff;">
+                                <option value="en" style="background: #1a1a1a;">English</option>
+                                <option value="si" style="background: #1a1a1a;">Sinhala</option>
+                                <option value="ta" style="background: #1a1a1a;">Tamil</option>
+                                <option value="ja" style="background: #1a1a1a;">Japanese</option>
+                                <option value="fr" style="background: #1a1a1a;">French</option>
+                                <option value="de" style="background: #1a1a1a;">German</option>
+                                <option value="es" style="background: #1a1a1a;">Spanish</option>
+                                <option value="ar" style="background: #1a1a1a;">Arabic</option>
+                                <option value="hi" style="background: #1a1a1a;">Hindi</option>
+                            </select>
+                            <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Language used if user's preferred language is unsupported.</small>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card" style="margin-top: 2rem;">
+                    <div class="card-header">
                         <i class="ph-bold ph-info"></i>
                         <h2>Human-like Interaction Tips</h2>
                     </div>
@@ -231,6 +294,8 @@
         const waitingTimeInput = document.getElementById('waitingTime');
         const saveBtn = document.getElementById('save-settings');
 
+        const defaultLanguageSelect = document.getElementById('defaultLanguage');
+
         // Fetch current settings
         async function fetchSettings() {
             try {
@@ -245,6 +310,15 @@
                 responseTimeInput.value = data.responseTime || 2000;
                 typingTimeInput.value = data.typingTime || 3000;
                 waitingTimeInput.value = data.waitingTime || 1000;
+
+                const supported = data.supportedLanguages || ['en'];
+                document.querySelectorAll('.lang-checkbox').forEach(cb => {
+                    cb.checked = supported.includes(cb.value);
+                });
+
+                if (data.defaultLanguage) {
+                    defaultLanguageSelect.value = data.defaultLanguage;
+                }
             } catch (err) {
                 console.error('Error fetching settings:', err);
             }
@@ -255,6 +329,14 @@
             const responseTime = parseInt(responseTimeInput.value);
             const typingTime = parseInt(typingTimeInput.value);
             const waitingTime = parseInt(waitingTimeInput.value);
+
+            const selectedLangs = Array.from(document.querySelectorAll('.lang-checkbox:checked')).map(cb => cb.value);
+            const defaultLanguage = defaultLanguageSelect.value;
+
+            if (selectedLangs.length === 0) {
+                alert('Please select at least one supported language.');
+                return;
+            }
 
             if (isNaN(responseTime) || isNaN(typingTime) || isNaN(waitingTime)) {
                 alert('Please enter valid numbers for all fields.');
@@ -272,7 +354,13 @@
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                         'x-account-id': activeAccountId
                     },
-                    body: JSON.stringify({ responseTime, typingTime, waitingTime })
+                    body: JSON.stringify({ 
+                        responseTime, 
+                        typingTime, 
+                        waitingTime,
+                        supportedLanguages: selectedLangs,
+                        defaultLanguage
+                    })
                 });
 
                 if (res.ok) {

@@ -361,6 +361,24 @@ body {
     }
 }
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Catalog Selector — read-only item option rows */
+.catalog-options-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.catalog-options-container .node-option {
+    padding: 0.15rem 0;
+}
+
+.catalog-options-container .node-option span {
+    padding-right: 0.4rem;
+}
+
 /* Variables Panel */
 .variables-panel {
     padding: 1.5rem;

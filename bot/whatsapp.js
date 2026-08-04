@@ -6,7 +6,8 @@ const Customer = require('../models/Customer');
 const OrganizationContact = require('../models/OrganizationContact');
 const Message = require('../models/Message');
 const AILog = require('../models/AILog');
-const { getGroqResponse } = require('../utils/groq');
+const { getAIResponse, buildExtractionPrompt } = require('../services/api-router/apiRouterService');
+const { detectAndSaveLanguage, processOutgoingMessage, translateIncomingToEnglish } = require('../services/languageService');
 const { queueCustomerAnalysis } = require('../controllers/customerController');
 const qrcodeImage = require('qrcode');
 const FlowRuntime = require('../public/FlowManager/Runtime/runtime');
@@ -247,6 +248,13 @@ const startClient = async (accountId) => {
                 await customer.save();
             }
 
+            // Detect and save language preference on every incoming message
+            try {
+                await detectAndSaveLanguage(customer, msg.body);
+            } catch (e) {
+                console.error(`[WhatsApp ${account.sessionId}] Language detection error:`, e.message);
+            }
+
             // 2. Find or create OrganizationContact
             let orgContact = await OrganizationContact.findOne({ account: accountId, customer: customer._id });
             if (!orgContact) {
@@ -310,8 +318,12 @@ const startClient = async (accountId) => {
             });
 
             if (matchedRule) {
-                console.log(`[WhatsApp ${account.sessionId}] ⚡ Rule matched! Trigger: "${matchedRule.trigger}". Sending static reply.`);
-                await msg.reply(matchedRule.reply);
+                console.log(`[WhatsApp ${account.sessionId}] ⚡ Rule matched! Trigger: "${matchedRule.trigger}". Processing reply...`);
+                const settings = await Settings.findOne({ account: accountId });
+                const customer = await Customer.findOne({ phoneNumber: user });
+                const finalReply = await processOutgoingMessage(matchedRule.reply, customer, settings);
+
+                await msg.reply(finalReply);
                 ioInstance.emit('system_log', `[Account ${account.sessionId}] Auto-replied to ${user} via Rule`);
 
                 try {
@@ -319,14 +331,14 @@ const startClient = async (accountId) => {
                         const botMsg = new Message({
                             organizationContact: msg.orgContactId,
                             role: 'bot',
-                            content: matchedRule.reply,
+                            content: finalReply,
                             messageType: 'text'
                         });
                         await botMsg.save();
                         ioInstance.emit('new_message', {
                             accountId,
                             orgContactId: msg.orgContactId.toString(),
-                            message: { _id: botMsg._id, role: 'bot', content: matchedRule.reply, messageType: 'text', timestamp: botMsg.timestamp }
+                            message: { _id: botMsg._id, role: 'bot', content: finalReply, messageType: 'text', timestamp: botMsg.timestamp }
                         });
                     }
                 } catch (e) {
@@ -369,10 +381,14 @@ const startClient = async (accountId) => {
                 let shouldRedirect = null;
 
                 if (entryKeys.length > 0) {
-                    const topics = entryKeys.map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description}`).join('\n');
+                    const topics = entryKeys.map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description'}`).join('\n');
                     let currentContext = 'The user is starting a NEW conversation. There is no active flow.';
                     if (flow && flow.status !== 'idle') {
-                        currentContext = `The user is currently in an ACTIVE flow. You MUST assume their message is a response to the ongoing flow (output "continue"), UNLESS they are explicitly demanding to change the subject to one of the available flows.`;
+                        const currentTopic = flow._getCurrentTopicContext ? flow._getCurrentTopicContext() : { id: 'active', description: 'Active conversation flow' };
+                        currentContext = `The user is currently in an ACTIVE flow.
+Current Topic ID: ${currentTopic.id}
+Current Topic Description: ${currentTopic.description}
+You MUST assume their message is a response to the ongoing flow (output "continue"), UNLESS they are explicitly demanding to change the subject to one of the available flows.`;
                     }
 
                     const routerPrompt = `You are a conversational router AI for a WhatsApp bot.
@@ -384,13 +400,22 @@ ${currentContext}
 Available flows:
 ${topics}
 
+MULTILINGUAL AWARENESS:
+The user may write in any language or transliteration style. You MUST understand their intent regardless of script or language:
+- Singlish (Sinhala written in English letters, e.g. "mage bill eka" = "my bill", "mama ganna" = "I want to take/get", "kohomada" = "how is", "api" = "we/us")
+- Native Sinhala script (e.g. "මගේ බිල්", "ගෙවීම")
+- Romanized Tamil (e.g. "en bill", "vanakkam", "enna" = "what")
+- Native Tamil script (e.g. "என் பில்")
+- Mixed English + Sinhala or Tamil words
+Mentally translate the user's intent to English and match it against the available flow descriptions.
+
 Based on the user's message, decide if they are trying to start or switch to one of the available flows.
 If the message is a normal continuation of the current conversation and does NOT indicate a deliberate topic change, output "continue".
-If the message clearly matches one of the flow descriptions, output the EXACT Topic ID.
+If the message clearly matches one of the flow descriptions (even in another language), output the EXACT Topic ID.
 Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                     try {
-                        const routeRes = (await getGroqResponse(msg.body, routerPrompt, 1)) || 'continue';
+                        const routeRes = (await getAIResponse(msg.body, routerPrompt, 1)) || 'continue';
                         const decidedRoute = routeRes.trim();
                         if (decidedRoute !== 'continue' && entrypoints[decidedRoute]) {
                             shouldRedirect = entrypoints[decidedRoute].id;
@@ -417,8 +442,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onBotMessage = async (text, mediaId) => {
+                        const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                        const translatedText = text ? await processOutgoingMessage(text, currentCustomer, settings) : text;
+
                         // Count words and wait 0.4 seconds per word, max 3 seconds
-                        const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+                        const wordCount = (translatedText || '').split(/\s+/).filter(w => w.length > 0).length;
                         const typingMs = Math.min(wordCount * 400, 3000);
                         try {
                             const chat = await msg.getChat();
@@ -445,23 +473,23 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         }
 
                         if (mediaContent) {
-                            await msg.reply(mediaContent, undefined, { caption: text || undefined });
+                            await msg.reply(mediaContent, undefined, { caption: translatedText || undefined });
                         } else {
-                            await msg.reply(text);
+                            await msg.reply(translatedText);
                         }
                         
                         try {
                             const botMsg = new Message({
                                 organizationContact: msg.orgContactId,
                                 role: 'bot',
-                                content: text || (mediaContent ? '[Media Message]' : ''),
-                                messageType: mediaContent ? 'image' : 'text' // Ideally mapped to exact resource type
+                                content: translatedText || (mediaContent ? '[Media Message]' : ''),
+                                messageType: mediaContent ? 'image' : 'text'
                             });
                             await botMsg.save();
                             ioInstance.emit('new_message', {
                                 accountId,
                                 orgContactId: msg.orgContactId.toString(),
-                                message: { _id: botMsg._id, role: 'bot', content: text, messageType: 'text', timestamp: botMsg.timestamp }
+                                message: { _id: botMsg._id, role: 'bot', content: translatedText, messageType: 'text', timestamp: botMsg.timestamp }
                             });
                         } catch (e) {
                             console.error('Error saving Flow bot message to DB:', e);
@@ -469,19 +497,22 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onWaitingForInput = async (prompt) => {
-                        await msg.reply(prompt);
+                        const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                        const translatedPrompt = await processOutgoingMessage(prompt, currentCustomer, settings);
+
+                        await msg.reply(translatedPrompt);
                         try {
                             const botMsg = new Message({
                                 organizationContact: msg.orgContactId,
                                 role: 'bot',
-                                content: prompt,
+                                content: translatedPrompt,
                                 messageType: 'text'
                             });
                             await botMsg.save();
                             ioInstance.emit('new_message', {
                                 accountId,
                                 orgContactId: msg.orgContactId.toString(),
-                                message: { _id: botMsg._id, role: 'bot', content: prompt, messageType: 'text', timestamp: botMsg.timestamp }
+                                message: { _id: botMsg._id, role: 'bot', content: translatedPrompt, messageType: 'text', timestamp: botMsg.timestamp }
                             });
                         } catch (e) {
                             console.error('Error saving Flow input prompt to DB:', e);
@@ -489,20 +520,22 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onWaitingForOption = async (prompt, options) => {
-                        let text = prompt;
-                        await msg.reply(text);
+                        const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                        const translatedPrompt = await processOutgoingMessage(prompt, currentCustomer, settings);
+
+                        await msg.reply(translatedPrompt);
                         try {
                             const botMsg = new Message({
                                 organizationContact: msg.orgContactId,
                                 role: 'bot',
-                                content: text,
+                                content: translatedPrompt,
                                 messageType: 'text'
                             });
                             await botMsg.save();
                             ioInstance.emit('new_message', {
                                 accountId,
                                 orgContactId: msg.orgContactId.toString(),
-                                message: { _id: botMsg._id, role: 'bot', content: text, messageType: 'text', timestamp: botMsg.timestamp }
+                                message: { _id: botMsg._id, role: 'bot', content: translatedPrompt, messageType: 'text', timestamp: botMsg.timestamp }
                             });
                         } catch (e) {
                             console.error('Error saving Flow option prompt to DB:', e);
@@ -516,20 +549,75 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onAIExtract = async (data) => {
-                        const { buildExtractionPrompt } = require('../utils/groq');
-                        const systemPrompt = buildExtractionPrompt(data);
-
+                        // Translate user input to English before AI processing (if not already English)
                         try {
-                            const res = await getGroqResponse(data.userInput, systemPrompt, 1);
-                            if (res) {
-                                flow.step(res);
-                            } else {
-                                flow.step(data.userInput);
+                            const currentCustForTranslation = await Customer.findOne({ phoneNumber: user });
+                            if (currentCustForTranslation) {
+                                const { translatedText, wasTranslated } = await translateIncomingToEnglish(data.userInput, currentCustForTranslation);
+                                if (wasTranslated) {
+                                    console.log(`[Flow AIExtract] 🌐 User input translated to English for AI processing.`);
+                                    data = { ...data, userInput: translatedText };
+                                }
                             }
                         } catch (e) {
+                            console.error('[Flow AIExtract] ⚠️ Translation pre-processing failed, using original input:', e.message);
+                        }
+
+                        const systemPrompt = buildExtractionPrompt(data);
+
+                        let rawRes = null;
+                        try {
+                            rawRes = await getAIResponse(data.userInput, systemPrompt, 1);
+                        } catch (e) {
+                            rawRes = null;
+                        }
+
+                        // Parse preferredLanguage from AI response and persist it
+                        if (rawRes) {
+                            const cleanedRes = typeof rawRes === 'string'
+                                ? rawRes.replace(/```json/gi, '').replace(/```/g, '').trim()
+                                : rawRes;
+
+                            try {
+                                const parsed = typeof cleanedRes === 'string' ? JSON.parse(cleanedRes) : cleanedRes;
+                                const detectedLang = parsed.preferredLanguage;
+                                if (detectedLang && typeof detectedLang === 'string' && detectedLang.trim()) {
+                                    const currentCust = await Customer.findOne({ phoneNumber: user });
+                                    if (currentCust) {
+                                        const langName = detectedLang.trim();
+                                        await Customer.findByIdAndUpdate(currentCust._id, {
+                                            $set: { 'globalProfile.preferredLanguage': langName }
+                                        });
+                                        console.log(`[Flow AIExtract] 🌐 Language detected & saved: "${langName}" for ${user}`);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('[Flow AIExtract] Language parse error:', e.message);
+                            }
+                            flow.step(cleanedRes);
+                        } else {
                             flow.step(data.userInput);
                         }
                         flow.resume();
+                    };
+
+                    flow.onShowCatalog = async (showCatType) => {
+                        try {
+                            const CatalogItem = require('../models/CatalogItem');
+                            const filter = { account: accountId };
+                            if (showCatType) filter.type = showCatType;
+                            
+                            const items = await CatalogItem.find(filter);
+                            const currentSettings = await Settings.findOne({ account: accountId });
+                            
+                            return {
+                                items: items || [],
+                                menuStyle: currentSettings?.menuStyle || null
+                            };
+                        } catch (err) {
+                            console.error('[WhatsApp Flow] Error fetching catalog items for flow:', err);
+                            return { items: [], menuStyle: null };
+                        }
                     };
 
                     flow.onStepChange = async () => {
@@ -614,6 +702,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         global_customer_profile: '{}',
                         message_language: 'Infer from recent messages',
                         preferred_language: 'Unknown',
+                        supported_languages: (settings?.supportedLanguages || ['en']).join(', '),
+                        default_language: settings?.defaultLanguage || 'en',
                         organization_customer_facts: 'None',
                         organization_customer_profile: '{}'
                     };
@@ -656,6 +746,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     }
 
                     let orgContactIdForAnalysis = null;
+                    let currentCustomerDoc = null;
                     try {
                         if (msg.orgContactId) {
                             orgContactIdForAnalysis = msg.orgContactId;
@@ -674,6 +765,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 }
 
                                 if (orgContact.customer) {
+                                    currentCustomerDoc = orgContact.customer;
                                     promptData.global_customer_data = JSON.stringify(orgContact.customer.globalProfile || {});
                                     promptData.global_customer_profile = JSON.stringify(orgContact.customer.globalProfile || {});
 
@@ -687,9 +779,13 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         console.error(`[WhatsApp ${account.sessionId}] ❌ Error fetching context for AI:`, e.message);
                     }
 
-                    const aiResponse = await getGroqResponse(combinedMsg, promptData);
-                    if (aiResponse) {
+                    const rawAiResponse = await getAIResponse(combinedMsg, promptData);
+                    if (rawAiResponse) {
                         console.log(`[WhatsApp ${account.sessionId}] ✨ AI response generated for ${msg.from}`);
+
+                        // Fetch fresh customer document to ensure latest detected preferredLanguage is used
+                        const freshCustomer = await Customer.findOne({ phoneNumber: user }) || currentCustomerDoc;
+                        const aiResponse = await processOutgoingMessage(rawAiResponse, freshCustomer, settings);
 
                         try {
                             try {

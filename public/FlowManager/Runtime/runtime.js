@@ -22,7 +22,7 @@ class FlowRuntime {
         this.stepIndex = 0;
         this.executedSteps = [];
 
-        // Callbacks (set by Simulator)
+        // Callbacks (set by Simulator or Server)
         this.onBotMessage = null;
         this.onWaitingForInput = null;
         this.onWaitingForOption = null;
@@ -31,6 +31,7 @@ class FlowRuntime {
         this.onVariableUpdate = null;
         this.onFlowEnd = null;
         this.onAIExtract = null;
+        this.onShowCatalog = null; // async (itemType) => { items: [...], menuStyle: {...} }
     }
 
     /**
@@ -122,10 +123,15 @@ class FlowRuntime {
                         let parsed = null;
                         const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
                         try {
-                            parsed = JSON.parse(cleanInput);
+                            const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                parsed = JSON.parse(jsonMatch[0]);
+                            } else {
+                                parsed = JSON.parse(cleanInput);
+                            }
                         } catch(e) {
-                            // fallback if AI didn't return strict JSON
-                            parsed = { status: 'fail', followUp: "I'm sorry, I didn't quite catch that. Could you please clarify?" };
+                            // If AI failed to return any JSON, construct a fallback that carries forward the raw user input as followUp
+                            parsed = { status: 'fail', followUp: `Thank you for your response ("${userInput}"). Could you please provide the specific detail required so we can assist you?` };
                         }
 
                         if (parsed.status === 'redirect' && parsed.topicId) {
@@ -133,6 +139,7 @@ class FlowRuntime {
                             const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
                             this.currentNodeId = entrypoint ? entrypoint.id : parsed.topicId;
                             this.status = 'running';
+                            await this.step(null);
                             return this.status;
                         }
 
@@ -170,11 +177,22 @@ class FlowRuntime {
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
                         
+                        const currentTopic = this._getCurrentTopicContext();
                         const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
                         const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
-                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description}`).join('\n');
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
 
-                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: [], expectJson: true, flowTopics, noAiPrompt: !aiPrompt });
+                        this.onAIExtract({
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt: interpolatedAiPrompt,
+                            options: [],
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: !aiPrompt
+                        });
                     } else {
                         // No AI prompt, just store raw input
                         const varName = currentStep.data.variable;
@@ -201,9 +219,14 @@ class FlowRuntime {
                         let parsed = null;
                         const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
                         try {
-                            parsed = JSON.parse(cleanInput);
+                            const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                parsed = JSON.parse(jsonMatch[0]);
+                            } else {
+                                parsed = JSON.parse(cleanInput);
+                            }
                         } catch(e) {
-                            parsed = { status: 'fail', followUp: "I'm sorry, I couldn't understand that. Could you please choose one of the options?" };
+                            parsed = { status: 'fail', followUp: `Thank you for your message. Please select one of the available options so we can assist you.` };
                         }
 
                         if (parsed.status === 'redirect' && parsed.topicId) {
@@ -211,6 +234,7 @@ class FlowRuntime {
                             const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
                             this.currentNodeId = entrypoint ? entrypoint.id : parsed.topicId;
                             this.status = 'running';
+                            await this.step(null);
                             return this.status;
                         }
 
@@ -257,11 +281,22 @@ class FlowRuntime {
                         
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
+                        const currentTopic = this._getCurrentTopicContext();
                         const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
                         const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
-                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description}`).join('\n');
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
 
-                        this.onAIExtract({ userInput: fullContext, userPrompt, aiPrompt: interpolatedAiPrompt, options: opts, expectJson: true, flowTopics, noAiPrompt: !aiPrompt });
+                        this.onAIExtract({
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt: interpolatedAiPrompt,
+                            options: opts,
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: !aiPrompt
+                        });
                     } else {
                         // Match user input to an option (case-insensitive fuzzy)
                         const options = currentStep.options || [];
@@ -355,6 +390,253 @@ class FlowRuntime {
                 }
                 break;
 
+            case 'showCatalog': {
+                const showCatType = currentStep.data.itemType || '';
+                try {
+                    let items = [];
+                    let menuStyle = {
+                        header: '🛍️ *OUR CATALOG*',
+                        itemFormat: '• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_',
+                        footer: 'Type item name to order!'
+                    };
+
+                    if (this.onShowCatalog) {
+                        // Server-side: delegate entirely to the injected callback (DB query)
+                        const result = await this.onShowCatalog(showCatType);
+                        if (result) {
+                            items = result.items || [];
+                            if (result.menuStyle) menuStyle = result.menuStyle;
+                        }
+                    } else {
+                        // Browser/simulator fallback: fetch from API
+                        const accountId = (typeof localStorage !== 'undefined') ? localStorage.getItem('activeAccountId') : null;
+                        const simToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+                        const headers = { 'x-auth-token': simToken || '' };
+                        if (accountId) headers['x-account-id'] = accountId;
+
+                        const [catRes, settRes] = await Promise.all([
+                            fetch(`/api/catalog${showCatType ? '?type=' + showCatType : ''}`, { headers }),
+                            fetch('/api/settings', { headers })
+                        ]);
+                        if (catRes.ok) items = await catRes.json();
+                        if (settRes.ok) {
+                            const sett = await settRes.json();
+                            if (sett.menuStyle) menuStyle = sett.menuStyle;
+                        }
+                    }
+
+                    const applyVars = (template, item) => {
+                        if (!template) return '';
+                        return template
+                            .replace(/\{\{name\}\}/g, item.fields?.name || '')
+                            .replace(/\{\{price\}\}/g, item.fields?.price !== undefined ? item.fields.price : 'N/A')
+                            .replace(/\{\{category\}\}/g, item.fields?.category || '')
+                            .replace(/\{\{type\}\}/g, item.type || '')
+                            .replace(/\{\{status\}\}/g, item.status || 'available');
+                    };
+
+                    if (items.length === 0) {
+                        if (this.onBotMessage) await this.onBotMessage(`[No ${showCatType || 'catalog'} items found]`);
+                    } else {
+                        // Header — sent once with first item's vars
+                        if (menuStyle.header && this.onBotMessage) {
+                            await this.onBotMessage(applyVars(menuStyle.header, items[0]));
+                        }
+                        // Each item as its own message (attaching imageId/mediaId if available)
+                        for (const item of items) {
+                            const itemMsg = applyVars(menuStyle.itemFormat, item);
+                            const mediaId = item.fields?.imageId || item.fields?.mediaId || null;
+                            if (itemMsg && this.onBotMessage) await this.onBotMessage(itemMsg, mediaId);
+                        }
+                        // Footer — sent once with last item's vars
+                        if (menuStyle.footer && this.onBotMessage) {
+                            await this.onBotMessage(applyVars(menuStyle.footer, items[items.length - 1]));
+                        }
+                    }
+                } catch (err) {
+                    if (this.onBotMessage) await this.onBotMessage(`[Show Catalog: Error — ${err.message}]`);
+                }
+                this._advance(currentStep.next);
+                break;
+            }
+
+            case 'catalogSelector': {
+                const showCatType = currentStep.data.itemType || '';
+                
+                // Fetch catalog items for option selection
+                let catalogItems = [];
+                try {
+                    if (this.onShowCatalog) {
+                        const result = await this.onShowCatalog(showCatType);
+                        if (result) catalogItems = result.items || [];
+                    } else {
+                        const accountId = (typeof localStorage !== 'undefined') ? localStorage.getItem('activeAccountId') : null;
+                        const simToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+                        const headers = { 'x-auth-token': simToken || '' };
+                        if (accountId) headers['x-account-id'] = accountId;
+                        const catRes = await fetch(`/api/catalog${showCatType ? '?type=' + showCatType : ''}`, { headers });
+                        if (catRes.ok) catalogItems = await catRes.json();
+                    }
+                } catch (e) {
+                    console.error('Error fetching catalog items for selector:', e);
+                }
+
+                // If no items in database, create fallback sample items
+                if (catalogItems.length === 0) {
+                    catalogItems = [
+                        { _id: 'item_1', type: 'product', fields: { name: 'Fresh Milk 500ml', price: 180, category: 'Dairy' } },
+                        { _id: 'item_2', type: 'service', fields: { name: 'Hair Cut & Styling', price: 1500, category: 'Salon' } }
+                    ];
+                }
+
+                const optionsList = catalogItems.map(item => {
+                    const name = item.fields?.name || item.name || 'Unnamed Item';
+                    const price = item.fields?.price !== undefined ? item.fields.price : (item.price || 'N/A');
+                    const category = item.fields?.category || item.category || '';
+                    return `${name} (Rs. ${price}${category ? ', ' + category : ''})`;
+                });
+
+                if (this.status === 'waiting_ai' && userInput !== null) {
+                    try {
+                        let parsed = null;
+                        const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
+                        try {
+                            const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) {
+                                parsed = JSON.parse(jsonMatch[0]);
+                            } else {
+                                parsed = JSON.parse(cleanInput);
+                            }
+                        } catch(e) {
+                            parsed = { status: 'fail', followUp: `Thank you for your message. Please select an available product/service from our catalog so we can assist you.` };
+                        }
+
+                        if (parsed.status === 'redirect' && parsed.topicId) {
+                            this.nodeHistory = [];
+                            const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
+                            this.currentNodeId = entrypoint ? entrypoint.id : parsed.topicId;
+                            this.status = 'running';
+                            await this.step(null);
+                            return this.status;
+                        }
+
+                        if (parsed.status === 'fail') {
+                            if (this.onBotMessage && parsed.followUp) {
+                                await this.onBotMessage(parsed.followUp);
+                                if (!this.nodeHistory) this.nodeHistory = [];
+                                this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                            }
+                            this.status = 'waiting_option';
+                            return this.status;
+                        }
+
+                        this.nodeHistory = [];
+                        const val = parsed.value !== undefined ? parsed.value : userInput;
+
+                        // Match selected item name back to the full catalog item object
+                        let selectedItem = catalogItems.find(item => {
+                            const itemName = item.fields?.name || item.name || '';
+                            return itemName.toLowerCase().trim() === String(val).toLowerCase().trim() ||
+                                   String(val).toLowerCase().includes(itemName.toLowerCase().trim());
+                        }) || catalogItems[0];
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = selectedItem;
+                            this._emitVariables();
+                        }
+
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    } catch(e) {
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                } else if (this.status === 'waiting_option' && userInput !== null) {
+                    if (this.onAIExtract) {
+                        this.status = 'waiting_ai';
+                        const aiPrompt = currentStep.data.aiPrompt || 'Select the exact catalog item the customer wants. If the customer request is ambiguous or vague, ask clarifying follow-up questions to identify the correct item.';
+                        const interpolatedAiPrompt = this._interpolate(aiPrompt);
+                        const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
+                        
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        const currentTopic = this._getCurrentTopicContext();
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
+
+                        this.onAIExtract({
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt: interpolatedAiPrompt,
+                            options: optionsList,
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: false
+                        });
+                    } else {
+                        // Match user input directly
+                        let selectedItem = catalogItems.find(item => {
+                            const itemName = item.fields?.name || item.name || '';
+                            return itemName.toLowerCase().includes(userInput.toLowerCase().trim()) ||
+                                   userInput.toLowerCase().includes(itemName.toLowerCase().trim());
+                        }) || catalogItems[0];
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = selectedItem;
+                            this._emitVariables();
+                        }
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                } else {
+                    // Ask user for catalog item choice
+                    this.status = 'waiting_option';
+                    if (this.onWaitingForOption) {
+                        const prompt = this._interpolate(currentStep.data.prompt || 'Which item would you like to choose from our catalog?');
+                        await this.onWaitingForOption(prompt, optionsList);
+                    }
+                }
+                break;
+            }
+
+            case 'arrayManager':
+                const action = currentStep.data.action || 'push';
+                const arrVarName = currentStep.data.variable;
+                let currentArr = (arrVarName && Array.isArray(this.variables[arrVarName])) ? [...this.variables[arrVarName]] : [];
+
+                if (action === 'clear') {
+                    currentArr = [];
+                } else if (action === 'push') {
+                    // Push the item object from last selected item variable or default structured item
+                    const itemToPush = this.variables['selectedItem'] || { itemId: 'ITEM_1', quantity: 1, addedAt: new Date().toISOString() };
+                    currentArr.push(itemToPush);
+                }
+
+                if (arrVarName) {
+                    this.variables[arrVarName] = currentArr;
+                    this._emitVariables();
+                }
+                this._advance(currentStep.next);
+                break;
+
+            case 'placeOrder':
+                const cartVarName = currentStep.data.variable;
+                const cartData = cartVarName ? (this.variables[cartVarName] || []) : [];
+                const mockOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+
+                if (this.onBotMessage) {
+                    await this.onBotMessage(`🎉 Order Placed Successfully! Your Order ID is: ${mockOrderId}`);
+                }
+                this.variables['lastOrderId'] = mockOrderId;
+                this._emitVariables();
+                this._advance(currentStep.next);
+                break;
+
             default:
                 this._advance(currentStep.next);
                 break;
@@ -385,6 +667,27 @@ class FlowRuntime {
                 ? this.variables[varName]
                 : match;
         });
+    }
+
+    /**
+     * Resolve the current topic ID and description from entrypoints
+     */
+    _getCurrentTopicContext() {
+        if (!this.compiled || !this.compiled.entrypoints) {
+            return { id: 'default', description: 'General Conversation' };
+        }
+        const entrypoints = this.compiled.entrypoints;
+        for (const [topicId, info] of Object.entries(entrypoints)) {
+            if (info && info.id === this.currentNodeId) {
+                return { id: topicId, description: info.description || 'No description provided' };
+            }
+        }
+        // Fallback: use first entrypoint or default
+        const firstKey = Object.keys(entrypoints)[0];
+        if (firstKey && entrypoints[firstKey]) {
+            return { id: firstKey, description: entrypoints[firstKey].description || 'No description provided' };
+        }
+        return { id: 'default', description: 'General Flow Context' };
     }
 
     /**

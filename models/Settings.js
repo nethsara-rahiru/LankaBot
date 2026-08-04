@@ -42,6 +42,19 @@ const SettingsSchema = new mongoose.Schema({
     compiledFlow: {
         type: mongoose.Schema.Types.Mixed,
         default: null
+    },
+    menuStyle: {
+        header: { type: String, default: "🛍️ *OUR CATALOG*" },
+        itemFormat: { type: String, default: "• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_" },
+        footer: { type: String, default: "Type item name or code to order!" }
+    },
+    supportedLanguages: {
+        type: [String],
+        default: ['en']
+    },
+    defaultLanguage: {
+        type: String,
+        default: 'en'
     }
 });
 

@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontDesk | Order Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ── Page-specific resets ── */
+        main { display: block !important; }
+
+        .page-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 0.45rem 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-heavy);
+            color: var(--text-dim);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .filter-tab:hover,
+        .filter-tab.active {
+            background: rgba(207, 160, 125, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── Orders Table ── */
+        .orders-table-wrap {
+            overflow-x: auto;
+            border-radius: 18px;
+            border: 1px solid var(--glass-border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+
+        thead {
+            background: rgba(255,255,255,0.03);
+        }
+
+        th {
+            padding: 0.9rem 1.2rem;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        td {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+
+        tbody tr {
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+
+        tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+        .order-id {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.82rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .customer-cell {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .customer-name { font-weight: 600; }
+        .customer-sub { font-size: 0.78rem; color: var(--text-dim); }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.25rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .status-received   { background: rgba(52,152,219,0.15); color: #3498db; }
+        .status-preparing  { background: rgba(241,196,15,0.15);  color: #f1c40f; }
+        .status-ready      { background: rgba(0,206,201,0.15);   color: #00cec9; }
+        .status-delivered  { background: rgba(46,204,113,0.15);  color: #2ecc71; }
+        .status-cancelled  { background: rgba(231,76,60,0.15);   color: #e74c3c; }
+
+        .items-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            padding: 0.2rem 0.6rem;
+            font-size: 0.8rem;
+        }
+
+        .row-actions {
+            display: flex;
+            gap: 0.4rem;
+        }
+
+        .icon-btn {
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 0.9rem;
+        }
+
+        .icon-btn:hover { background: rgba(207,160,125,0.15); color: var(--primary); border-color: var(--primary); }
+        .icon-btn.danger:hover { background: rgba(231,76,60,0.15); color: #e74c3c; border-color: #e74c3c; }
+
+        /* ── Side Drawer (Order Detail) ── */
+        .drawer-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(6px);
+            z-index: 900;
+        }
+
+        .drawer-overlay.active { display: block; }
+        #column-modal.active { display: flex !important; }
+
+        .drawer {
+            position: fixed;
+            top: 0; right: -520px;
+            width: 100%; max-width: 480px;
+            height: 100vh;
+            background: #1a1d24;
+            border-left: 1px solid var(--glass-border);
+            z-index: 901;
+            overflow-y: auto;
+            transition: right 0.35s cubic-bezier(0.16,1,0.3,1);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .drawer.active { right: 0; }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .drawer-close {
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            color: var(--text-dim);
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 1.1rem;
+            transition: all 0.25s ease;
+        }
+
+        .drawer-close:hover { color: #fff; border-color: #fff; }
+
+        .detail-section {
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1.2rem;
+        }
+
+        .detail-section h4 {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            margin-bottom: 0.8rem;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.88rem;
+        }
+
+        .detail-row:last-child { border-bottom: none; }
+        .detail-key { color: var(--text-dim); }
+        .detail-val { font-weight: 600; }
+
+        .order-item-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .history-entry {
+            display: flex;
+            gap: 0.8rem;
+            align-items: flex-start;
+            padding: 0.6rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 0.82rem;
+        }
+
+        .history-entry:last-child { border-bottom: none; }
+
+        .history-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            margin-top: 5px;
+            flex-shrink: 0;
+        }
+
+        .status-selector {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.8rem;
+        }
+
+        .status-chip {
+            padding: 0.35rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.2s ease;
+            font-family: 'Outfit', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .status-chip:hover { transform: scale(1.05); }
+
+        /* ── Stats Bar ── */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--glass-heavy);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 1rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .stat-val { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+        .stat-lbl { font-size: 0.75rem; color: var(--text-dim); margin-top: 0.2rem; }
+
+        /* ── Empty state ── */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-dim);
+        }
+
+        .empty-state i { font-size: 3.5rem; margin-bottom: 1rem; display: block; opacity: 0.3; }
+        .empty-state p { font-size: 0.95rem; }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-left">
+                <button class="icon-btn" onclick="window.location.href='/manageAccount.html'" title="Back to Dashboard"
+                    style="width:40px;height:40px;border-radius:12px;font-size:1rem;">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <div class="logo-wrapper" style="margin-left:0.8rem;">
+                    <i class="ph-fill ph-shopping-cart logo-icon" style="color:#2ecc71;filter:drop-shadow(0 0 8px rgba(46,204,113,0.4));"></i>
+                    <div class="logo">
+                        <h1>Order<span>Manager</span></h1>
+                        <p>Track and manage customer orders</p>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:0.5rem;align-items:center;">
+                <button class="btn-secondary" onclick="openColumnModal()" style="padding:0.7rem 1.2rem;border-radius:12px;font-size:0.85rem;width:auto;">
+                    <i class="ph-bold ph-columns"></i> Manage Columns
+                </button>
+                <button class="btn-primary" onclick="loadOrders()" style="padding:0.7rem 1.2rem;border-radius:12px;font-size:0.85rem;">
+                    <i class="ph-bold ph-arrows-clockwise"></i> Refresh
+                </button>
+            </div>
+        </header>
+
+        <!-- Column Management Modal -->
+        <div id="column-modal" class="drawer-overlay" style="z-index: 1000; display: none; align-items: center; justify-content: center; padding: 1rem;">
+            <div style="background: #181b20; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; width: 100%; max-width: 540px; padding: 2rem; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <div>
+                        <h2 style="font-size: 1.2rem; margin: 0;">Manage Table Columns</h2>
+                        <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0.2rem 0 0 0;">Add, hide, or edit columns shown in the orders table</p>
+                    </div>
+                    <button class="icon-btn" onclick="closeColumnModal()"><i class="ph-bold ph-x"></i></button>
+                </div>
+
+                <!-- Add New Custom Column -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px dashed var(--glass-border); border-radius: 14px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <h4 style="font-size: 0.8rem; text-transform: uppercase; color: var(--text-dim); margin-bottom: 0.8rem;">Add Custom Field Column</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.8rem;">
+                        <input type="text" id="new-col-label" placeholder="Header Label (e.g. Delivery Area)" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                        <input type="text" id="new-col-key" placeholder="Field Key (e.g. deliveryArea)" style="padding: 0.6rem 0.8rem; font-size: 0.85rem;">
+                    </div>
+                    <button class="btn-primary" onclick="addNewColumn()" style="padding: 0.6rem 1rem; font-size: 0.85rem; width: 100%;">
+                        <i class="ph-bold ph-plus-circle"></i> Add Column
+                    </button>
+                </div>
+
+                <!-- Column List -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-dim);">Configured Columns</span>
+                    <button class="icon-btn" onclick="resetColumnsToDefault()" title="Reset to default columns" style="width: auto; height: auto; padding: 0.3rem 0.6rem; font-size: 0.75rem;">
+                        Reset Defaults
+                    </button>
+                </div>
+
+                <div id="columns-list-container" style="display: flex; flex-direction: column; gap: 0.6rem; max-height: 280px; overflow-y: auto; padding-right: 0.2rem;">
+                    <!-- Dynamically generated column items -->
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-top: 1.5rem;">
+                    <button class="btn-secondary" onclick="closeColumnModal()" style="width: auto; padding: 0.6rem 1.5rem;">Done</button>
+                </div>
+            </div>
+        </div>
+
+        <main>
+            <!-- Stats Bar -->
+            <div class="stats-bar" id="stats-bar">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(52,152,219,0.15);">
+                        <i class="ph-bold ph-package" style="color:#3498db;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val" id="stat-total">—</div>
+                        <div class="stat-lbl">Total Orders</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(241,196,15,0.15);">
+                        <i class="ph-bold ph-clock" style="color:#f1c40f;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val" id="stat-pending">—</div>
+                        <div class="stat-lbl">Pending</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(46,204,113,0.15);">
+                        <i class="ph-bold ph-check-circle" style="color:#2ecc71;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val" id="stat-delivered">—</div>
+                        <div class="stat-lbl">Delivered</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:rgba(231,76,60,0.15);">
+                        <i class="ph-bold ph-x-circle" style="color:#e74c3c;"></i>
+                    </div>
+                    <div>
+                        <div class="stat-val" id="stat-cancelled">—</div>
+                        <div class="stat-lbl">Cancelled</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters & Search -->
+            <div class="page-actions">
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-status="" onclick="setFilter(this, '')">All</button>
+                    <button class="filter-tab" data-status="received" onclick="setFilter(this, 'received')">Received</button>
+                    <button class="filter-tab" data-status="preparing" onclick="setFilter(this, 'preparing')">Preparing</button>
+                    <button class="filter-tab" data-status="ready" onclick="setFilter(this, 'ready')">Ready</button>
+                    <button class="filter-tab" data-status="delivered" onclick="setFilter(this, 'delivered')">Delivered</button>
+                    <button class="filter-tab" data-status="cancelled" onclick="setFilter(this, 'cancelled')">Cancelled</button>
+                </div>
+                <div style="position:relative;">
+                    <i class="ph-bold ph-magnifying-glass" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-dim);pointer-events:none;"></i>
+                    <input type="text" id="search-input" placeholder="Search by order ID or customer…"
+                        oninput="filterTable(this.value)"
+                        style="padding:0.6rem 1rem 0.6rem 2.5rem;border-radius:12px;width:280px;font-size:0.85rem;background:var(--glass-heavy);border:1px solid var(--glass-border);color:var(--text);">
+                </div>
+            </div>
+
+            <!-- Orders Table -->
+            <div class="orders-table-wrap">
+                <table id="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                        <tr><td colspan="6"><div class="empty-state"><i class="ph-bold ph-spinner"></i><p>Loading orders…</p></div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Order Detail Drawer -->
+    <div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+    <div class="drawer" id="order-drawer">
+        <div class="drawer-header">
+            <div>
+                <p style="font-size:0.75rem;color:var(--text-dim);text-transform:uppercase;font-weight:700;letter-spacing:0.5px;">Order Details</p>
+                <h2 id="drawer-order-id" style="font-size:1.2rem;margin-top:0.3rem;">—</h2>
+            </div>
+            <button class="drawer-close" onclick="closeDrawer()">
+                <i class="ph-bold ph-x"></i>
+            </button>
+        </div>
+
+        <!-- Status Updater -->
+        <div class="detail-section">
+            <h4>Update Status</h4>
+            <div class="status-selector" id="status-buttons"></div>
+        </div>
+
+        <!-- Core Info -->
+        <div class="detail-section">
+            <h4>Order Info</h4>
+            <div id="drawer-info"></div>
+        </div>
+
+        <!-- Items -->
+        <div class="detail-section">
+            <h4>Items</h4>
+            <div id="drawer-items"></div>
+        </div>
+
+        <!-- Custom Fields -->
+        <div class="detail-section" id="drawer-custom-section" style="display:none;">
+            <h4>Customer Details</h4>
+            <div id="drawer-custom"></div>
+        </div>
+
+        <!-- History -->
+        <div class="detail-section">
+            <h4>Audit History</h4>
+            <div id="drawer-history"><p style="color:var(--text-dim);font-size:0.82rem;">Loading…</p></div>
+        </div>
+    </div>
+
+    <script>
+        const accountId = localStorage.getItem('activeAccountId');
+        const token = localStorage.getItem('token');
+        let allOrders = [];
+        let activeStatus = '';
+        let activeDrawerOrderId = null;
+
+        // --- Dynamic Columns Configuration ---
+        const DEFAULT_COLUMNS = [
+            { id: 'orderId', label: 'Order ID', key: 'orderId', type: 'system', visible: true },
+            { id: 'customer', label: 'Customer', key: 'customerName', type: 'system', visible: true },
+            { id: 'items', label: 'Items', key: 'items', type: 'system', visible: true },
+            { id: 'status', label: 'Status', key: 'status', type: 'system', visible: true },
+            { id: 'date', label: 'Date', key: 'createdAt', type: 'system', visible: true }
+        ];
+
+        function getSavedColumns() {
+            try {
+                const saved = localStorage.getItem(`order_columns_${accountId}`);
+                if (saved) return JSON.parse(saved);
+            } catch (e) {
+                console.error('Error reading saved columns', e);
+            }
+            return JSON.parse(JSON.stringify(DEFAULT_COLUMNS));
+        }
+
+        function saveColumns(cols) {
+            localStorage.setItem(`order_columns_${accountId}`, JSON.stringify(cols));
+        }
+
+        let customColumns = getSavedColumns();
+
+        const STATUS_STYLES = {
+            received:  { cls: 'status-received',  icon: 'ph-clock',        label: 'Received',  color: '#3498db' },
+            preparing: { cls: 'status-preparing', icon: 'ph-fire',         label: 'Preparing', color: '#f1c40f' },
+            ready:     { cls: 'status-ready',     icon: 'ph-check',        label: 'Ready',     color: '#00cec9' },
+            delivered: { cls: 'status-delivered', icon: 'ph-check-circle', label: 'Delivered', color: '#2ecc71' },
+            cancelled: { cls: 'status-cancelled', icon: 'ph-x-circle',     label: 'Cancelled', color: '#e74c3c' },
+        };
+
+        const STATUS_ORDER = ['received', 'preparing', 'ready', 'delivered', 'cancelled'];
+
+        // ── Load & Render ──────────────────────────────────────────────────────
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!accountId) { alert('No active account. Redirecting…'); window.location.href = '/accounts.html'; return; }
+            loadOrders();
+        });
+
+        async function loadOrders() {
+            try {
+                const url = activeStatus ? `/api/orders?status=${activeStatus}` : '/api/orders';
+                const res = await fetch(url, {
+                    headers: { 'x-account-id': accountId, 'x-auth-token': token }
+                });
+                allOrders = await res.json();
+                updateStats(allOrders);
+                renderTable(allOrders);
+            } catch (err) {
+                console.error('Failed to load orders:', err);
+                const visibleCols = customColumns.filter(c => c.visible);
+                document.getElementById('orders-tbody').innerHTML =
+                    `<tr><td colspan="${visibleCols.length + 1}"><div class="empty-state"><i class="ph-bold ph-warning"></i><p>Failed to load orders</p></div></td></tr>`;
+            }
+        }
+
+        function updateStats(orders) {
+            document.getElementById('stat-total').textContent = orders.length;
+            document.getElementById('stat-pending').textContent = orders.filter(o => ['received','preparing','ready'].includes(o.status)).length;
+            document.getElementById('stat-delivered').textContent = orders.filter(o => o.status === 'delivered').length;
+            document.getElementById('stat-cancelled').textContent = orders.filter(o => o.status === 'cancelled').length;
+        }
+
+        function renderTable(orders) {
+            const visibleCols = customColumns.filter(c => c.visible);
+
+            // Render table header
+            const thead = document.querySelector('#orders-table thead tr');
+            thead.innerHTML = visibleCols.map(col => `<th>${col.label}</th>`).join('') + '<th>Actions</th>';
+
+            // Render table body
+            const tbody = document.getElementById('orders-tbody');
+            if (!orders.length) {
+                tbody.innerHTML = `<tr><td colspan="${visibleCols.length + 1}"><div class="empty-state"><i class="ph-bold ph-shopping-cart"></i><p>No orders found</p></div></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = orders.map(order => {
+                const cellsHtml = visibleCols.map(col => {
+                    if (col.id === 'orderId') {
+                        return `<td><span class="order-id">${order.orderId}</span></td>`;
+                    }
+                    if (col.id === 'customer') {
+                        const customerName = order.customFields?.customerName || order.customFields?.name || '—';
+                        const customerPhone = order.customFields?.phone || order.customFields?.contact || '';
+                        return `<td>
+                            <div class="customer-cell">
+                                <span class="customer-name">${customerName}</span>
+                                ${customerPhone ? `<span class="customer-sub">${customerPhone}</span>` : ''}
+                            </div>
+                        </td>`;
+                    }
+                    if (col.id === 'items') {
+                        const itemCount = order.items?.length || 0;
+                        return `<td><span class="items-count"><i class="ph-bold ph-package"></i> ${itemCount}</span></td>`;
+                    }
+                    if (col.id === 'status') {
+                        const s = STATUS_STYLES[order.status] || { cls: '', icon: 'ph-circle', label: order.status, color: '#fff' };
+                        return `<td><span class="status-pill ${s.cls}"><i class="ph-bold ${s.icon}"></i> ${s.label}</span></td>`;
+                    }
+                    if (col.id === 'date') {
+                        const date = new Date(order.createdAt).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+                        return `<td style="color:var(--text-dim);font-size:0.82rem;">${date}</td>`;
+                    }
+
+                    // Dynamic custom field column
+                    const val = order.customFields ? order.customFields[col.key] : null;
+                    return `<td><span style="font-weight: 500;">${val !== undefined && val !== null ? val : '—'}</span></td>`;
+                }).join('');
+
+                return `
+                <tr onclick="openDrawer('${order.orderId}')">
+                    ${cellsHtml}
+                    <td>
+                        <div class="row-actions">
+                            <button class="icon-btn" onclick="event.stopPropagation();openDrawer('${order.orderId}')" title="View details">
+                                <i class="ph-bold ph-eye"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ── Filter / Search ────────────────────────────────────────────────────
+
+        function setFilter(btn, status) {
+            document.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeStatus = status;
+            loadOrders();
+        }
+
+        function filterTable(query) {
+            const lower = query.toLowerCase();
+            const filtered = allOrders.filter(o => {
+                const customerName = (o.customFields?.customerName || o.customFields?.name || '').toLowerCase();
+                const customValues = o.customFields ? Object.values(o.customFields).join(' ').toLowerCase() : '';
+                return o.orderId.toLowerCase().includes(lower) || customerName.includes(lower) || customValues.includes(lower);
+            });
+            renderTable(filtered);
+        }
+
+        // ── Dynamic Column Management Modal Logic ──────────────────────────────
+
+        function openColumnModal() {
+            renderColumnList();
+            document.getElementById('column-modal').classList.add('active');
+        }
+
+        function closeColumnModal() {
+            document.getElementById('column-modal').classList.remove('active');
+        }
+
+        function renderColumnList() {
+            const container = document.getElementById('columns-list-container');
+            container.innerHTML = customColumns.map((col, index) => {
+                const isSystem = col.type === 'system';
+                return `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.7rem 1rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px;">
+                    <div style="display: flex; align-items: center; gap: 0.8rem;">
+                        <input type="checkbox" ${col.visible ? 'checked' : ''} onchange="toggleColumnVisibility(${index}, this.checked)" style="width: auto; cursor: pointer;">
+                        <div>
+                            <span style="font-weight: 600; font-size: 0.9rem;">${col.label}</span>
+                            <span style="font-size: 0.75rem; color: var(--text-dim); margin-left: 0.4rem;">(${isSystem ? 'System' : 'Custom Field: ' + col.key})</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.4rem;">
+                        ${!isSystem ? `
+                            <button class="icon-btn" onclick="editColumnPrompt(${index})" title="Edit column header"><i class="ph-bold ph-pencil-simple"></i></button>
+                            <button class="icon-btn danger" onclick="deleteColumn(${index})" title="Delete column"><i class="ph-bold ph-trash" style="color: #e74c3c;"></i></button>
+                        ` : '<span style="font-size: 0.75rem; color: var(--text-dim);">Built-in</span>'}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleColumnVisibility(index, checked) {
+            customColumns[index].visible = checked;
+            saveColumns(customColumns);
+            renderTable(allOrders);
+        }
+
+        function addNewColumn() {
+            const labelInput = document.getElementById('new-col-label');
+            const keyInput = document.getElementById('new-col-key');
+
+            const label = labelInput.value.trim();
+            const key = keyInput.value.trim();
+
+            if (!label || !key) {
+                alert('Please provide both Column Label and Field Key.');
+                return;
+            }
+
+            if (customColumns.some(c => c.key === key || c.id === key)) {
+                alert('A column with this key already exists.');
+                return;
+            }
+
+            customColumns.push({
+                id: `col_${Date.now()}`,
+                label,
+                key,
+                type: 'custom',
+                visible: true
+            });
+
+            saveColumns(customColumns);
+            labelInput.value = '';
+            keyInput.value = '';
+            renderColumnList();
+            renderTable(allOrders);
+        }
+
+        function editColumnPrompt(index) {
+            const col = customColumns[index];
+            const newLabel = prompt('Enter new column header label:', col.label);
+            if (newLabel && newLabel.trim()) {
+                col.label = newLabel.trim();
+                saveColumns(customColumns);
+                renderColumnList();
+                renderTable(allOrders);
+            }
+        }
+
+        function deleteColumn(index) {
+            if (confirm(`Delete custom column "${customColumns[index].label}"?`)) {
+                customColumns.splice(index, 1);
+                saveColumns(customColumns);
+                renderColumnList();
+                renderTable(allOrders);
+            }
+        }
+
+        function resetColumnsToDefault() {
+            if (confirm('Reset columns to default settings?')) {
+                customColumns = JSON.parse(JSON.stringify(DEFAULT_COLUMNS));
+                saveColumns(customColumns);
+                renderColumnList();
+                renderTable(allOrders);
+            }
+        }
+
+        // ── Order Detail Drawer & Editing ──────────────────────────────────────
+
+        async function openDrawer(orderId) {
+            activeDrawerOrderId = orderId;
+            const order = allOrders.find(o => o.orderId === orderId);
+            if (!order) return;
+
+            const s = STATUS_STYLES[order.status] || { cls: '', label: order.status };
+
+            document.getElementById('drawer-order-id').textContent = orderId;
+            document.getElementById('drawer-order-id').style.color = STATUS_STYLES[order.status]?.color || '#fff';
+
+            // --- Status Buttons ---
+            document.getElementById('status-buttons').innerHTML = STATUS_ORDER.map(st => {
+                const stStyle = STATUS_STYLES[st] || {};
+                const isActive = order.status === st;
+                return `
+                    <button class="status-chip" onclick="updateStatus('${orderId}','${st}')"
+                        style="background:${isActive ? stStyle.color + '22' : 'rgba(255,255,255,0.05)'};
+                               border-color:${isActive ? stStyle.color : 'rgba(255,255,255,0.1)'};
+                               color:${isActive ? stStyle.color : 'var(--text-dim)'};">
+                        ${st}
+                    </button>`;
+            }).join('');
+
+            // --- Order Info ---
+            const date = new Date(order.createdAt).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' });
+            document.getElementById('drawer-info').innerHTML = `
+                <div class="detail-row"><span class="detail-key">Order ID</span><span class="detail-val order-id">${order.orderId}</span></div>
+                <div class="detail-row"><span class="detail-key">Status</span><span class="status-pill ${s.cls}">${s.label}</span></div>
+                <div class="detail-row"><span class="detail-key">Created</span><span class="detail-val" style="font-size:0.82rem;color:var(--text-dim);">${date}</span></div>
+                <div class="detail-row"><span class="detail-key">Payment</span><span class="detail-val">${order.paymentStatus || 'N/A'}</span></div>
+            `;
+
+            // --- Items ---
+            const items = order.items || [];
+            document.getElementById('drawer-items').innerHTML = items.length
+                ? items.map(item => {
+                    const name = item.snapshot?.name || item.snapshot?.title || 'Unknown Item';
+                    const price = item.snapshot?.price ? `Rs. ${item.snapshot.price}` : '';
+                    return `
+                        <div class="order-item-card">
+                            <div>
+                                <div style="font-weight:600;">${name}</div>
+                                ${price ? `<div style="font-size:0.78rem;color:var(--text-dim);">${price} each</div>` : ''}
+                            </div>
+                            <div style="font-weight:700;color:var(--primary);">×${item.quantity}</div>
+                        </div>`;
+                }).join('')
+                : '<p style="color:var(--text-dim);font-size:0.82rem;">No items recorded</p>';
+
+            // --- Custom Fields & Dynamic Columns Edit Form ---
+            const custom = order.customFields || {};
+            const customSection = document.getElementById('drawer-custom-section');
+            customSection.style.display = 'block';
+
+            // Gather all custom field keys (from columns + order object)
+            const fieldKeys = Array.from(new Set([
+                ...customColumns.filter(c => c.type === 'custom').map(c => c.key),
+                ...Object.keys(custom)
+            ]));
+
+            document.getElementById('drawer-custom').innerHTML = `
+                <form id="edit-custom-fields-form" onsubmit="handleSaveCustomFields(event, '${orderId}')" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                    ${fieldKeys.map(k => `
+                        <div>
+                            <label style="font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700;">${k}</label>
+                            <input type="text" id="edit_field_${k}" value="${custom[k] !== undefined && custom[k] !== null ? custom[k] : ''}" placeholder="Enter ${k}" style="padding: 0.5rem 0.8rem; font-size: 0.85rem;">
+                        </div>
+                    `).join('')}
+                    <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+                        <button type="submit" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.82rem;">
+                            <i class="ph-bold ph-floppy-disk"></i> Save Fields
+                        </button>
+                    </div>
+                </form>
+            `;
+
+            // --- Open Drawer ---
+            document.getElementById('drawer-overlay').classList.add('active');
+            document.getElementById('order-drawer').classList.add('active');
+
+            // --- Load History async ---
+            loadHistory(orderId);
+        }
+
+        async function handleSaveCustomFields(e, orderId) {
+            e.preventDefault();
+            const order = allOrders.find(o => o.orderId === orderId);
+            if (!order) return;
+
+            const custom = order.customFields || {};
+            const fieldKeys = Array.from(new Set([
+                ...customColumns.filter(c => c.type === 'custom').map(c => c.key),
+                ...Object.keys(custom)
+            ]));
+
+            const updatedFields = { ...custom };
+            fieldKeys.forEach(k => {
+                const el = document.getElementById(`edit_field_${k}`);
+                if (el) updatedFields[k] = el.value.trim();
+            });
+
+            try {
+                const res = await fetch(`/api/orders/${orderId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId,
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ customFields: updatedFields })
+                });
+
+                if (res.ok) {
+                    const updatedOrder = await res.json();
+                    order.customFields = updatedOrder.customFields;
+                    renderTable(allOrders);
+                    alert('Order custom fields saved successfully!');
+                    loadHistory(orderId);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Failed to update fields: ' + (err.msg || 'Server error'));
+                }
+            } catch (err) {
+                console.error('Save custom fields error:', err);
+                alert('Save failed. Check server connection.');
+            }
+        }
+
+        async function loadHistory(orderId) {
+            const el = document.getElementById('drawer-history');
+            el.innerHTML = '<p style="color:var(--text-dim);font-size:0.82rem;">Loading…</p>';
+            try {
+                const res = await fetch(`/api/orders/${orderId}/history`, {
+                    headers: { 'x-account-id': accountId, 'x-auth-token': token }
+                });
+                const data = await res.json();
+                const changes = data.changes || [];
+                if (!changes.length) {
+                    el.innerHTML = '<p style="color:var(--text-dim);font-size:0.82rem;">No history yet</p>';
+                    return;
+                }
+                el.innerHTML = changes.slice().reverse().map(c => {
+                    const time = c.timestamp ? new Date(c.timestamp).toLocaleString('en-US', { dateStyle:'short', timeStyle:'short' }) : '';
+                    return `
+                        <div class="history-entry">
+                            <div class="history-dot"></div>
+                            <div>
+                                <div style="font-weight:600;">${c.field} → <span style="color:var(--primary)">${c.newValue}</span></div>
+                                <div style="color:var(--text-dim);margin-top:0.15rem;">
+                                    ${c.oldValue ? `from "${c.oldValue}" ` : ''}via <em>${c.source}</em>
+                                    ${time ? `· ${time}` : ''}
+                                </div>
+                            </div>
+                        </div>`;
+                }).join('');
+            } catch (err) {
+                el.innerHTML = '<p style="color:var(--text-dim);font-size:0.82rem;">Could not load history</p>';
+            }
+        }
+
+        function closeDrawer() {
+            document.getElementById('drawer-overlay').classList.remove('active');
+            document.getElementById('order-drawer').classList.remove('active');
+            activeDrawerOrderId = null;
+        }
+
+        // ── Status Update ──────────────────────────────────────────────────────
+
+        async function updateStatus(orderId, newStatus) {
+            try {
+                const res = await fetch(`/api/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId,
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (res.ok) {
+                    const order = allOrders.find(o => o.orderId === orderId);
+                    if (order) order.status = newStatus;
+                    renderTable(allOrders);
+                    updateStats(allOrders);
+                    openDrawer(orderId);
+                } else {
+                    const err = await res.json();
+                    alert('Failed to update status: ' + (err.msg || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error('Status update error:', err);
+                alert('Failed to update status. Check your connection.');
+            }
+        }
+    </script>
+</body>
+
+</html>

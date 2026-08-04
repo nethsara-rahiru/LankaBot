@@ -340,11 +340,9 @@
                     </td>
                     <td style="padding: 1rem; text-align: right;">
                         <div style="display: flex; gap: 0.5rem; justify-content: flex-end; flex-wrap: wrap;">
-                            ${acc.status !== 'ready' ? `
-                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; align-items: center; width: 120px; gap: 5px; border-radius: 8px; background: rgba(46, 204, 113, 0.1); color: #2ecc71; border-color: #2ecc71;" onclick="reconnectAccount('${acc._id}')">
+                            <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; width: 120px; gap: 5px; border-radius: 8px; background: rgba(46, 204, 113, 0.1); color: #2ecc71; border-color: #2ecc71;" onclick="reconnectAccount('${acc._id}')">
                                 <i class="ph-bold ph-arrows-clockwise"></i> Reconnect
                             </button>
-                            ` : ''}
                             <button class="btn-secondary" style="padding: 6px 12px; font-size: 0.8rem; display: flex; align-items: center; align-items: center; width: 120px; gap: 5px; border-radius: 8px; ${acc.paused ? 'background: rgba(230, 126, 34, 0.1); color: #e67e22; border-color: #e67e22;' : ''}" onclick="togglePause('${acc._id}')">
                                 <i class="ph-bold ${acc.paused ? 'ph-play' : 'ph-pause'}"></i>
                                 ${acc.paused ? 'Resume' : 'Pause'}

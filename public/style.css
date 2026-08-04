@@ -477,6 +477,27 @@ select:focus {
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
 }
 
+.icon-btn {
+    background: var(--glass-heavy);
+    border: 1px solid var(--glass-border);
+    color: var(--text-dim);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    font-size: 1rem;
+}
+
+.icon-btn:hover {
+    background: rgba(var(--primary-rgb), 0.15);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
 .btn-danger {
     background: rgba(255, 77, 77, 0.1);
     border: 1px solid rgba(255, 77, 77, 0.3);

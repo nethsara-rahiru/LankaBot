@@ -206,13 +206,95 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'ifAI':
                 content = `<input type="text" placeholder="AI Prompt (returns true/false)" class="node-data" data-key="prompt">`;
                 break;
+            case 'catalogSelector':
+                content = `
+                    <input type="text" placeholder="Prompt message (e.g. Which item would you like to select?)" class="node-data" data-key="prompt">
+                    <select class="node-data" data-key="itemType" style="margin-top: 0.5rem;" onchange="loadCatalogOptions('${id}', this.value)">
+                        <option value="">All Catalog Types</option>
+                        <option value="product">Products Only</option>
+                        <option value="service">Services Only</option>
+                    </select>
+                    <input type="text" placeholder="AI Prompt (Optional instructions for item selection)" class="node-data" data-key="aiPrompt" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
+                    <div class="catalog-options-container" id="catalog-options-${id}" style="margin-top: 0.5rem;">
+                        <div style="font-size: 0.78rem; color: var(--text-dim); padding: 0.4rem 0; display:flex; align-items:center; gap:0.4rem;">
+                            <i class="ph-bold ph-circle-notch" style="animation: spin 1s linear infinite;"></i> Loading catalog items...
+                        </div>
+                    </div>
+                    <select class="node-data" data-key="variable" style="margin-top: 0.5rem;">
+                        <option value="">Save Selected Item to Variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                break;
+            case 'showCatalog':
+                content = `
+                    <p style="margin:0 0 0.5rem; font-size: 0.8rem; color: var(--text-dim);">Send catalog items using the configured Menu Style template.</p>
+                    <select class="node-data" data-key="itemType">
+                        <option value="">All Items</option>
+                        <option value="product">Products Only</option>
+                        <option value="service">Services Only</option>
+                    </select>
+                `;
+                break;
+            case 'arrayManager':
+                content = `
+                    <select class="node-data" data-key="action">
+                        <option value="push">Add Item (Push)</option>
+                        <option value="edit">Edit Item</option>
+                        <option value="delete">Delete Item</option>
+                        <option value="clear">Clear Array</option>
+                    </select>
+                    <select class="node-data" data-key="variable" style="margin-top: 0.5rem;">
+                        <option value="">Target Variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                break;
+            case 'placeOrder':
+                content = `
+                    <p style="margin:0; font-size: 0.8rem; color: var(--text-dim);">Create order from cart variable</p>
+                    <select class="node-data" data-key="variable" style="margin-top: 0.5rem;">
+                        <option value="">Select Cart Variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                break;
         }
+
+        const nodeLabels = {
+            say: 'say()',
+            get: 'get(var)',
+            getOption: 'getOption(list)',
+            wait: 'wait()',
+            if: 'If',
+            ifAI: 'If (AI)',
+            catalogSelector: 'Catalog Selector',
+            showCatalog: 'Show Catalog',
+            arrayManager: 'Array Manager',
+            placeOrder: 'Place Order',
+            newFlow: 'New Flow'
+        };
+        const nodeIcons = {
+            say: 'ph-chat-circle-text',
+            get: 'ph-download-simple',
+            getOption: 'ph-list-dashes',
+            wait: 'ph-clock',
+            if: 'ph-git-merge',
+            ifAI: 'ph-brain',
+            catalogSelector: 'ph-storefront',
+            showCatalog: 'ph-list-numbers',
+            arrayManager: 'ph-list-plus',
+            placeOrder: 'ph-shopping-cart',
+            newFlow: 'ph-file-plus'
+        };
+        const label = nodeLabels[type] || type;
+        const icon = nodeIcons[type] || 'ph-cube';
 
         return `
             <div class="port port-in" data-node-id="${id}" data-port-id="in"></div>
             <div class="node-header">
-                <i class="ph-bold ph-cube"></i>
-                <span>${type}</span>
+                <i class="ph-bold ${icon}"></i>
+                <span>${label}</span>
                 <i class="ph-bold ph-trash node-delete" onclick="deleteNode('${id}')"></i>
             </div>
             <div class="node-content">
@@ -223,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="port port-out" data-node-id="${id}" data-port-id="true" style="position: static; margin-left: -5px; transform: none; background: #2ecc71; border-color: #27ae60;" title="True"></div>
                     <div class="port port-out" data-node-id="${id}" data-port-id="false" style="position: static; margin-right: -5px; transform: none; background: #e74c3c; border-color: #c0392b;" title="False"></div>
                 </div>
-            ` : (type !== 'getOption' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
+            ` : (type !== 'getOption' && type !== 'catalogSelector' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
         `;
     };
 
@@ -240,6 +322,66 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         container.appendChild(div);
         setupPorts(div.querySelectorAll('.port'));
+    };
+
+    // Render catalog items as option rows with output ports inside catalogSelector nodes
+    const renderCatalogOptions = (nodeId, items) => {
+        const container = document.getElementById(`catalog-options-${nodeId}`);
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (!items || items.length === 0) {
+            container.innerHTML = `<div style="font-size:0.78rem; color:var(--text-dim); padding:0.4rem 0;">No catalog items found. Add items in the Catalog Manager.</div>`;
+            return;
+        }
+
+        items.forEach((item, idx) => {
+            const name = item.fields?.name || item.name || `Item ${idx + 1}`;
+            const price = item.fields?.price !== undefined ? ` • Rs. ${item.fields.price}` : '';
+            const category = item.fields?.category || item.category || '';
+            const portId = item._id || `cat_${idx}`;
+
+            const div = document.createElement('div');
+            div.className = 'node-option';
+            div.style.cssText = 'align-items: center;';
+            div.innerHTML = `
+                <input type="hidden" class="node-data option-input" data-option-id="${portId}" value="${name.replace(/"/g, '&quot;')}">
+                <span style="flex:1; font-size:0.82rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${name}${price}${category ? ' — ' + category : ''}">${name}<span style="color:var(--text-dim);font-size:0.75rem;">${price}</span></span>
+                <div class="port port-out" data-node-id="${nodeId}" data-port-id="${portId}"></div>
+            `;
+            container.appendChild(div);
+            setupPorts(div.querySelectorAll('.port'));
+        });
+
+        // Re-draw lines after ports are mounted
+        requestAnimationFrame(() => updateConnections());
+    };
+
+    // Fetch catalog items from API and render as option rows
+    window.loadCatalogOptions = async (nodeId, itemType) => {
+        const container = document.getElementById(`catalog-options-${nodeId}`);
+        if (!container) return;
+
+        container.innerHTML = `<div style="font-size:0.78rem; color:var(--text-dim); padding:0.4rem 0; display:flex; align-items:center; gap:0.4rem;"><i class="ph-bold ph-circle-notch" style="animation:spin 1s linear infinite;"></i> Loading...</div>`;
+
+        try {
+            const aId = localStorage.getItem('activeAccountId');
+            const tok = localStorage.getItem('token');
+            const url = `/api/catalog${itemType ? '?type=' + encodeURIComponent(itemType) : ''}`;
+            const res = await fetch(url, {
+                headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+            });
+            if (res.ok) {
+                const items = await res.json();
+                renderCatalogOptions(nodeId, items);
+            } else {
+                container.innerHTML = `<div style="font-size:0.78rem; color:#e74c3c; padding:0.4rem 0;">Error loading catalog items.</div>`;
+            }
+        } catch (e) {
+            console.error('Failed to load catalog for node:', e);
+            container.innerHTML = `<div style="font-size:0.78rem; color:#e74c3c; padding:0.4rem 0;">Error: ${e.message}</div>`;
+        }
     };
 
     const createNode = (type, x, y) => {
@@ -261,6 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Populate variable dropdowns if they exist
         updateVariableDropdownsInNode(nodeEl);
+
+        // For catalogSelector: async-fetch catalog items and render as option ports
+        if (type === 'catalogSelector') {
+            loadCatalogOptions(id, '');
+        }
     };
 
     const setupNodeDragging = (nodeEl, id) => {
@@ -551,6 +698,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         });
                     }
+                }
+
+                // Restore catalogSelector options from saved data, then async-refresh from API
+                if (n.type === 'catalogSelector') {
+                    if (n.data.options && n.data.options.length > 0) {
+                        // Pre-render from saved data so port-ids match saved connections
+                        renderCatalogOptions(n.id, n.data.options.map(o => ({
+                            _id: o.id,
+                            fields: { name: o.value }
+                        })));
+                    }
+                    // Async-refresh from API with the saved itemType
+                    loadCatalogOptions(n.id, n.data.itemType || '');
                 }
             }
         });

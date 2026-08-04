@@ -59,8 +59,8 @@ class FlowCompiler {
                 next: null
             };
 
-            if (node.type === 'getOption') {
-                // For getOption, each option has its own output port
+            if (node.type === 'getOption' || node.type === 'catalogSelector') {
+                // For getOption/catalogSelector, each option has its own output port
                 const options = (node.data.options || []).map(opt => {
                     const targetId = edgeMap[`${node.id}:${opt.id}`] || null;
                     if (targetId && !visited.has(targetId)) queue.push(targetId);
@@ -133,7 +133,7 @@ class FlowCompiler {
                 data: nodeData
             });
 
-            if (step.type === 'getOption' && step.options) {
+            if ((step.type === 'getOption' || step.type === 'catalogSelector') && step.options) {
                 step.options.forEach(opt => {
                     if (opt.next) {
                         connections.push({

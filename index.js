@@ -40,6 +40,8 @@ app.use('/api/accounts', require('./routes/accountRoutes'));
 app.use('/api/contacts', require('./routes/customerRoutes')); // Keeping the /api/contacts path for backward compatibility if needed, but pointing to customerRoutes
 app.use('/api/simulator', require('./routes/simulatorRoutes'));
 app.use('/api/storage', require('./routes/storageRoutes'));
+app.use('/api/catalog', require('./routes/catalogRoutes'));
+app.use('/api/orders', require('./routes/orderRoutes'));
 
 // Main Landing Route (Splash Screen)
 app.get('/', (req, res) => {

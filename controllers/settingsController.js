@@ -86,6 +86,19 @@ exports.updateSettings = async (req, res) => {
             settings.compiledFlow = req.body.compiledFlow;
             settings.markModified('compiledFlow');
         }
+
+        if (req.body.supportedLanguages !== undefined) {
+            settings.supportedLanguages = req.body.supportedLanguages;
+        }
+
+        if (req.body.defaultLanguage !== undefined) {
+            settings.defaultLanguage = req.body.defaultLanguage;
+        }
+
+        if (req.body.menuStyle !== undefined) {
+            settings.menuStyle = req.body.menuStyle;
+            settings.markModified('menuStyle');
+        }
         
         const updatedSettings = await settings.save();
         res.json(updatedSettings);
