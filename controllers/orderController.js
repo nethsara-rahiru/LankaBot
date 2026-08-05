@@ -20,15 +20,20 @@ class OrderController {
     async createOrder(req, res) {
         try {
             const accountId = req.header('x-account-id');
+            console.log('[OrderController] createOrder called — accountId:', accountId);
+            console.log('[OrderController] req.body:', JSON.stringify(req.body));
+
             if (!accountId) return res.status(400).json({ msg: 'x-account-id header required' });
 
-            const order = await orderService.createOrder(accountId, {
-                ...req.body,
-                source: 'admin'
-            });
+            const source = req.body.source || 'admin';
+            const orderPayload = { ...req.body, source };
+            console.log('[OrderController] Sending to orderService.createOrder:', JSON.stringify(orderPayload));
+
+            const order = await orderService.createOrder(accountId, orderPayload);
+            console.log('[OrderController] ✅ Order created:', JSON.stringify(order._id || order));
             res.status(201).json(order);
         } catch (err) {
-            console.error('Error creating order:', err);
+            console.error('[OrderController] ❌ Error creating order:', err);
             res.status(500).json({ msg: 'Server error', error: err.message });
         }
     }

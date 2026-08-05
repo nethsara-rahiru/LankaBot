@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Order = require('../../models/Order');
 const OrderHistory = require('../../models/OrderHistory');
 const catalogService = require('../catalog/catalogService');
@@ -14,6 +15,9 @@ class OrderService {
      */
     async createOrder(accountId, orderData) {
         if (!accountId) throw new Error('accountId is required for organization isolation');
+
+        console.log('[OrderService] createOrder called — accountId:', accountId);
+        console.log('[OrderService] orderData received:', JSON.stringify(orderData));
 
         const orderId = orderData.orderId || `ORD-${uuidv4().substring(0, 8).toUpperCase()}`;
 
@@ -45,11 +49,30 @@ class OrderService {
             };
         }));
 
+        console.log('[OrderService] itemsWithSnapshots:', JSON.stringify(itemsWithSnapshots));
+
+        // Accept 'customer' or 'customerId', and 'organizationContact' or 'organizationContactId'
+        let customerVal = orderData.customerId || orderData.customer || null;
+        let contactVal = orderData.organizationContactId || orderData.organizationContact || null;
+
+        // Ensure customer and organizationContact are valid Mongo ObjectIds (if string/name passed, store in customFields instead)
+        if (customerVal && !mongoose.Types.ObjectId.isValid(customerVal)) {
+            if (!orderData.customFields) orderData.customFields = {};
+            if (!orderData.customFields.customerName) {
+                orderData.customFields.customerName = customerVal;
+            }
+            customerVal = null;
+        }
+
+        if (contactVal && !mongoose.Types.ObjectId.isValid(contactVal)) {
+            contactVal = null;
+        }
+
         const newOrder = new Order({
             orderId,
             account: accountId,
-            organizationContact: orderData.organizationContactId || null,
-            customer: orderData.customerId || null,
+            organizationContact: contactVal,
+            customer: customerVal,
             items: itemsWithSnapshots,
             customFields: orderData.customFields || {},
             status: orderData.status || 'received',
@@ -57,7 +80,10 @@ class OrderService {
             delivery: orderData.delivery || {}
         });
 
+        console.log('[OrderService] Saving order to DB:', JSON.stringify(newOrder.toObject ? newOrder.toObject() : newOrder));
+
         const savedOrder = await newOrder.save();
+        console.log('[OrderService] ✅ Order saved. _id:', savedOrder._id, '| orderId:', savedOrder.orderId);
 
         // Record initial history record
         await this.recordHistory(accountId, orderId, [{

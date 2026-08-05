@@ -99,6 +99,11 @@ exports.updateSettings = async (req, res) => {
             settings.menuStyle = req.body.menuStyle;
             settings.markModified('menuStyle');
         }
+
+        if (req.body.customCatalogTypes !== undefined) {
+            settings.customCatalogTypes = req.body.customCatalogTypes;
+            settings.markModified('customCatalogTypes');
+        }
         
         const updatedSettings = await settings.save();
         res.json(updatedSettings);

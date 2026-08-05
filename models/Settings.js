@@ -55,6 +55,10 @@ const SettingsSchema = new mongoose.Schema({
     defaultLanguage: {
         type: String,
         default: 'en'
+    },
+    customCatalogTypes: {
+        type: [String],
+        default: ['product', 'service']
     }
 });
 

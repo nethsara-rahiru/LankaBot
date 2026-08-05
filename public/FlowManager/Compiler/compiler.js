@@ -59,8 +59,8 @@ class FlowCompiler {
                 next: null
             };
 
-            if (node.type === 'getOption' || node.type === 'catalogSelector') {
-                // For getOption/catalogSelector, each option has its own output port
+            if (node.type === 'getOption') {
+                // For getOption, each option has its own output port
                 const options = (node.data.options || []).map(opt => {
                     const targetId = edgeMap[`${node.id}:${opt.id}`] || null;
                     if (targetId && !visited.has(targetId)) queue.push(targetId);
@@ -80,7 +80,15 @@ class FlowCompiler {
                 if (falseTargetId && !visited.has(falseTargetId)) queue.push(falseTargetId);
             } else {
                 // Standard single-output node
-                const targetId = edgeMap[`${node.id}:out`] || null;
+                let targetId = edgeMap[`${node.id}:out`] || null;
+
+                // catalogSelector migration: old flows stored per-item port IDs instead of 'out'.
+                // Fall back to the first connection from this node, regardless of port name.
+                if (!targetId && node.type === 'catalogSelector') {
+                    const fallback = connections.find(c => c.source === node.id);
+                    if (fallback) targetId = fallback.target;
+                }
+
                 step.next = targetId;
                 if (targetId && !visited.has(targetId)) queue.push(targetId);
             }
@@ -133,7 +141,7 @@ class FlowCompiler {
                 data: nodeData
             });
 
-            if ((step.type === 'getOption' || step.type === 'catalogSelector') && step.options) {
+            if (step.type === 'getOption' && step.options) {
                 step.options.forEach(opt => {
                     if (opt.next) {
                         connections.push({

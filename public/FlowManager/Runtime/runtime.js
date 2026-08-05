@@ -32,6 +32,7 @@ class FlowRuntime {
         this.onFlowEnd = null;
         this.onAIExtract = null;
         this.onShowCatalog = null; // async (itemType) => { items: [...], menuStyle: {...} }
+        this.onPlaceOrder = null; // async (orderData) => { order: ... }
     }
 
     /**
@@ -461,6 +462,7 @@ class FlowRuntime {
             }
 
             case 'catalogSelector': {
+                console.log('[CatalogSelector] step.next =', currentStep.next, '| step:', JSON.stringify({ id: currentStep.id, type: currentStep.type, next: currentStep.next }));
                 const showCatType = currentStep.data.itemType || '';
                 
                 // Fetch catalog items for option selection
@@ -625,14 +627,101 @@ class FlowRuntime {
                 break;
 
             case 'placeOrder':
-                const cartVarName = currentStep.data.variable;
-                const cartData = cartVarName ? (this.variables[cartVarName] || []) : [];
-                const mockOrderId = `ORD-${Math.floor(100000 + Math.random() * 900000)}`;
+                console.log('[PlaceOrder] ▶ Node triggered. Raw step data:', JSON.stringify(currentStep.data || {}));
+                console.log('[PlaceOrder] Current variables:', JSON.stringify(this.variables));
 
-                if (this.onBotMessage) {
-                    await this.onBotMessage(`🎉 Order Placed Successfully! Your Order ID is: ${mockOrderId}`);
+                const customFieldsMap = {};
+                let mappedItems = [];
+                let mappedCustomer = '';
+
+                Object.keys(currentStep.data || {}).forEach(k => {
+                    if (k.startsWith('field_')) {
+                        const colKey = k.replace('field_', '');
+                        const rawVal = currentStep.data[k];
+                        const val = this._interpolate(rawVal || '');
+                        const varName = rawVal ? rawVal.replace(/[\{\}]/g, '').trim() : '';
+
+                        console.log(`[PlaceOrder] Field "${colKey}": rawVal="${rawVal}", varName="${varName}", resolved="${val}"`);
+
+                        if (colKey === 'items') {
+                            mappedItems = (varName && this.variables[varName] !== undefined) ? this.variables[varName] : val;
+                            console.log('[PlaceOrder] Mapped items:', JSON.stringify(mappedItems));
+                        } else if (colKey === 'customer' || colKey === 'customerName') {
+                            mappedCustomer = (varName && this.variables[varName] !== undefined) ? this.variables[varName] : val;
+                            console.log('[PlaceOrder] Mapped customer:', mappedCustomer);
+                        } else {
+                            customFieldsMap[colKey] = (varName && this.variables[varName] !== undefined) ? this.variables[varName] : val;
+                        }
+                    }
+                });
+
+                if (mappedCustomer) customFieldsMap['customerName'] = mappedCustomer;
+
+                const orderData = {
+                    orderId: `ORD-${Math.floor(100000 + Math.random() * 900000)}`,
+                    customer: mappedCustomer,
+                    items: Array.isArray(mappedItems) ? mappedItems : (mappedItems ? [{ customSnapshot: { name: mappedItems } }] : []),
+                    customFields: customFieldsMap,
+                    status: 'received',
+                    paymentStatus: 'unpaid'
+                };
+
+                console.log('[PlaceOrder] Constructed orderData:', JSON.stringify(orderData));
+
+                let savedOrder = null;
+                try {
+                    if (this.onPlaceOrder) {
+                        console.log('[PlaceOrder] Calling onPlaceOrder callback (bot mode)...');
+                        savedOrder = await this.onPlaceOrder(orderData);
+                        console.log('[PlaceOrder] onPlaceOrder returned:', JSON.stringify(savedOrder));
+                    } else {
+                        // Fallback in browser simulator: POST /api/orders/public
+                        const accountId = (typeof localStorage !== 'undefined') ? localStorage.getItem('activeAccountId') : null;
+                        const simToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+                        console.log('[PlaceOrder] Browser mode — accountId:', accountId, '| token present:', !!simToken);
+
+                        if (accountId) {
+                            const payload = {
+                                orderId: orderData.orderId,
+                                customer: orderData.customer,
+                                items: orderData.items,
+                                customFields: orderData.customFields,
+                                status: orderData.status,
+                                paymentStatus: orderData.paymentStatus,
+                                source: 'flow'
+                            };
+                            console.log('[PlaceOrder] POST /api/orders/public payload:', JSON.stringify(payload));
+                            const res = await fetch('/api/orders/public', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'x-account-id': accountId,
+                                    'x-auth-token': simToken || ''
+                                },
+                                body: JSON.stringify(payload)
+                            });
+                            const responseText = await res.text();
+                            console.log('[PlaceOrder] Response status:', res.status, '| body:', responseText);
+                            if (res.ok) {
+                                try { savedOrder = JSON.parse(responseText); } catch(e) {}
+                                console.log('[PlaceOrder] ✅ Order saved:', JSON.stringify(savedOrder));
+                            } else {
+                                console.error('[PlaceOrder] ❌ Order API error:', res.status, responseText);
+                            }
+                        } else {
+                            console.error('[PlaceOrder] ❌ No accountId found in localStorage — cannot submit order');
+                        }
+                    }
+                } catch (err) {
+                    console.error('[PlaceOrder] ❌ Exception during order submission:', err);
                 }
-                this.variables['lastOrderId'] = mockOrderId;
+
+                const finalOrderId = (savedOrder && savedOrder.orderId) ? savedOrder.orderId : orderData.orderId;
+                if (this.onBotMessage) {
+                    await this.onBotMessage(`🎉 Order Placed Successfully! Your Order ID is: ${finalOrderId}`);
+                }
+                this.variables['lastOrderId'] = finalOrderId;
+                this.variables['lastOrder'] = savedOrder || orderData;
                 this._emitVariables();
                 this._advance(currentStep.next);
                 break;

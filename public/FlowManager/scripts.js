@@ -209,10 +209,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'catalogSelector':
                 content = `
                     <input type="text" placeholder="Prompt message (e.g. Which item would you like to select?)" class="node-data" data-key="prompt">
-                    <select class="node-data" data-key="itemType" style="margin-top: 0.5rem;" onchange="loadCatalogOptions('${id}', this.value)">
+                    <select class="node-data catalog-type-dropdown" data-key="itemType" style="margin-top: 0.5rem;" onchange="loadCatalogOptions('${id}', this.value)">
                         <option value="">All Catalog Types</option>
-                        <option value="product">Products Only</option>
-                        <option value="service">Services Only</option>
                     </select>
                     <input type="text" placeholder="AI Prompt (Optional instructions for item selection)" class="node-data" data-key="aiPrompt" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
                     <div class="catalog-options-container" id="catalog-options-${id}" style="margin-top: 0.5rem;">
@@ -229,10 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'showCatalog':
                 content = `
                     <p style="margin:0 0 0.5rem; font-size: 0.8rem; color: var(--text-dim);">Send catalog items using the configured Menu Style template.</p>
-                    <select class="node-data" data-key="itemType">
+                    <select class="node-data catalog-type-dropdown" data-key="itemType">
                         <option value="">All Items</option>
-                        <option value="product">Products Only</option>
-                        <option value="service">Services Only</option>
                     </select>
                 `;
                 break;
@@ -251,12 +247,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 break;
             case 'placeOrder':
+                const getManualOrderFields = () => {
+                    const aId = localStorage.getItem('activeAccountId');
+                    let cols = [
+                        { id: 'customer', label: 'Customer', key: 'customer', defaultVar: '{{customer}}' },
+                        { id: 'items', label: 'Items', key: 'items', defaultVar: '{{cart}}' }
+                    ];
+                    try {
+                        const saved = localStorage.getItem(`order_columns_${aId}`);
+                        if (saved) {
+                            const parsed = JSON.parse(saved);
+                            parsed.forEach(c => {
+                                if (['orderId', 'status', 'date'].includes(c.id)) return; // skip auto system fields
+                                const existingIndex = cols.findIndex(item => item.id === c.id || item.key === c.key);
+                                if (existingIndex !== -1) {
+                                    cols[existingIndex].label = c.label;
+                                } else {
+                                    cols.push({
+                                        id: c.id,
+                                        label: c.label,
+                                        key: c.key || c.id,
+                                        defaultVar: `{{${c.key || c.id}}}`
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {}
+                    return cols;
+                };
+
+                const fieldsToRender = getManualOrderFields();
                 content = `
-                    <p style="margin:0; font-size: 0.8rem; color: var(--text-dim);">Create order from cart variable</p>
-                    <select class="node-data" data-key="variable" style="margin-top: 0.5rem;">
-                        <option value="">Select Cart Variable...</option>
-                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
-                    </select>
+                    <p style="margin:0 0 0.5rem 0; font-size: 0.78rem; color: var(--text-dim);">Map manual data entry columns to variables or values:</p>
+                    <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                        ${fieldsToRender.map(f => `
+                            <div class="order-field-row" style="display:flex; align-items:center; justify-content:space-between; gap:0.4rem;">
+                                <label style="font-size:0.75rem; color:var(--text-dim); min-width:100px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${f.label}">${f.label}:</label>
+                                <input type="text" placeholder="e.g. ${f.defaultVar}" class="node-data" data-key="field_${f.key}" style="font-size:0.78rem; padding:0.25rem 0.4rem; flex:1;">
+                            </div>
+                        `).join('')}
+                    </div>
                 `;
                 break;
         }
@@ -305,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="port port-out" data-node-id="${id}" data-port-id="true" style="position: static; margin-left: -5px; transform: none; background: #2ecc71; border-color: #27ae60;" title="True"></div>
                     <div class="port port-out" data-node-id="${id}" data-port-id="false" style="position: static; margin-right: -5px; transform: none; background: #e74c3c; border-color: #c0392b;" title="False"></div>
                 </div>
-            ` : (type !== 'getOption' && type !== 'catalogSelector' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
+            ` : (type !== 'getOption' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
         `;
     };
 
@@ -324,7 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupPorts(div.querySelectorAll('.port'));
     };
 
-    // Render catalog items as option rows with output ports inside catalogSelector nodes
+    // Render catalog items as a display list (no per-item ports — a single 'out' port is used)
     const renderCatalogOptions = (nodeId, items) => {
         const container = document.getElementById(`catalog-options-${nodeId}`);
         if (!container) return;
@@ -340,18 +370,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = item.fields?.name || item.name || `Item ${idx + 1}`;
             const price = item.fields?.price !== undefined ? ` • Rs. ${item.fields.price}` : '';
             const category = item.fields?.category || item.category || '';
-            const portId = item._id || `cat_${idx}`;
 
             const div = document.createElement('div');
             div.className = 'node-option';
-            div.style.cssText = 'align-items: center;';
+            div.style.cssText = 'align-items: center; pointer-events: none;';
             div.innerHTML = `
-                <input type="hidden" class="node-data option-input" data-option-id="${portId}" value="${name.replace(/"/g, '&quot;')}">
                 <span style="flex:1; font-size:0.82rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${name}${price}${category ? ' — ' + category : ''}">${name}<span style="color:var(--text-dim);font-size:0.75rem;">${price}</span></span>
-                <div class="port port-out" data-node-id="${nodeId}" data-port-id="${portId}"></div>
             `;
             container.appendChild(div);
-            setupPorts(div.querySelectorAll('.port'));
         });
 
         // Re-draw lines after ports are mounted
@@ -607,6 +633,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 select.value = currentVal;
             }
         });
+        populateCatalogTypeDropdownsInNode(nodeEl);
+    };
+
+    const populateCatalogTypeDropdownsInNode = async (nodeEl) => {
+        const selects = nodeEl ? nodeEl.querySelectorAll('select.catalog-type-dropdown') : document.querySelectorAll('select.catalog-type-dropdown');
+        if (!selects || selects.length === 0) return;
+
+        try {
+            const aId = localStorage.getItem('activeAccountId');
+            const tok = localStorage.getItem('token');
+            const res = await fetch('/api/settings', {
+                headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+            });
+            if (res.ok) {
+                const settings = await res.json();
+                const types = (Array.isArray(settings.customCatalogTypes) && settings.customCatalogTypes.length > 0)
+                    ? settings.customCatalogTypes
+                    : ['product', 'service'];
+                
+                selects.forEach(select => {
+                    const currentVal = select.value;
+                    let html = `<option value="">All Catalog Types</option>`;
+                    types.forEach(t => {
+                        const label = t.charAt(0).toUpperCase() + t.slice(1);
+                        html += `<option value="${t}">${label}s Only</option>`;
+                    });
+                    select.innerHTML = html;
+                    if (currentVal) select.value = currentVal;
+                });
+            }
+        } catch (e) {
+            console.error('Failed to populate catalog type dropdowns:', e);
+        }
     };
 
     addVarBtn.addEventListener('click', () => {
@@ -700,16 +759,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Restore catalogSelector options from saved data, then async-refresh from API
+                // Restore catalogSelector: async-refresh items from API (display only, no per-item ports)
                 if (n.type === 'catalogSelector') {
-                    if (n.data.options && n.data.options.length > 0) {
-                        // Pre-render from saved data so port-ids match saved connections
-                        renderCatalogOptions(n.id, n.data.options.map(o => ({
-                            _id: o.id,
-                            fields: { name: o.value }
-                        })));
-                    }
-                    // Async-refresh from API with the saved itemType
                     loadCatalogOptions(n.id, n.data.itemType || '');
                 }
             }

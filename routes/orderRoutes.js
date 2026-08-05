@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 
 router.get('/', auth, orderController.getOrders);
 router.post('/', auth, orderController.createOrder);
+router.post('/public', orderController.createOrder);
 router.put('/:orderId', auth, orderController.updateOrder);
 router.patch('/:orderId/status', auth, orderController.updateStatus);
 router.get('/:orderId/history', auth, orderController.getHistory);

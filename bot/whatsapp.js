@@ -620,6 +620,27 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         }
                     };
 
+                    flow.onPlaceOrder = async (orderData) => {
+                        try {
+                            const orderService = require('../services/orders/orderService');
+                            const formattedItems = Array.isArray(orderData.items) ? orderData.items : [{ customSnapshot: { name: orderData.items } }];
+                            
+                            const saved = await orderService.createOrder(accountId, {
+                                organizationContactId: msg.orgContactId,
+                                customerId: msg.customerId,
+                                items: formattedItems,
+                                customFields: orderData.customFields || {},
+                                status: 'received',
+                                source: 'flow'
+                            });
+                            console.log(`[WhatsApp Flow] ✅ Order created in database: ${saved.orderId}`);
+                            return saved;
+                        } catch (err) {
+                            console.error('[WhatsApp Flow] ❌ Error creating order in DB:', err);
+                            return null;
+                        }
+                    };
+
                     flow.onStepChange = async () => {
                         try {
                             await OrganizationContact.findByIdAndUpdate(msg.orgContactId, {

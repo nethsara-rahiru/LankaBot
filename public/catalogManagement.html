@@ -152,12 +152,14 @@
 
         <main style="margin-top: 1.5rem; display: block;">
             <div class="catalog-header-actions">
-                <div style="display: flex; gap: 0.5rem;">
+                <div id="filter-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                     <button class="btn-secondary active-filter" onclick="filterCatalog('', this)">All Items</button>
-                    <button class="btn-secondary" onclick="filterCatalog('product', this)">Products</button>
-                    <button class="btn-secondary" onclick="filterCatalog('service', this)">Services</button>
+                    <!-- Type filter buttons loaded dynamically from DB settings -->
                 </div>
-                <div style="display: flex; gap: 0.5rem;">
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn-secondary" onclick="openTypesModal()">
+                        <i class="ph-bold ph-plus-circle"></i> Manage Types
+                    </button>
                     <button class="btn-secondary" onclick="window.location.href='/catalogMenuStyle.html'">
                         <i class="ph-bold ph-palette"></i> Menu Style
                     </button>
@@ -184,8 +186,7 @@
                     <label style="display: block; font-size: 0.85rem; margin-bottom: 0.4rem;">Type</label>
                     <select id="item-type"
                         style="width: 100%; padding: 0.7rem; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1);">
-                        <option value="product">Product</option>
-                        <option value="service">Service</option>
+                        <!-- Loaded dynamically from customCatalogTypes -->
                     </select>
                 </div>
 
@@ -229,20 +230,145 @@
         </div>
     </div>
 
+    <!-- Custom Types Modal -->
+    <div id="types-modal" class="modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <h2 style="margin-bottom: 1rem;">Manage Item Types</h2>
+            <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 1.2rem;">Add custom item types for your catalog. Stored in database.</p>
+            
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.2rem;">
+                <input type="text" id="new-type-input" placeholder="e.g. package, subscription, membership" 
+                    style="flex: 1; padding: 0.7rem; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1);">
+                <button type="button" class="btn-primary" onclick="addCustomType()"><i class="ph-bold ph-plus"></i> Add</button>
+            </div>
+
+            <div id="types-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; margin-bottom: 1.5rem;">
+                <!-- Dynamically rendered list of types -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="btn-secondary" onclick="closeTypesModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let catalogItems = [];
+        let catalogTypes = ['product', 'service'];
         let activeFilter = '';
         const accountId = localStorage.getItem('activeAccountId');
         const token = localStorage.getItem('token');
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             if (!accountId) {
                 alert('No active account selected. Redirecting to accounts page...');
                 window.location.href = '/accounts.html';
                 return;
             }
+            await loadSettingsAndTypes();
             loadCatalog();
         });
+
+        async function loadSettingsAndTypes() {
+            try {
+                const res = await fetch('/api/settings', {
+                    headers: { 'x-account-id': accountId, 'x-auth-token': token }
+                });
+                if (res.ok) {
+                    const settings = await res.json();
+                    if (Array.isArray(settings.customCatalogTypes) && settings.customCatalogTypes.length > 0) {
+                        catalogTypes = settings.customCatalogTypes;
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load catalog types from DB settings:', err);
+            }
+            renderTypeFilterButtons();
+            renderTypeSelectDropdown();
+        }
+
+        function renderTypeFilterButtons() {
+            const container = document.getElementById('filter-buttons');
+            let html = `<button class="btn-secondary ${activeFilter === '' ? 'active-filter' : ''}" onclick="filterCatalog('', this)">All Items</button>`;
+            catalogTypes.forEach(t => {
+                const label = t.charAt(0).toUpperCase() + t.slice(1);
+                html += `<button class="btn-secondary ${activeFilter === t ? 'active-filter' : ''}" onclick="filterCatalog('${t}', this)">${label}s</button>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderTypeSelectDropdown() {
+            const select = document.getElementById('item-type');
+            select.innerHTML = catalogTypes.map(t => {
+                const label = t.charAt(0).toUpperCase() + t.slice(1);
+                return `<option value="${t}">${label}</option>`;
+            }).join('');
+        }
+
+        function openTypesModal() {
+            renderTypesListInModal();
+            document.getElementById('types-modal').classList.add('active');
+        }
+
+        function closeTypesModal() {
+            document.getElementById('types-modal').classList.remove('active');
+        }
+
+        function renderTypesListInModal() {
+            const list = document.getElementById('types-list');
+            list.innerHTML = catalogTypes.map(t => `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 0.6rem 0.9rem; border-radius: 8px;">
+                    <span style="font-weight: 600; text-transform: capitalize;">${t}</span>
+                    ${catalogTypes.length > 1 ? `<button class="icon-btn" onclick="removeCustomType('${t}')" style="color: #e74c3c;"><i class="ph-bold ph-trash"></i></button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function addCustomType() {
+            const input = document.getElementById('new-type-input');
+            const val = input.value.trim().toLowerCase().replace(/[^a-z0-9_\-]/g, '');
+            if (!val) return;
+            if (catalogTypes.includes(val)) {
+                alert('Type already exists.');
+                return;
+            }
+            catalogTypes.push(val);
+            input.value = '';
+            await saveTypesToDB();
+        }
+
+        async function removeCustomType(typeToRemove) {
+            if (catalogTypes.length <= 1) {
+                alert('You must keep at least one catalog type.');
+                return;
+            }
+            catalogTypes = catalogTypes.filter(t => t !== typeToRemove);
+            await saveTypesToDB();
+        }
+
+        async function saveTypesToDB() {
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId,
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ customCatalogTypes: catalogTypes })
+                });
+                if (res.ok) {
+                    renderTypesListInModal();
+                    renderTypeFilterButtons();
+                    renderTypeSelectDropdown();
+                } else {
+                    alert('Failed to save custom types to database.');
+                }
+            } catch (err) {
+                console.error('Error saving custom catalog types:', err);
+                alert('Error saving custom catalog types to database.');
+            }
+        }
 
         async function loadCatalog() {
             try {
