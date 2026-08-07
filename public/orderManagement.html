@@ -565,6 +565,28 @@
 
         const STATUS_ORDER = ['received', 'preparing', 'ready', 'delivered', 'cancelled'];
 
+        function getItemName(item) {
+            if (!item) return 'Unknown Item';
+            if (typeof item === 'string') return item;
+            const snap = item.snapshot || item.customSnapshot || item;
+            if (typeof snap === 'string') return snap;
+            
+            // Check snap.name (string or nested object)
+            if (snap.name) {
+                if (typeof snap.name === 'string') return snap.name;
+                if (typeof snap.name === 'object') {
+                    if (snap.name.fields && snap.name.fields.name) return snap.name.fields.name;
+                    if (snap.name.name) return snap.name.name;
+                }
+            }
+            // Check snap.fields.name
+            if (snap.fields && snap.fields.name) return snap.fields.name;
+            if (snap.title) return snap.title;
+            
+            // Fallback stringify attempt or default
+            return 'Item';
+        }
+
         // ── Load & Render ──────────────────────────────────────────────────────
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -626,8 +648,15 @@
                         </td>`;
                     }
                     if (col.id === 'items') {
-                        const itemCount = order.items?.length || 0;
-                        return `<td><span class="items-count"><i class="ph-bold ph-package"></i> ${itemCount}</span></td>`;
+                        const items = order.items || [];
+                        const itemCount = items.length;
+                        const itemNames = items.map(item => getItemName(item)).filter(Boolean).join(', ');
+                        const displayText = itemNames ? (itemNames.length > 35 ? itemNames.substring(0, 35) + '…' : itemNames) : `${itemCount} item(s)`;
+                        return `<td>
+                            <span class="items-count" title="${itemNames.replace(/"/g, '&quot;')}">
+                                <i class="ph-bold ph-package"></i> ${displayText}
+                            </span>
+                        </td>`;
                     }
                     if (col.id === 'status') {
                         const s = STATUS_STYLES[order.status] || { cls: '', icon: 'ph-circle', label: order.status, color: '#fff' };
@@ -815,15 +844,17 @@
             const items = order.items || [];
             document.getElementById('drawer-items').innerHTML = items.length
                 ? items.map(item => {
-                    const name = item.snapshot?.name || item.snapshot?.title || 'Unknown Item';
-                    const price = item.snapshot?.price ? `Rs. ${item.snapshot.price}` : '';
+                    const name = getItemName(item);
+                    const snap = item.snapshot || item.customSnapshot || {};
+                    const priceVal = snap.price || snap.fields?.price || (typeof snap.name === 'object' ? snap.name.fields?.price : null);
+                    const price = priceVal ? `Rs. ${priceVal}` : '';
                     return `
                         <div class="order-item-card">
                             <div>
                                 <div style="font-weight:600;">${name}</div>
                                 ${price ? `<div style="font-size:0.78rem;color:var(--text-dim);">${price} each</div>` : ''}
                             </div>
-                            <div style="font-weight:700;color:var(--primary);">×${item.quantity}</div>
+                            <div style="font-weight:700;color:var(--primary);">×${item.quantity || 1}</div>
                         </div>`;
                 }).join('')
                 : '<p style="color:var(--text-dim);font-size:0.82rem;">No items recorded</p>';

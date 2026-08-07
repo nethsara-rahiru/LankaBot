@@ -432,12 +432,18 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                     // Bind Callbacks
                     flow.resume = async () => {
-                        if (flow._isRunning) return;
+                        console.log(`[WhatsApp Flow] 🔄 flow.resume() called. Current status: '${flow.status}', isRunning: ${flow._isRunning}, currentNode: '${flow.currentNodeId}'`);
+                        if (flow._isRunning) {
+                            console.log('[WhatsApp Flow] ⚠️ flow.resume() already running, skipping re-entry.');
+                            return;
+                        }
                         flow._isRunning = true;
                         while (flow.status === 'running') {
+                            console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}'...`);
                             await flow.step(null);
                             await new Promise(r => setTimeout(r, 100)); // small delay to ensure order
                         }
+                        console.log(`[WhatsApp Flow] ⏸️ flow.resume loop stopped. Final status: '${flow.status}', currentNode: '${flow.currentNodeId}'`);
                         flow._isRunning = false;
                     };
 
@@ -477,7 +483,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         } else {
                             await msg.reply(translatedText);
                         }
-                        
+
                         try {
                             const botMsg = new Message({
                                 organizationContact: msg.orgContactId,
@@ -565,10 +571,13 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                         const systemPrompt = buildExtractionPrompt(data);
 
+                        console.log(`[Flow AIExtract] 🧠 AI Extract initiated for user input context length: ${data.userInput ? data.userInput.length : 0}`);
                         let rawRes = null;
                         try {
                             rawRes = await getAIResponse(data.userInput, systemPrompt, 1);
+                            console.log(`[Flow AIExtract] 🤖 Raw AI Response: "${rawRes}"`);
                         } catch (e) {
+                            console.error('[Flow AIExtract] ❌ Error fetching AI response:', e);
                             rawRes = null;
                         }
 
@@ -594,11 +603,14 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             } catch (e) {
                                 console.error('[Flow AIExtract] Language parse error:', e.message);
                             }
-                            flow.step(cleanedRes);
+                            console.log('[Flow AIExtract] 📥 Stepping flow with AI response JSON...');
+                            await flow.step(cleanedRes);
                         } else {
-                            flow.step(data.userInput);
+                            console.log('[Flow AIExtract] ⚠️ AI returned null, stepping flow with raw user input...');
+                            await flow.step(data.userInput);
                         }
-                        flow.resume();
+                        console.log('[Flow AIExtract] 🔄 Resuming flow after AI step...');
+                        await flow.resume();
                     };
 
                     flow.onShowCatalog = async (showCatType) => {
@@ -606,10 +618,10 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             const CatalogItem = require('../models/CatalogItem');
                             const filter = { account: accountId };
                             if (showCatType) filter.type = showCatType;
-                            
+
                             const items = await CatalogItem.find(filter);
                             const currentSettings = await Settings.findOne({ account: accountId });
-                            
+
                             return {
                                 items: items || [],
                                 menuStyle: currentSettings?.menuStyle || null
@@ -624,7 +636,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         try {
                             const orderService = require('../services/orders/orderService');
                             const formattedItems = Array.isArray(orderData.items) ? orderData.items : [{ customSnapshot: { name: orderData.items } }];
-                            
+
                             const saved = await orderService.createOrder(accountId, {
                                 organizationContactId: msg.orgContactId,
                                 customerId: msg.customerId,
@@ -639,6 +651,66 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             console.error('[WhatsApp Flow] ❌ Error creating order in DB:', err);
                             return null;
                         }
+                    };
+
+                    flow.onSendMessage = async (phone, text, mediaId) => {
+                        if (!phone) {
+                            console.warn('[WhatsApp Flow] ⚠️ Send Message node skipped: No phone number provided');
+                            return;
+                        }
+                        try {
+                            const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                            const translatedText = text ? await processOutgoingMessage(text, currentCustomer, settings) : text;
+
+                            let cleanPhone = String(phone).replace(/[^0-9]/g, '');
+                            if (cleanPhone.startsWith('0') && cleanPhone.length === 10) {
+                                cleanPhone = '94' + cleanPhone.slice(1);
+                            }
+                            if (!cleanPhone) {
+                                console.warn(`[WhatsApp Flow] ⚠️ Send Message node: Invalid phone number input "${phone}"`);
+                                return;
+                            }
+                            const formattedNumber = `${cleanPhone}@c.us`;
+
+                            let mediaContent = null;
+                            if (mediaId) {
+                                try {
+                                    const accountData = await Account.findById(accountId);
+                                    const resource = await Resource.findOne({ _id: mediaId, ownerId: accountData.user });
+                                    if (resource) {
+                                        const filePath = path.join(__dirname, '..', 'assets', accountData.user.toString(), resource.storedName);
+                                        if (fs.existsSync(filePath)) {
+                                            mediaContent = MessageMedia.fromFilePath(filePath);
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('[WhatsApp Flow] Error fetching media for Send Message node:', e.message || e);
+                                }
+                            }
+
+                            const client = clients.get(accountId.toString());
+                            if (client) {
+                                if (mediaContent) {
+                                    await client.sendMessage(formattedNumber, mediaContent, { caption: translatedText || undefined });
+                                } else if (translatedText) {
+                                    await client.sendMessage(formattedNumber, translatedText);
+                                }
+                                console.log(`[WhatsApp Flow] 📤 Sent message to target number ${formattedNumber}`);
+                            } else {
+                                console.warn(`[WhatsApp Flow] ⚠️ Client not ready for account ${accountId}`);
+                            }
+                        } catch (err) {
+                            console.error('[WhatsApp Flow] ❌ Error executing Send Message node:', err && err.stack ? err.stack : err);
+                        }
+                    };
+
+                    flow.onVariableUpdate = async (vars) => {
+                        try {
+                            await OrganizationContact.findByIdAndUpdate(msg.orgContactId, {
+                                'flowState.variables': vars
+                            });
+                            console.log(`[WhatsApp Flow] 💾 Variables updated and persisted for orgContact ${orgId}`);
+                        } catch (e) { }
                     };
 
                     flow.onStepChange = async () => {
@@ -666,15 +738,15 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                 }
 
                 if (shouldRedirect) {
-                    // Reset to the new flow entrypoint
+                    console.log(`[WhatsApp Flow] 🔀 Redirecting flow to topic entrypoint node '${shouldRedirect}'`);
                     flow.variables = {};
                     flow.status = 'idle';
                     flow.start(settings.compiledFlow);
                     flow.currentNodeId = shouldRedirect;
                     flow.status = 'running';
-                    flow.step(null);
+                    await flow.step(null);
                 } else if (flow.status === 'idle') {
-                    // Start the flow because of the first message
+                    console.log(`[WhatsApp Flow] 🎬 Starting flow instance for contact ${orgId}`);
                     flow.start(settings.compiledFlow);
                     if (entrypoints['default']) {
                         flow.currentNodeId = entrypoints['default'].id;
@@ -682,13 +754,16 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         flow.currentNodeId = entrypoints[entryKeys[0]].id; // fallback
                     }
                     flow.status = 'running';
-                    flow.step(null);
+                    await flow.step(null);
                 } else {
-                    flow.step(msg.body);
+                    console.log(`[WhatsApp Flow] 📥 Handing user message "${msg.body}" to active flow (status: '${flow.status}', currentNode: '${flow.currentNodeId}')`);
+                    await flow.step(msg.body);
                 }
 
                 // Automatically run until user input is required
-                flow.resume();
+                console.log(`[WhatsApp Flow] 🔄 Triggering flow.resume() for contact ${orgId}...`);
+                await flow.resume();
+                console.log(`[WhatsApp Flow] ✅ Flow reply sequence completed for contact ${orgId}`);
 
                 return; // Stop processing further for Flow Reply
             }

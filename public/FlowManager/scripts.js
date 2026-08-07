@@ -159,6 +159,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="text" placeholder="Optional Media ID (from Storage)" class="node-data" data-key="mediaId" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
                 `;
                 break;
+            case 'sendMessage':
+                content = `
+                    <input type="text" placeholder="Phone Number (e.g. 94712345678 or {{phone}})" class="node-data" data-key="phone">
+                    <textarea placeholder="Message to send..." class="node-data" data-key="message" style="margin-top: 0.5rem;"></textarea>
+                    <input type="text" placeholder="Optional Image ID / Media ID" class="node-data" data-key="imageId" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
+                `;
+                break;
             case 'get':
                 content = `
                     <input type="text" placeholder="Prompt message..." class="node-data" data-key="prompt">
@@ -293,6 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const nodeLabels = {
             say: 'say()',
+            sendMessage: 'Send Message',
             get: 'get(var)',
             getOption: 'getOption(list)',
             wait: 'wait()',
@@ -306,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         const nodeIcons = {
             say: 'ph-chat-circle-text',
+            sendMessage: 'ph-paper-plane-tilt',
             get: 'ph-download-simple',
             getOption: 'ph-list-dashes',
             wait: 'ph-clock',

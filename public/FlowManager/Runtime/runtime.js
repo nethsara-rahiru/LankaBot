@@ -33,6 +33,7 @@ class FlowRuntime {
         this.onAIExtract = null;
         this.onShowCatalog = null; // async (itemType) => { items: [...], menuStyle: {...} }
         this.onPlaceOrder = null; // async (orderData) => { order: ... }
+        this.onSendMessage = null; // async (phone, message, imageId) => { ... }
     }
 
     /**
@@ -89,15 +90,19 @@ class FlowRuntime {
      */
     async step(userInput = null) {
         if (!this.compiled || this.status === 'finished' || this.status === 'idle') {
+            console.log(`[FlowRuntime] ⏹️ Step called but runtime status is '${this.status}' (compiled present: ${!!this.compiled})`);
             return this.status;
         }
 
         const currentStep = this._getStep(this.currentNodeId);
         if (!currentStep) {
+            console.log(`[FlowRuntime] 🏁 No step found for node ID '${this.currentNodeId}'. Flow finished.`);
             this.status = 'finished';
             if (this.onFlowEnd) this.onFlowEnd();
             return this.status;
         }
+
+        console.log(`[FlowRuntime] ⏩ Step starting: Node ID '${currentStep.id}' (Type: '${currentStep.type}') | Current Status: '${this.status}' | Input: ${userInput !== null ? `"${userInput}"` : 'null'}`);
 
         // Emit step change
         this._emitStepChange(currentStep.id);
@@ -114,6 +119,25 @@ class FlowRuntime {
                     const msg = this._interpolate(currentStep.data.message || '');
                     const mediaId = currentStep.data.mediaId ? this._interpolate(currentStep.data.mediaId) : null;
                     await this.onBotMessage(msg, mediaId);
+                }
+                this._advance(currentStep.next);
+                break;
+
+            case 'sendMessage':
+                const rawPhone = currentStep.data.phone || currentStep.data.phoneNumber || '';
+                const targetPhone = this._interpolate(rawPhone);
+                const sendMsgText = this._interpolate(currentStep.data.message || '');
+                const rawImageId = currentStep.data.imageId || currentStep.data.mediaId || '';
+                const imageId = rawImageId ? this._interpolate(rawImageId) : null;
+
+                if (this.onSendMessage) {
+                    try {
+                        await this.onSendMessage(targetPhone, sendMsgText, imageId);
+                    } catch (err) {
+                        console.error('[FlowRuntime] ❌ Error in onSendMessage callback:', err);
+                    }
+                } else if (this.onBotMessage) {
+                    await this.onBotMessage(`[Send Message to ${targetPhone}]: ${sendMsgText}`, imageId);
                 }
                 this._advance(currentStep.next);
                 break;
@@ -513,6 +537,8 @@ class FlowRuntime {
                             parsed = { status: 'fail', followUp: `Thank you for your message. Please select an available product/service from our catalog so we can assist you.` };
                         }
 
+                        console.log(`[CatalogSelector Node ${currentStep.id}] AI response parsed:`, JSON.stringify(parsed));
+
                         if (parsed.status === 'redirect' && parsed.topicId) {
                             this.nodeHistory = [];
                             const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
@@ -522,35 +548,71 @@ class FlowRuntime {
                             return this.status;
                         }
 
+                        const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                        // Helper for flexible item matching
+                        const findMatchingItem = (valToMatch) => {
+                            const normVal = normalizeStr(valToMatch);
+                            if (!normVal) return null;
+
+                            return catalogItems.find((item, idx) => {
+                                const name = item.fields?.name || item.name || '';
+                                const normName = normalizeStr(name);
+                                const normId = normalizeStr(item._id || item.id);
+                                const normIndex = String(idx + 1);
+
+                                if (normVal === normId || normVal === normName || normVal === normIndex) return true;
+                                if (normName && (normVal.includes(normName) || normName.includes(normVal))) return true;
+
+                                const fullText = normalizeStr(`${name} ${item.fields?.price || ''} ${item.fields?.category || ''}`);
+                                if (fullText && (fullText.includes(normVal) || normVal.includes(fullText))) return true;
+
+                                return false;
+                            });
+                        };
+
                         if (parsed.status === 'fail') {
-                            if (this.onBotMessage && parsed.followUp) {
-                                await this.onBotMessage(parsed.followUp);
-                                if (!this.nodeHistory) this.nodeHistory = [];
-                                this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                            // Attempt direct match on raw history or prompt before declaring failure
+                            const lastUserMsg = (this.nodeHistory && this.nodeHistory.length > 0)
+                                ? this.nodeHistory[this.nodeHistory.length - 1].content
+                                : cleanInput;
+
+                            const directMatch = findMatchingItem(lastUserMsg) || findMatchingItem(cleanInput);
+                            if (directMatch) {
+                                console.log(`[CatalogSelector Node ${currentStep.id}] 💡 AI returned fail, but direct match succeeded: "${directMatch.fields?.name || directMatch.name}"`);
+                                parsed = { status: 'success', value: directMatch.fields?.name || directMatch.name };
+                            } else {
+                                console.warn(`[CatalogSelector Node ${currentStep.id}] ⚠️ Selection failed for input: "${cleanInput}"`);
+                                if (this.onBotMessage && parsed.followUp) {
+                                    await this.onBotMessage(parsed.followUp);
+                                    if (!this.nodeHistory) this.nodeHistory = [];
+                                    this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                                }
+                                this.status = 'waiting_option';
+                                return this.status;
                             }
-                            this.status = 'waiting_option';
-                            return this.status;
                         }
 
                         this.nodeHistory = [];
                         const val = parsed.value !== undefined ? parsed.value : userInput;
 
-                        // Match selected item name back to the full catalog item object
-                        let selectedItem = catalogItems.find(item => {
-                            const itemName = item.fields?.name || item.name || '';
-                            return itemName.toLowerCase().trim() === String(val).toLowerCase().trim() ||
-                                   String(val).toLowerCase().includes(itemName.toLowerCase().trim());
-                        }) || catalogItems[0];
+                        // Match selected item object
+                        let selectedItem = findMatchingItem(val) || catalogItems[0];
+                        const itemName = selectedItem ? (selectedItem.fields?.name || selectedItem.name || 'Selected Item') : 'Selected Item';
+                        console.log(`[CatalogSelector Node ${currentStep.id}] ✅ Selected item matched: "${itemName}" (ID: ${selectedItem?._id || 'N/A'})`);
 
                         const varName = currentStep.data.variable;
                         if (varName) {
                             this.variables[varName] = selectedItem;
+                            console.log(`[CatalogSelector Node ${currentStep.id}] 💾 Saved selected item object to variable: "${varName}"`);
                             this._emitVariables();
                         }
 
                         this.status = 'running';
+                        console.log(`[CatalogSelector Node ${currentStep.id}] ➡️ Advancing to next step: "${currentStep.next}"`);
                         this._advance(currentStep.next);
                     } catch(e) {
+                        console.error(`[CatalogSelector Node ${currentStep.id}] ❌ Exception during step execution:`, e);
                         this.status = 'running';
                         this._advance(currentStep.next);
                     }
@@ -657,10 +719,23 @@ class FlowRuntime {
 
                 if (mappedCustomer) customFieldsMap['customerName'] = mappedCustomer;
 
+                let formattedItems = [];
+                if (Array.isArray(mappedItems)) {
+                    formattedItems = mappedItems;
+                } else if (mappedItems) {
+                    if (typeof mappedItems === 'object' && mappedItems !== null) {
+                        const itemId = mappedItems._id || mappedItems.itemId || null;
+                        const snap = mappedItems.fields ? { ...mappedItems.fields, type: mappedItems.type } : mappedItems;
+                        formattedItems = [{ itemId, customSnapshot: snap }];
+                    } else {
+                        formattedItems = [{ customSnapshot: { name: String(mappedItems) } }];
+                    }
+                }
+
                 const orderData = {
                     orderId: `ORD-${Math.floor(100000 + Math.random() * 900000)}`,
                     customer: mappedCustomer,
-                    items: Array.isArray(mappedItems) ? mappedItems : (mappedItems ? [{ customSnapshot: { name: mappedItems } }] : []),
+                    items: formattedItems,
                     customFields: customFieldsMap,
                     status: 'received',
                     paymentStatus: 'unpaid'
@@ -738,7 +813,9 @@ class FlowRuntime {
      * Advance to the next node
      */
     _advance(nextNodeId) {
+        console.log(`[FlowRuntime] ➡️ _advance from '${this.currentNodeId}' to '${nextNodeId}'`);
         if (!nextNodeId) {
+            console.log('[FlowRuntime] 🏁 Next node is null/empty. Marking flow as finished.');
             this.status = 'finished';
             if (this.onFlowEnd) this.onFlowEnd();
             return;
@@ -748,13 +825,57 @@ class FlowRuntime {
     }
 
     /**
-     * Replace {{varName}} placeholders in text with variable values
+     * Helper: safely get nested object property by dot notation path
+     */
+    _getNestedValue(obj, path) {
+        if (obj === undefined || obj === null) return undefined;
+        const parts = path.split('.');
+        let current = obj;
+        for (const part of parts) {
+            if (current === undefined || current === null) return undefined;
+            current = current[part];
+        }
+        return current;
+    }
+
+    /**
+     * Replace {{varName}} or {{varName.path}} placeholders in text with variable values
      */
     _interpolate(text) {
-        return text.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
-            return this.variables[varName] !== undefined && this.variables[varName] !== null
-                ? this.variables[varName]
-                : match;
+        if (!text || typeof text !== 'string') return text || '';
+        return text.replace(/\{\{([\w\.]+)\}\}/g, (match, path) => {
+            const parts = path.split('.');
+            const rootVar = parts[0];
+            let val = this.variables[rootVar];
+
+            if (val === undefined || val === null) {
+                return match;
+            }
+
+            // If nested path specified like {{selectedItem.fields.name}} or {{selectedItem.name}}
+            if (parts.length > 1) {
+                const subPath = parts.slice(1).join('.');
+                let nested = this._getNestedValue(val, subPath);
+                if (nested === undefined && parts[1] !== 'fields' && val.fields) {
+                    // Fall back to checking inside fields object (e.g. {{selectedItem.name}} -> val.fields.name)
+                    nested = this._getNestedValue(val.fields, subPath);
+                }
+                return nested !== undefined && nested !== null
+                    ? (typeof nested === 'object' ? JSON.stringify(nested) : String(nested))
+                    : match;
+            }
+
+            // If root variable is referenced directly like {{selectedItem}}
+            if (typeof val === 'object' && val !== null) {
+                if (val.fields?.name) return val.fields.name;
+                if (val.name) return val.name;
+                if (val.label) return val.label;
+                if (val.title) return val.title;
+                if (val.phoneNumber || val.phone) return val.phoneNumber || val.phone;
+                return JSON.stringify(val);
+            }
+
+            return String(val);
         });
     }
 
