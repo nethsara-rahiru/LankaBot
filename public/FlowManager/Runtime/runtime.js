@@ -22,6 +22,10 @@ class FlowRuntime {
         this.stepIndex = 0;
         this.executedSteps = [];
 
+        // Interruption stack — preserves flow state during side-questions or topic interruptions.
+        // Each entry: { currentNodeId, status, nodeHistory }
+        this._interruptionStack = [];
+
         // Callbacks (set by Simulator or Server)
         this.onBotMessage = null;
         this.onWaitingForInput = null;
@@ -30,7 +34,15 @@ class FlowRuntime {
         this.onStepChange = null;
         this.onVariableUpdate = null;
         this.onFlowEnd = null;
+
+        // Legacy extraction callback (still supported as fallback)
         this.onAIExtract = null;
+
+        // New Conversation Engine callback.
+        // Signature: async (flow, userInput, business, catalog) => { response, nodeSatisfied, topicChanged, shouldContinueFlow, ... }
+        // When set, the Conversation Engine replaces onAIExtract for 'get' and 'getOption' nodes.
+        this.onConversationEngine = null;
+
         this.onShowCatalog = null; // async (itemType) => { items: [...], menuStyle: {...} }
         this.onPlaceOrder = null; // async (orderData) => { order: ... }
         this.onSendMessage = null; // async (phone, message, imageId) => { ... }
@@ -143,6 +155,33 @@ class FlowRuntime {
                 break;
 
             case 'get':
+                // ─── Conversation Engine path (new) ────────────────────────────────────
+                // When onConversationEngine is wired (production WhatsApp bot), the entire
+                // understanding + response generation is handled externally. The callback
+                // receives the flow instance, understands the message holistically, applies
+                // variables, generates the response, sends it, and then calls flow.step()
+                // with either '__ce_satisfied__' (node variable filled) or '__ce_pending__'
+                // (still waiting for more input) so the runtime knows what to do next.
+                if (this.onConversationEngine && (this.status === 'waiting_input' || this.status === 'waiting_ce') && userInput !== null) {
+                    if (userInput === '__ce_satisfied__') {
+                        // Conversation Engine has already set the variable and sent the response.
+                        // Advance the flow to the next node.
+                        console.log(`[FlowRuntime][get] ✅ CE satisfied variable "${currentStep.data.variable}". Advancing.`);
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    } else if (userInput === '__ce_pending__') {
+                        // CE answered questions but still needs the variable. Stay here.
+                        console.log(`[FlowRuntime][get] ⏳ CE pending — waiting for "${currentStep.data.variable}".`);
+                        this.status = 'waiting_input';
+                    } else {
+                        // First user message — hand off to Conversation Engine.
+                        this.status = 'waiting_ce';
+                        this.onConversationEngine(this, userInput);
+                    }
+                    break;
+                }
+
+                // ─── Legacy onAIExtract path (original, preserved as fallback) ─────────
                 if (this.status === 'waiting_ai' && userInput !== null) {
                     try {
                         let parsed = null;
@@ -239,6 +278,39 @@ class FlowRuntime {
                 break;
 
             case 'getOption':
+                // ─── Conversation Engine path (new) ────────────────────────────────────
+                // CE handles natural language option selection, questions, and ambiguity.
+                // The CE resolves the option, sets the variable, and sends the response.
+                // It then calls flow.step() with '__ce_satisfied__' (matched + next branch
+                // stored in flow._cePendingNext) or '__ce_pending__' (still ambiguous).
+                if (this.onConversationEngine && (this.status === 'waiting_option' || this.status === 'waiting_ce') && userInput !== null) {
+                    if (userInput === '__ce_satisfied__') {
+                        const varName = currentStep.data.variable;
+                        const options = currentStep.options || [];
+                        // The CE has already applied the variable. Find the matched branch.
+                        const resolvedVal = varName ? this.variables[varName] : null;
+                        const matched = resolvedVal ? this._matchOption(resolvedVal, options) : null;
+                        this.status = 'running';
+                        if (matched && matched.next) {
+                            console.log(`[FlowRuntime][getOption] ✅ CE satisfied — matched option "${matched.value}", advancing to "${matched.next}".`);
+                            this._advance(matched.next);
+                        } else {
+                            const fallback = options.length > 0 && options[0].next ? options[0].next : null;
+                            console.log(`[FlowRuntime][getOption] ✅ CE satisfied — no exact branch, using fallback "${fallback}".`);
+                            this._advance(fallback);
+                        }
+                    } else if (userInput === '__ce_pending__') {
+                        console.log(`[FlowRuntime][getOption] ⏳ CE pending — waiting for unambiguous option selection.`);
+                        this.status = 'waiting_option';
+                    } else {
+                        // First user message — hand off to Conversation Engine.
+                        this.status = 'waiting_ce';
+                        this.onConversationEngine(this, userInput);
+                    }
+                    break;
+                }
+
+                // ─── Legacy onAIExtract path (original, preserved as fallback) ─────────
                 if (this.status === 'waiting_ai' && userInput !== null) {
                     try {
                         let parsed = null;
@@ -266,7 +338,7 @@ class FlowRuntime {
                         if (parsed.status === 'fail') {
                             if (this.onBotMessage && parsed.followUp) {
                                 await this.onBotMessage(parsed.followUp);
-                                if (!this.nodeHistory) this.nodeHistory = [];
+                                if (!this.nodeHistory) this.nodeHistory = []
                                 this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
                             }
                             this.status = 'waiting_option';

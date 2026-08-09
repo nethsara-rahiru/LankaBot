@@ -367,6 +367,8 @@ const startClient = async (accountId) => {
                             flow.status = orgContact.flowState.status;
                             flow.currentNodeId = orgContact.flowState.currentNodeId;
                             flow.nodeHistory = orgContact.flowState.nodeHistory || [];
+                            // Restore interruption stack so side-question context is preserved across reconnects
+                            flow._interruptionStack = orgContact.flowState.interruptionStack || [];
                         } else {
                             flow.start(settings.compiledFlow);
                         }
@@ -430,7 +432,65 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                 // 3. Bind Callbacks if it's a new instance
                 if (isNewFlowInstance) {
 
-                    // Bind Callbacks
+                    // ─── Conversation Engine (new) ─────────────────────────────────────────
+                    // This is the primary handler for 'get' and 'getOption' nodes.
+                    // It runs the full 2-stage pipeline: understand → apply → respond.
+                    flow.onConversationEngine = async (flowInstance, userInput) => {
+                        try {
+                            const { processMessage } = require('../services/conversation/conversationService');
+
+                            // Load business context from settings & account
+                            const currentSettings = await Settings.findOne({ account: accountId });
+                            const currentAccount = await Account.findById(accountId);
+                            const business = {
+                                name: currentSettings?.aiConfig?.organizationName || currentAccount?.pushName || 'FrontDesk',
+                                description: currentSettings?.aiConfig?.aiPersonality || null,
+                                settings: currentSettings || {}
+                            };
+
+                            // Run Conversation Engine pipeline
+                            const result = await processMessage(flowInstance, userInput, business, []);
+
+                            console.log(`[WhatsApp CE] 🧠 CE result: nodeSatisfied=${result.nodeSatisfied} | topicChanged=${result.topicChanged} | continueFlow=${result.shouldContinueFlow}`);
+
+                            // Send the generated response to the user
+                            if (result.response && flow.onBotMessage) {
+                                await flow.onBotMessage(result.response);
+                            }
+
+                            // Signal the runtime how to advance
+                            if (result.isRefusal) {
+                                // User refused to answer; release node lock and set flow to idle
+                                console.log('[WhatsApp CE] ✋ User refusal detected. Flow reset to idle.');
+                                flowInstance.status = 'idle';
+                            } else if (result.topicChanged) {
+                                // Topic switch was already applied by actionService.switchTopic()
+                                // Just resume the flow from the new node
+                                flowInstance.status = 'running';
+                            } else if (result.nodeSatisfied) {
+                                await flowInstance.step('__ce_satisfied__');
+                            } else {
+                                await flowInstance.step('__ce_pending__');
+                            }
+
+                            await flow.resume();
+
+                        } catch (err) {
+                            console.error('[WhatsApp CE] ❌ Conversation Engine error, falling back to raw input:', err.message);
+                            // Graceful degradation: treat user input as raw variable value
+                            const currentStep = flowInstance.compiled?.steps?.find(s => s.id === flowInstance.currentNodeId);
+                            const varName = currentStep?.data?.variable;
+                            if (varName) {
+                                flowInstance.variables[varName] = userInput;
+                                flowInstance._emitVariables();
+                            }
+                            flowInstance.status = 'running';
+                            await flowInstance.step('__ce_satisfied__');
+                            await flow.resume();
+                        }
+                    };
+                    // ──────────────────────────────────────────────────────────────────────
+
                     flow.resume = async () => {
                         console.log(`[WhatsApp Flow] 🔄 flow.resume() called. Current status: '${flow.status}', isRunning: ${flow._isRunning}, currentNode: '${flow.currentNodeId}'`);
                         if (flow._isRunning) {
@@ -719,7 +779,11 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 flowState: {
                                     currentNodeId: flow.currentNodeId,
                                     variables: flow.variables,
-                                    status: flow.status
+                                    status: flow.status,
+                                    // Persist interruption stack so conversation resumes correctly
+                                    // even after a multi-session WhatsApp reconnect.
+                                    nodeHistory: flow.nodeHistory || [],
+                                    interruptionStack: flow._interruptionStack || []
                                 }
                             });
                         } catch (e) { }
