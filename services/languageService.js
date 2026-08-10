@@ -93,9 +93,36 @@ IMPORTANT RULES:
 Output ONLY the single full language name. No punctuation, no explanation.`;
 
 /**
- * Detects the language of an incoming user message using a fast AI prompt,
- * and updates customer.globalProfile.preferredLanguage (stored as full name) if detected.
- * Handles Singlish, romanized Tamil, native scripts, and mixed inputs.
+ * Helper to update customer preferred language if changed.
+ *
+ * @param {object} customer  - Mongoose Customer document
+ * @param {string} rawLang   - Language code or name detected by Luma or AI
+ */
+const updateCustomerPreferredLanguage = async (customer, rawLang) => {
+    if (!customer || !rawLang) return;
+    const isoCode = toISOCode(rawLang);
+    if (!isoCode) {
+        console.log(`[LanguageService] ⚠️ Could not resolve ISO code for detected language: "${rawLang}"`);
+        return;
+    }
+
+    const fullName = SUPPORTED_LANGUAGES_MAP[isoCode] || rawLang;
+    if (customer.globalProfile?.preferredLanguage !== fullName) {
+        customer.globalProfile = customer.globalProfile || {};
+        customer.globalProfile.preferredLanguage = fullName;
+        try {
+            await customer.save();
+            console.log(`[LanguageService] 🌐 Updated ${customer.phoneNumber} preferred language: "${rawLang}" → "${fullName}" (${isoCode})`);
+        } catch (err) {
+            console.error(`[LanguageService] ❌ Error saving preferred language for customer ${customer._id}:`, err.message);
+        }
+    }
+};
+
+/**
+ * Detects the language of an incoming user message using Luma Translator auto-detection,
+ * with fallback to AI system prompt if Luma is unconfigured or returns empty.
+ * Updates customer.globalProfile.preferredLanguage if detected.
  *
  * @param {object} customer   - Mongoose Customer document
  * @param {string} messageText - The user's incoming message
@@ -104,21 +131,19 @@ const detectAndSaveLanguage = async (customer, messageText) => {
     if (!customer || !messageText || messageText.trim().length < 2) return;
 
     try {
+        // Step 1 1st translation with Luma to auto-detect language
+        const lumaResult = await translateText(messageText, 'en', 'auto');
+        const detected = lumaResult?.detectedLanguageName || lumaResult?.detectedSourceLanguage;
+
+        if (detected) {
+            await updateCustomerPreferredLanguage(customer, detected);
+            return;
+        }
+
+        // Fallback: AI system prompt detection
         const detectedName = await getAIResponse(messageText, DETECTION_SYSTEM_PROMPT, 1);
         if (detectedName) {
-            const cleanName = detectedName.trim();
-            const isoCode = toISOCode(cleanName);
-            if (isoCode) {
-                const fullName = SUPPORTED_LANGUAGES_MAP[isoCode] || cleanName;
-                if (customer.globalProfile?.preferredLanguage !== fullName) {
-                    customer.globalProfile = customer.globalProfile || {};
-                    customer.globalProfile.preferredLanguage = fullName;
-                    await customer.save();
-                    console.log(`[LanguageService] 🌐 Updated ${customer.phoneNumber} preferred language: "${cleanName}" → "${fullName}" (${isoCode})`);
-                }
-            } else {
-                console.log(`[LanguageService] ⚠️ Could not resolve language code for detected name: "${cleanName}"`);
-            }
+            await updateCustomerPreferredLanguage(customer, detectedName.trim());
         }
     } catch (err) {
         console.error('[LanguageService] ❌ Error detecting user language:', err.message);
@@ -158,7 +183,7 @@ const resolveReplyLanguage = (customer, settings) => {
 };
 
 /**
- * Pipeline to process any outgoing message before sending to WhatsApp.
+ * Pipeline to process any outgoing message before sending to WhatsApp (Step 2: After AI Processing).
  * Translates text via Luma Translator if the target language is NOT English ('en').
  *
  * @param {string} text     - Outgoing message text
@@ -178,46 +203,50 @@ const processOutgoingMessage = async (text, customer, settings) => {
     }
 
     const langName = SUPPORTED_LANGUAGES_MAP[targetLang] || targetLang;
-    console.log(`[LanguageService] 🔄 Translating outgoing message to "${langName}" (${targetLang})...`);
-    return await translateText(text, targetLang, 'auto');
+    console.log(`[LanguageService] 🔄 Translating outgoing message to "${langName}" (${targetLang}) via Luma (Step 2)...`);
+    const result = await translateText(text, targetLang, 'auto');
+    return result?.translation || text;
 };
 
 /**
- * Translates an incoming user message to English using Luma Translator,
- * only if the user's detected language is not already English.
+ * Translates an incoming user message to English using Luma Translator (Step 1: Before AI Processing).
+ * Auto-detects the source language from Luma's 1st translation response and updates customer's preferredLanguage.
  * Fail-safe: returns the original text unchanged on any error or if Luma is unconfigured.
  *
  * @param {string} text       - The raw user message
- * @param {object} customer   - Customer Mongoose document (used for language hint)
- * @returns {Promise<{ translatedText: string, wasTranslated: boolean }>}
+ * @param {object} customer   - Customer Mongoose document (used for language auto-detection & persistence)
+ * @returns {Promise<{ translatedText: string, wasTranslated: boolean, detectedLanguage: string|null }>}
  */
 const translateIncomingToEnglish = async (text, customer) => {
-    if (!text || typeof text !== 'string') return { translatedText: text, wasTranslated: false };
-
-    // Determine the user's current detected language
-    const userPreferred = customer?.globalProfile?.preferredLanguage;
-    const isoCode = userPreferred ? toISOCode(userPreferred) : null;
-
-    // Skip translation if already English or language is unknown
-    if (!isoCode || isoCode === 'en') {
-        return { translatedText: text, wasTranslated: false };
-    }
+    if (!text || typeof text !== 'string') return { translatedText: text, wasTranslated: false, detectedLanguage: null };
 
     try {
-        const langName = SUPPORTED_LANGUAGES_MAP[isoCode] || userPreferred;
-        console.log(`[LanguageService] 🔄 Translating incoming "${langName}" message to English for AI processing...`);
-        const translated = await translateText(text, 'en', isoCode);
+        console.log(`[LanguageService] 🔄 Luma 1st Translation (Before AI Processing): Translating incoming message & detecting language...`);
+        const lumaResult = await translateText(text, 'en', 'auto');
 
-        if (translated && translated !== text) {
-            console.log(`[LanguageService] ✅ Incoming translation complete: "${text.substring(0, 40)}..." → "${translated.substring(0, 40)}..."`);
-            return { translatedText: translated, wasTranslated: true };
+        const detectedLang = lumaResult?.detectedLanguageName || lumaResult?.detectedSourceLanguage;
+        if (customer && detectedLang) {
+            await updateCustomerPreferredLanguage(customer, detectedLang);
         }
+
+        const translatedText = lumaResult?.translation || text;
+        const wasTranslated = lumaResult?.success && translatedText !== text && (lumaResult.detectedSourceLanguage !== 'en');
+
+        if (wasTranslated) {
+            console.log(`[LanguageService] ✅ Incoming translation complete: "${text.substring(0, 40)}..." → "${translatedText.substring(0, 40)}..."`);
+        }
+
+        return {
+            translatedText,
+            wasTranslated,
+            detectedLanguage: detectedLang || null
+        };
     } catch (err) {
-        console.error('[LanguageService] ❌ Incoming translation failed, using original:', err.message);
+        console.error('[LanguageService] ❌ Incoming 1st translation failed, using original:', err.message);
     }
 
     // Fallback: use original text unchanged
-    return { translatedText: text, wasTranslated: false };
+    return { translatedText: text, wasTranslated: false, detectedLanguage: null };
 };
 
 module.exports = {
@@ -225,6 +254,7 @@ module.exports = {
     resolveReplyLanguage,
     processOutgoingMessage,
     translateIncomingToEnglish,
+    updateCustomerPreferredLanguage,
     SUPPORTED_LANGUAGES_MAP,
     LANGUAGE_NAME_TO_CODE,
     toISOCode
