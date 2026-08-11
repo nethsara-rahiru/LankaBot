@@ -60,39 +60,7 @@ const isGreeting = (input) => {
     return GREETING_PATTERNS.some(re => re.test(normalised));
 };
 
-// ─── Clear-input fast-path ─────────────────────────────────────────────────────
-// Signals that indicate the user is asking a question or is ambiguous.
-// When these are absent AND the node has no aiPrompt, we can skip the AI.
-const QUESTION_SIGNALS = /[?]|\b(what|who|when|where|why|how|which|can you|do you|is there|are there|will you|tell me|explain|describe)\b/i;
-
-/**
- * Returns true if the input clearly and directly answers a plain data node
- * (no aiPrompt set) — i.e. the user typed a straightforward value with no
- * question marks or interrogative language.
- *
- * @param {object} ctx - Full context from contextService.buildContext()
- * @returns {boolean}
- */
-const isClearDirectInput = (ctx) => {
-    // Only apply fast-path when there IS a required variable to fill
-    const requiredVar = ctx.currentNode?.variable;
-    if (!requiredVar) return false;
-
-    // Only when the node has no custom AI prompt (simple data collect)
-    if (ctx.currentNode?.aiPrompt) return false;
-
-    const input = (ctx.userInput || '').trim();
-    if (!input) return false;
-
-    // Skip if the input looks like a question or contains interrogative words
-    if (QUESTION_SIGNALS.test(input)) return false;
-
-    // Skip if the input is suspiciously long (may contain multiple intents)
-    const wordCount = input.split(/\s+/).filter(Boolean).length;
-    if (wordCount > 12) return false;
-
-    return true;
-};
+// ─── Greeting fast-path ────────────────────────────────────────────────────────
 
 /**
  * Builds the Stage 1 understanding system prompt.
@@ -214,7 +182,7 @@ const understandMessage = async (ctx) => {
     console.log(`[UnderstandingService] 🧠 Stage 1: Understanding message for topic "${ctx.currentTopic.id || 'unknown'}" | Node: "${ctx.currentNode?.id || 'none'}"`);
 
     // ── Fast-path 1: Greeting detection (no AI call) ──────────────────────────
-    // Translate common multi-language greetings locally before hitting the AI.
+    // Check common multi-language greetings locally before hitting the AI.
     if (isGreeting(ctx.userInput)) {
         console.log(`[UnderstandingService] 👋 Greeting detected via local pattern match — skipping AI. Input: "${ctx.userInput}"`);
         return {
@@ -226,24 +194,6 @@ const understandMessage = async (ctx) => {
             topicChange: null,
             confidence: 'high',
             continueFlow: false
-        };
-    }
-
-    // ── Fast-path 2: Clear direct input (no AI call) ──────────────────────────
-    // When a simple `get` node (no aiPrompt) receives unambiguous plain text,
-    // skip Stage 1 AI and directly advance the flow node.
-    if (isClearDirectInput(ctx)) {
-        const requiredVar = ctx.currentNode.variable;
-        console.log(`[UnderstandingService] ⚡ Clear direct input detected — skipping AI. Setting "${requiredVar}" = "${ctx.userInput}"`);
-        return {
-            intent: 'PROVIDE_DATA',
-            userRefused: false,
-            extractedData: { [requiredVar]: ctx.userInput.trim() },
-            questions: [],
-            corrections: [],
-            topicChange: null,
-            confidence: 'high',
-            continueFlow: true
         };
     }
 
