@@ -441,11 +441,12 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                             // Load business context from settings & account
                             const currentSettings = await Settings.findOne({ account: accountId });
-                            const currentAccount = await Account.findById(accountId);
+                            const currentCustomer = await Customer.findOne({ phoneNumber: user });
                             const business = {
                                 name: currentSettings?.aiConfig?.organizationName || currentAccount?.pushName || 'FrontDesk',
                                 description: currentSettings?.aiConfig?.aiPersonality || null,
-                                settings: currentSettings || {}
+                                settings: currentSettings || {},
+                                customer: currentCustomer || null
                             };
 
                             // Run Conversation Engine pipeline

@@ -20,6 +20,7 @@
 
 const { getAIResponse } = require('../api-router/apiRouterService');
 const { formatConversationHistory, formatVariables } = require('./contextService');
+const { translateIncomingToEnglish } = require('../languageService');
 
 // ─── Greeting fast-path ────────────────────────────────────────────────────────
 // A comprehensive list of greeting phrases across English, Sinhala, Singlish,
@@ -181,10 +182,24 @@ const parseUnderstandingResponse = (raw) => {
 const understandMessage = async (ctx) => {
     console.log(`[UnderstandingService] 🧠 Stage 1: Understanding message for topic "${ctx.currentTopic.id || 'unknown'}" | Node: "${ctx.currentNode?.id || 'none'}"`);
 
+    // ── Incoming Translation Pre-Processing ────────────────────────────────────
+    // Translate non-English input (Sinhala, Singlish, Tamil, etc.) to English before AI processing.
+    let workingInput = ctx.userInput;
+    try {
+        const { translatedText, wasTranslated } = await translateIncomingToEnglish(ctx.userInput, ctx.customer);
+        if (wasTranslated && translatedText) {
+            console.log(`[UnderstandingService] 🌐 Pre-translated input to English for AI Stage 1: "${ctx.userInput}" → "${translatedText}"`);
+            workingInput = translatedText;
+            ctx.userInput = translatedText;
+        }
+    } catch (err) {
+        console.error('[UnderstandingService] ⚠️ Translation pre-processing error:', err.message);
+    }
+
     // ── Fast-path 1: Greeting detection (no AI call) ──────────────────────────
     // Check common multi-language greetings locally before hitting the AI.
-    if (isGreeting(ctx.userInput)) {
-        console.log(`[UnderstandingService] 👋 Greeting detected via local pattern match — skipping AI. Input: "${ctx.userInput}"`);
+    if (isGreeting(workingInput)) {
+        console.log(`[UnderstandingService] 👋 Greeting detected via local pattern match — skipping AI. Input: "${workingInput}"`);
         return {
             intent: 'GREETING',
             userRefused: false,
@@ -202,7 +217,7 @@ const understandMessage = async (ctx) => {
 
     let raw = null;
     try {
-        raw = await getAIResponse(ctx.userInput, systemPrompt, 2);
+        raw = await getAIResponse(workingInput, systemPrompt, 2);
         console.log(`[UnderstandingService] 📥 Raw Stage 1 response: ${raw ? raw.substring(0, 200) : 'null'}`);
     } catch (e) {
         console.error('[UnderstandingService] ❌ AI call failed:', e.message);

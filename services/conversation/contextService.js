@@ -73,6 +73,7 @@ const buildContext = (flow, userInput, business = {}, catalog = []) => {
         variables,
         availableTopics,
         business: businessContext,
+        customer: business.customer || null,
         catalog: catalog || []
     };
 };
