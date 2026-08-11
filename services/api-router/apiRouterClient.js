@@ -50,6 +50,9 @@ const sendRequest = async (provider, messages, retries = 3) => {
 
             if (response.ok) {
                 const content = data?.choices?.[0]?.message?.content;
+                console.log(`\n=================== 🤖 AI RESPONSE [${provider.name} | ${provider.model}] ===================`);
+                console.log(content || data);
+                console.log(`========================================================================================\n`);
                 if (content) return content;
             }
 
@@ -61,7 +64,7 @@ const sendRequest = async (provider, messages, retries = 3) => {
                 continue;
             }
 
-            console.error(`[APIRouterClient] ❌ Provider "${provider.name}" error (${response.status}):`, JSON.stringify(data));
+            console.error(`[APIRouterClient] ❌ Provider "${provider.name}" error (${response.status}):\n`, JSON.stringify(data, null, 2));
             break;
 
         } catch (error) {

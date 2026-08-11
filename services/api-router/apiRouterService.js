@@ -55,7 +55,12 @@ const getAIResponse = async (prompt, systemPrompt, retries = 3) => {
     ];
 
     // --- Primary: API Router ---
-    console.log('[APIRouterService] 🚀 Sending request via API Router (primary)...');
+    console.log(`\n------------------- 📤 AI REQUEST PROMPT -------------------`);
+    console.log(`Provider: ${routerConfig.primary.name} (${routerConfig.primary.model})`);
+    console.log(`System Prompt:\n${finalSystemPrompt}`);
+    console.log(`User Input: "${prompt}"`);
+    console.log(`-------------------------------------------------------------\n`);
+
     const primaryResult = await sendRequest(routerConfig.primary, messages, retries);
 
     if (primaryResult) {
