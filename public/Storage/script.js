@@ -71,9 +71,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'x-auth-token': token }, // Don't set Content-Type for FormData
                     body: formData
                 });
+                if (res.status === 401) {
+                    window.location.href = '../login.html';
+                    return;
+                }
                 if (!res.ok) {
                     const data = await res.json();
-                    alert(`Failed to upload ${file.name}: ${data.error}`);
+                    alert(`Failed to upload ${file.name}: ${data.error || data.msg}`);
                 }
             } catch (err) {
                 console.error(err);
@@ -125,8 +129,18 @@ document.addEventListener('DOMContentLoaded', () => {
         
         try {
             const res = await fetch(`/api/storage/list/${folderId}`, { headers });
+            if (res.status === 401) {
+                window.location.href = '../login.html';
+                return;
+            }
             const data = await res.json();
             
+            // Guard: API may return an error object instead of { folders, files }
+            if (!data.folders || !data.files) {
+                console.error('Unexpected storage API response:', data);
+                return;
+            }
+
             fileGrid.innerHTML = '';
             
             if (data.folders.length === 0 && data.files.length === 0) {
@@ -172,6 +186,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadUsage() {
         try {
             const res = await fetch('/api/storage/usage', { headers });
+            if (res.status === 401) {
+                window.location.href = '../login.html';
+                return;
+            }
             const data = await res.json();
             
             const usedMB = (data.used / (1024 * 1024)).toFixed(2);
