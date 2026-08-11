@@ -459,7 +459,12 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             }
 
                             // Signal the runtime how to advance
-                            if (result.isRefusal) {
+                            if (result.isGreeting || result.flowRestarted) {
+                                console.log('[WhatsApp CE] 👋 Greeting detected. Flow restarted from start.');
+                                flowInstance.variables = {};
+                                flowInstance.start(settings.compiledFlow);
+                                flowInstance.status = 'running';
+                            } else if (result.isRefusal) {
                                 // User refused to answer; release node lock and set flow to idle
                                 console.log('[WhatsApp CE] ✋ User refusal detected. Flow reset to idle.');
                                 flowInstance.status = 'idle';

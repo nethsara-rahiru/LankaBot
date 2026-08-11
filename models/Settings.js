@@ -56,6 +56,18 @@ const SettingsSchema = new mongoose.Schema({
         type: String,
         default: 'en'
     },
+    responseTime: {
+        type: Number,
+        default: 2000
+    },
+    typingTime: {
+        type: Number,
+        default: 3000
+    },
+    waitingTime: {
+        type: Number,
+        default: 1000
+    },
     customCatalogTypes: {
         type: [String],
         default: ['product', 'service']

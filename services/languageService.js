@@ -161,9 +161,10 @@ const detectAndSaveLanguage = async (customer, messageText) => {
  */
 const resolveReplyLanguage = (customer, settings) => {
     const defaultLang = settings?.defaultLanguage || 'en';
+    const supportedLangs = settings?.supportedLanguages || ['en'];
 
     const userPreferred = customer?.globalProfile?.preferredLanguage;
-    console.log(`[LanguageService] 🔍 resolveReplyLanguage — preferredLanguage: "${userPreferred}", defaultLang: "${defaultLang}"`);
+    console.log(`[LanguageService] 🔍 resolveReplyLanguage — preferredLanguage: "${userPreferred}", defaultLang: "${defaultLang}", supported:`, supportedLangs);
 
     if (!userPreferred || userPreferred === 'auto') {
         console.log(`[LanguageService] → No preference set, using default: "${defaultLang}"`);
@@ -176,6 +177,12 @@ const resolveReplyLanguage = (customer, settings) => {
 
     if (!isoCode) {
         console.log(`[LanguageService] → Unknown language "${userPreferred}", using default: "${defaultLang}"`);
+        return defaultLang;
+    }
+
+    // Enforce organization's supported reply languages
+    if (Array.isArray(supportedLangs) && supportedLangs.length > 0 && !supportedLangs.includes(isoCode)) {
+        console.log(`[LanguageService] → Language "${isoCode}" is NOT enabled in supportedLanguages (${supportedLangs.join(', ')}), falling back to default: "${defaultLang}"`);
         return defaultLang;
     }
 

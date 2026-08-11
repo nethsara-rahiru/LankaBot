@@ -74,10 +74,21 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
     if (!flow.nodeHistory) flow.nodeHistory = [];
     flow.nodeHistory.push({ role: 'user', content: userInput });
 
-    // --- Step 7: Determine refusal and what the flow still needs ---
+    // --- Step 7: Determine refusal, greeting restart, and what the flow still needs ---
     const isRefusal = understanding.intent === 'REFUSE' || understanding.userRefused === true;
+    const isGreeting = understanding.intent === 'GREETING';
+    let flowRestarted = false;
+
+    if (isGreeting) {
+        console.log(`[ConversationService] 👋 User greeting detected during flow. Restarting flow...`);
+        if (flow.compiled) {
+            flow.start(flow.compiled);
+            flowRestarted = true;
+        }
+    }
+
     const nodeSatisfied = isCurrentNodeSatisfied(flow, updatedVariables);
-    const nextRequired = (nodeSatisfied || isRefusal) ? null : getCurrentRequiredVariable(flow);
+    const nextRequired = (nodeSatisfied || isRefusal || isGreeting) ? null : getCurrentRequiredVariable(flow);
 
     // If user refused, reset flow status to idle so the user is not trapped in waiting_input
     if (isRefusal) {
@@ -94,9 +105,9 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
     // --- Step 10: Record bot response into conversation history ---
     flow.nodeHistory.push({ role: 'bot', content: response });
 
-    const shouldContinueFlow = understanding.continueFlow !== false && !topicChanged && !isRefusal;
+    const shouldContinueFlow = understanding.continueFlow !== false && !topicChanged && !isRefusal && !isGreeting;
 
-    console.log(`[ConversationService] ✅ Pipeline complete | nodeSatisfied=${nodeSatisfied} | isRefusal=${isRefusal} | topicChanged=${topicChanged} | interrupted=${interrupted} | continueFlow=${shouldContinueFlow}`);
+    console.log(`[ConversationService] ✅ Pipeline complete | nodeSatisfied=${nodeSatisfied} | isRefusal=${isRefusal} | isGreeting=${isGreeting} | flowRestarted=${flowRestarted} | topicChanged=${topicChanged} | interrupted=${interrupted} | continueFlow=${shouldContinueFlow}`);
 
     return {
         response,
@@ -106,6 +117,8 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
         interrupted,
         nodeSatisfied,
         isRefusal,
+        isGreeting,
+        flowRestarted,
         shouldContinueFlow
     };
 };

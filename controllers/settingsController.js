@@ -58,6 +58,10 @@ exports.updateSettings = async (req, res) => {
             settings = new Settings({ account: accountId });
         }
         
+        if (req.body.responseTime !== undefined) settings.responseTime = req.body.responseTime;
+        if (req.body.typingTime !== undefined) settings.typingTime = req.body.typingTime;
+        if (req.body.waitingTime !== undefined) settings.waitingTime = req.body.waitingTime;
+
         if (req.body.aiEnabled !== undefined) settings.aiEnabled = req.body.aiEnabled;
         
         if (req.body.aiConfig) {
@@ -89,6 +93,7 @@ exports.updateSettings = async (req, res) => {
 
         if (req.body.supportedLanguages !== undefined) {
             settings.supportedLanguages = req.body.supportedLanguages;
+            settings.markModified('supportedLanguages');
         }
 
         if (req.body.defaultLanguage !== undefined) {
