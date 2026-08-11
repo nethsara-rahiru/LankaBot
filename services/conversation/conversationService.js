@@ -99,15 +99,25 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
     // --- Step 8: Rebuild context with updated variable state for response generation ---
     const updatedCtx = buildContext(flow, userInput, business, catalog);
 
-    // --- Step 9: Stage 2 — Generate natural response ---
-    const response = await generateResponse(updatedCtx, understanding, nextRequired);
+    // --- Step 9: Stage 2 — Generate natural response conditionally ---
+    // If the node is satisfied and the user didn't ask any questions or interrupt/refuse/change topic,
+    // skip Stage 2 AI to prevent unnecessary follow-up responses before moving to the next node.
+    let response = null;
+    const needsStage2AI = hasQuestions || interrupted || topicChanged || isRefusal || isGreeting || !nodeSatisfied;
 
-    // --- Step 10: Record bot response into conversation history ---
-    flow.nodeHistory.push({ role: 'bot', content: response });
+    if (needsStage2AI) {
+        console.log(`[ConversationService] 🤖 Generating Stage 2 AI response (hasQuestions=${hasQuestions}, nodeSatisfied=${nodeSatisfied}, isRefusal=${isRefusal}, topicChanged=${topicChanged})`);
+        response = await generateResponse(updatedCtx, understanding, nextRequired);
+        if (response) {
+            flow.nodeHistory.push({ role: 'bot', content: response });
+        }
+    } else {
+        console.log(`[ConversationService] ⚡ Node satisfied with no side questions — skipping Stage 2 AI response generation.`);
+    }
 
     const shouldContinueFlow = understanding.continueFlow !== false && !topicChanged && !isRefusal && !isGreeting;
 
-    console.log(`[ConversationService] ✅ Pipeline complete | nodeSatisfied=${nodeSatisfied} | isRefusal=${isRefusal} | isGreeting=${isGreeting} | flowRestarted=${flowRestarted} | topicChanged=${topicChanged} | interrupted=${interrupted} | continueFlow=${shouldContinueFlow}`);
+    console.log(`[ConversationService] ✅ Pipeline complete | nodeSatisfied=${nodeSatisfied} | skippedAI=${!needsStage2AI} | isRefusal=${isRefusal} | isGreeting=${isGreeting} | flowRestarted=${flowRestarted} | topicChanged=${topicChanged} | interrupted=${interrupted} | continueFlow=${shouldContinueFlow}`);
 
     return {
         response,
