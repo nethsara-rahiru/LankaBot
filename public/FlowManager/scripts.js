@@ -45,6 +45,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Touch: single-finger pan, two-finger pinch-to-zoom
+    let touchStartDist = 0;
+    let touchStartScale = 1;
+    let touchPanStartX = 0;
+    let touchPanStartY = 0;
+    let touchIsPanning = false;
+
+    const getTouchDist = (t1, t2) => {
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    };
+
+    canvasContainer.addEventListener('touchstart', (e) => {
+        if (e.target.closest('.port') || e.target.closest('.node-header')) return;
+        if (e.target.closest('.flow-node') && !e.target.closest('.node-header')) return;
+
+        if (e.touches.length === 1) {
+            const isCanvasArea = e.target === canvasContainer
+                || e.target === canvasWrapper
+                || e.target === nodesLayer
+                || e.target === connectionsLayer
+                || e.target.tagName === 'svg';
+            if (isCanvasArea && !e.target.closest('.flow-node')) {
+                touchIsPanning = true;
+                touchPanStartX = e.touches[0].clientX - panX;
+                touchPanStartY = e.touches[0].clientY - panY;
+            }
+        } else if (e.touches.length === 2) {
+            touchIsPanning = false;
+            touchStartDist = getTouchDist(e.touches[0], e.touches[1]);
+            touchStartScale = scale;
+            touchPanStartX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            touchPanStartY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        }
+    }, { passive: true });
+
+    canvasContainer.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1 && touchIsPanning) {
+            panX = e.touches[0].clientX - touchPanStartX;
+            panY = e.touches[0].clientY - touchPanStartY;
+            updateCanvasTransform();
+        } else if (e.touches.length === 2) {
+            const dist = getTouchDist(e.touches[0], e.touches[1]);
+            const newScale = Math.max(0.2, Math.min(3, touchStartScale * (dist / touchStartDist)));
+            const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const rect = canvasContainer.getBoundingClientRect();
+            const localX = midX - rect.left;
+            const localY = midY - rect.top;
+            panX = localX - (localX - panX) * (newScale / scale);
+            panY = localY - (localY - panY) * (newScale / scale);
+            scale = newScale;
+            updateCanvasTransform();
+        }
+    }, { passive: false });
+
+    canvasContainer.addEventListener('touchend', () => {
+        touchIsPanning = false;
+    }, { passive: true });
+
     window.addEventListener('mousemove', (e) => {
         if (isPanning) {
             panX = e.clientX - startPanX;
@@ -450,19 +512,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let isDragging = false;
         let startX, startY;
 
+        // Mouse drag
         header.addEventListener('mousedown', (e) => {
             if (e.target.classList.contains('node-delete')) return;
             isDragging = true;
-            
-            // Bring to front
             nodesLayer.appendChild(nodeEl);
-            
             const rect = nodeEl.getBoundingClientRect();
-            const wrapperRect = canvasWrapper.getBoundingClientRect();
-            
             startX = (e.clientX - rect.left) / scale;
             startY = (e.clientY - rect.top) / scale;
-            
             document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
             nodeEl.classList.add('selected');
         });
@@ -472,14 +529,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const wrapperRect = canvasWrapper.getBoundingClientRect();
                 const newX = (e.clientX - wrapperRect.left) / scale - startX;
                 const newY = (e.clientY - wrapperRect.top) / scale - startY;
-                
                 nodeEl.style.left = `${newX}px`;
                 nodeEl.style.top = `${newY}px`;
-                
                 const nodeData = nodes.get(id);
                 nodeData.x = newX;
                 nodeData.y = newY;
-                
                 updateConnections();
             }
         });
@@ -487,6 +541,44 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('mouseup', () => {
             if (isDragging) isDragging = false;
         });
+
+        // Touch drag
+        let touchDragging = false;
+        let touchStartX, touchStartY;
+
+        header.addEventListener('touchstart', (e) => {
+            if (e.target.classList.contains('node-delete')) return;
+            if (e.touches.length !== 1) return;
+            e.stopPropagation();
+            touchDragging = true;
+            nodesLayer.appendChild(nodeEl);
+            const touch = e.touches[0];
+            const rect = nodeEl.getBoundingClientRect();
+            touchStartX = (touch.clientX - rect.left) / scale;
+            touchStartY = (touch.clientY - rect.top) / scale;
+            document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('selected'));
+            nodeEl.classList.add('selected');
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (touchDragging && e.touches.length === 1) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const wrapperRect = canvasWrapper.getBoundingClientRect();
+                const newX = (touch.clientX - wrapperRect.left) / scale - touchStartX;
+                const newY = (touch.clientY - wrapperRect.top) / scale - touchStartY;
+                nodeEl.style.left = `${newX}px`;
+                nodeEl.style.top = `${newY}px`;
+                const nodeData = nodes.get(id);
+                nodeData.x = newX;
+                nodeData.y = newY;
+                updateConnections();
+            }
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => {
+            if (touchDragging) touchDragging = false;
+        }, { passive: true });
     };
 
     window.deleteNode = (id) => {
@@ -505,50 +597,72 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const setupPorts = (ports) => {
         ports.forEach(port => {
+            // Mouse connection drawing
             port.addEventListener('mousedown', (e) => {
                 e.stopPropagation();
                 if (port.classList.contains('port-out')) {
                     isDrawingConnection = true;
                     activeStartPort = port;
+                    port.classList.add('active');
                 }
             });
 
             port.addEventListener('mouseup', (e) => {
                 e.stopPropagation();
-                if (isDrawingConnection && activeStartPort && port.classList.contains('port-in')) {
-                    const sourceNode = activeStartPort.dataset.nodeId;
-                    const sourcePort = activeStartPort.dataset.portId;
-                    const targetNode = port.dataset.nodeId;
-                    
-                    if (sourceNode !== targetNode) {
-                        // Check if connection already exists
-                        const exists = connections.some(c => c.source === sourceNode && c.sourcePort === sourcePort && c.target === targetNode);
-                        if (!exists) {
-                            // If it's a normal out port (not an option), remove existing out connections from this port
-                            if (sourcePort === 'out') {
-                                connections = connections.filter(c => !(c.source === sourceNode && c.sourcePort === 'out'));
-                            }
-                            
-                            connections.push({
-                                source: sourceNode,
-                                sourcePort: sourcePort,
-                                target: targetNode
-                            });
-                            updateConnections();
-                        }
-                    }
-                }
-                
-                if (isDrawingConnection) {
-                    isDrawingConnection = false;
-                    activeStartPort = null;
-                    if (tempLine) {
-                        tempLine.remove();
-                        tempLine = null;
-                    }
-                }
+                finishConnection(port);
             });
+
+            // Touch connection drawing
+            port.addEventListener('touchstart', (e) => {
+                e.stopPropagation();
+                if (port.classList.contains('port-out')) {
+                    isDrawingConnection = true;
+                    activeStartPort = port;
+                    port.classList.add('active');
+                }
+            }, { passive: true });
+
+            port.addEventListener('touchend', (e) => {
+                e.stopPropagation();
+                // Find the element under the finger
+                if (e.changedTouches.length > 0) {
+                    const touch = e.changedTouches[0];
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    const portTarget = target ? target.closest('.port') : null;
+                    if (portTarget && portTarget !== port) {
+                        finishConnection(portTarget);
+                    } else {
+                        cancelConnection();
+                    }
+                }
+            }, { passive: true });
         });
+    };
+
+    const finishConnection = (port) => {
+        if (isDrawingConnection && activeStartPort && port.classList.contains('port-in')) {
+            const sourceNode = activeStartPort.dataset.nodeId;
+            const sourcePort = activeStartPort.dataset.portId;
+            const targetNode = port.dataset.nodeId;
+            if (sourceNode !== targetNode) {
+                const exists = connections.some(c => c.source === sourceNode && c.sourcePort === sourcePort && c.target === targetNode);
+                if (!exists) {
+                    if (sourcePort === 'out') {
+                        connections = connections.filter(c => !(c.source === sourceNode && c.sourcePort === 'out'));
+                    }
+                    connections.push({ source: sourceNode, sourcePort: sourcePort, target: targetNode });
+                    updateConnections();
+                }
+            }
+        }
+        cancelConnection();
+    };
+
+    const cancelConnection = () => {
+        if (activeStartPort) activeStartPort.classList.remove('active');
+        isDrawingConnection = false;
+        activeStartPort = null;
+        if (tempLine) { tempLine.remove(); tempLine = null; }
     };
 
     const drawTempLine = (x1, y1, x2, y2) => {
@@ -908,5 +1022,87 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error(err);
         }
     });
+
+    // ----- Mobile Sidebar Controls -----
+    const leftSidebar = document.getElementById('left-sidebar');
+    const rightSidebar = document.getElementById('right-sidebar');
+    const backdrop = document.getElementById('mobile-backdrop');
+
+    const closeSidebars = () => {
+        leftSidebar.classList.remove('mobile-open');
+        rightSidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('active');
+    };
+
+    document.getElementById('toggle-nodes-btn').addEventListener('click', () => {
+        const isOpen = leftSidebar.classList.contains('mobile-open');
+        closeSidebars();
+        if (!isOpen) {
+            leftSidebar.classList.add('mobile-open');
+            backdrop.classList.add('active');
+        }
+    });
+
+    document.getElementById('toggle-vars-btn').addEventListener('click', () => {
+        const isOpen = rightSidebar.classList.contains('mobile-open');
+        closeSidebars();
+        if (!isOpen) {
+            rightSidebar.classList.add('mobile-open');
+            backdrop.classList.add('active');
+        }
+    });
+
+    document.getElementById('close-nodes-btn').addEventListener('click', closeSidebars);
+    document.getElementById('close-vars-btn').addEventListener('click', closeSidebars);
+    backdrop.addEventListener('click', closeSidebars);
+
+    // ----- Mobile: FAB + Tap-to-Add node -----
+    // On mobile, drag-and-drop from palette doesn't work, so tapping a palette item adds the node to the center of the canvas
+    const isTouchDevice = () => window.matchMedia('(max-width: 768px)').matches || ('ontouchstart' in window);
+
+    document.querySelectorAll('.palette-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (!isTouchDevice()) return; // Only on mobile — desktop uses drag
+            const type = item.dataset.type;
+            if (!type) return;
+            // Place at canvas center
+            const rect = canvasContainer.getBoundingClientRect();
+            const cx = (rect.width / 2 - panX) / scale;
+            const cy = (rect.height / 2 - panY) / scale;
+            createNode(type, cx - 120, cy - 50);
+            closeSidebars();
+        });
+    });
+
+    // FAB: open the nodes sidebar
+    const fab = document.getElementById('add-node-fab');
+    if (fab) {
+        fab.addEventListener('click', () => {
+            const isOpen = leftSidebar.classList.contains('mobile-open');
+            closeSidebars();
+            if (!isOpen) {
+                leftSidebar.classList.add('mobile-open');
+                backdrop.classList.add('active');
+            }
+        });
+    }
+
+    // Also update touchmove for connection drawing on ports
+    window.addEventListener('touchmove', (e) => {
+        if (isDrawingConnection && activeStartPort) {
+            const touch = e.touches[0];
+            const rect = canvasWrapper.getBoundingClientRect();
+            const mouseX = (touch.clientX - rect.left) / scale;
+            const mouseY = (touch.clientY - rect.top) / scale;
+            const startRect = activeStartPort.getBoundingClientRect();
+            const startX = (startRect.left + startRect.width / 2 - rect.left) / scale;
+            const startY = (startRect.top + startRect.height / 2 - rect.top) / scale;
+            drawTempLine(startX, startY, mouseX, mouseY);
+        }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => {
+        if (isDrawingConnection) cancelConnection();
+    }, { passive: true });
 });
 

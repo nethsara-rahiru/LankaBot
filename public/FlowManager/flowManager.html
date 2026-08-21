@@ -29,20 +29,36 @@
                 </div>
             </div>
             <div class="header-right">
+                <!-- Mobile sidebar toggles -->
+                <button class="icon-btn mobile-only" id="toggle-nodes-btn" title="Nodes">
+                    <i class="ph-bold ph-squares-four"></i>
+                </button>
+                <button class="icon-btn mobile-only" id="toggle-vars-btn" title="Variables">
+                    <i class="ph-bold ph-list-dashes"></i>
+                </button>
+                <!-- Action buttons -->
                 <button class="btn-primary" id="run-simulator-btn" style="background: linear-gradient(135deg, #f39c12, #e67e22); margin-right: 0.5rem;">
-                    <i class="ph-bold ph-play-circle"></i> Run Simulator
+                    <i class="ph-bold ph-play-circle"></i><span class="btn-label"> Run Simulator</span>
                 </button>
                 <button class="btn-primary" id="save-flow-btn">
-                    <i class="ph-bold ph-floppy-disk"></i> Save Flow
+                    <i class="ph-bold ph-floppy-disk"></i><span class="btn-label"> Save Flow</span>
                 </button>
             </div>
         </header>
 
+        <!-- Mobile Overlay Backdrop -->
+        <div class="mobile-backdrop" id="mobile-backdrop"></div>
+
         <!-- Main Workspace -->
         <main class="workspace">
             <!-- Left Sidebar (Toolbox) -->
-            <aside class="sidebar left-sidebar">
-                <h3>Nodes</h3>
+            <aside class="sidebar left-sidebar" id="left-sidebar">
+                <div class="sidebar-header">
+                    <h3>Nodes</h3>
+                    <button class="icon-btn mobile-only sidebar-close-btn" id="close-nodes-btn">
+                        <i class="ph-bold ph-x"></i>
+                    </button>
+                </div>
                 <div class="node-palette">
                     <div class="palette-item" draggable="true" data-type="say">
                         <i class="ph-bold ph-chat-circle-text"></i>
@@ -107,11 +123,20 @@
                     <button id="zoom-out" title="Zoom Out"><i class="ph-bold ph-magnifying-glass-minus"></i></button>
                     <button id="zoom-reset" title="Reset Zoom"><i class="ph-bold ph-arrows-out"></i></button>
                 </div>
+                <!-- Mobile: Add Node FAB -->
+                <button class="add-node-fab mobile-only" id="add-node-fab" title="Add Node">
+                    <i class="ph-bold ph-plus"></i>
+                </button>
             </section>
 
             <!-- Right Sidebar (Variables) -->
-            <aside class="sidebar right-sidebar">
-                <h3>Variables</h3>
+            <aside class="sidebar right-sidebar" id="right-sidebar">
+                <div class="sidebar-header">
+                    <h3>Variables</h3>
+                    <button class="icon-btn mobile-only sidebar-close-btn" id="close-vars-btn">
+                        <i class="ph-bold ph-x"></i>
+                    </button>
+                </div>
                 <div class="variables-panel">
                     <div class="input-group">
                         <input type="text" id="new-var-name" placeholder="Variable Name">

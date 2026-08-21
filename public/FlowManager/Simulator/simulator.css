@@ -540,3 +540,88 @@
                 opacity 0.3s ease,
                 padding 0.4s ease;
 }
+
+/* ============================================
+   SIMULATOR MOBILE RESPONSIVE (≤ 768px)
+   ============================================ */
+@media (max-width: 768px) {
+    /* Stack simulator vertically: chat on top, flow below */
+    .sim-body {
+        flex-direction: column;
+    }
+
+    .sim-chatbox {
+        width: 100%;
+        min-width: unset;
+        height: 55vh;
+        border-right: none;
+        border-bottom: 1px solid var(--glass-border);
+    }
+
+    .sim-flowbox {
+        height: 45vh;
+        min-height: 200px;
+    }
+
+    /* Compact toolbar */
+    .sim-toolbar {
+        padding: 0.6rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .sim-toolbar-center {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .sim-toggle-wrap span {
+        display: none; /* Hide "Auto-play" label */
+    }
+
+    .sim-btn {
+        padding: 0.45rem 0.8rem;
+        font-size: 0.8rem;
+    }
+
+    .sim-btn span {
+        display: none; /* Show icon only for most buttons */
+    }
+
+    /* Show text for Run/Stop buttons only */
+    .sim-btn.run span,
+    .sim-btn.stop span {
+        display: inline;
+    }
+
+    .sim-step-indicator {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.7rem;
+    }
+
+    .sim-vars-panel {
+        max-height: 120px;
+        padding: 0.8rem 1rem;
+    }
+
+    .sim-messages {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .sim-chatbox {
+        height: 60vh;
+    }
+
+    .sim-flowbox {
+        height: 40vh;
+    }
+
+    .sim-btn.run span,
+    .sim-btn.stop span {
+        display: none;
+    }
+}
+
