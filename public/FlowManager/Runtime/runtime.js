@@ -489,6 +489,7 @@ class FlowRuntime {
 
             case 'showCatalog': {
                 const showCatType = currentStep.data.itemType || '';
+                const requestedStyleName = currentStep.data.menuStyle || currentStep.data.menuStyleName || '';
                 try {
                     let items = [];
                     let menuStyle = {
@@ -497,12 +498,23 @@ class FlowRuntime {
                         footer: 'Type item name to order!'
                     };
 
+                    const pickStyle = (stylesArray, defaultSingleStyle) => {
+                        if (Array.isArray(stylesArray) && stylesArray.length > 0) {
+                            if (requestedStyleName) {
+                                const found = stylesArray.find(s => String(s.name || '').toLowerCase() === String(requestedStyleName).toLowerCase());
+                                if (found) return found;
+                            }
+                            return stylesArray[0];
+                        }
+                        return defaultSingleStyle || menuStyle;
+                    };
+
                     if (this.onShowCatalog) {
-                        // Server-side: delegate entirely to the injected callback (DB query)
-                        const result = await this.onShowCatalog(showCatType);
+                        // Server-side: delegate to callback
+                        const result = await this.onShowCatalog(showCatType, requestedStyleName);
                         if (result) {
                             items = result.items || [];
-                            if (result.menuStyle) menuStyle = result.menuStyle;
+                            menuStyle = pickStyle(result.menuStyles, result.menuStyle);
                         }
                     } else {
                         // Browser/simulator fallback: fetch from API
@@ -518,18 +530,35 @@ class FlowRuntime {
                         if (catRes.ok) items = await catRes.json();
                         if (settRes.ok) {
                             const sett = await settRes.json();
-                            if (sett.menuStyle) menuStyle = sett.menuStyle;
+                            menuStyle = pickStyle(sett.menuStyles, sett.menuStyle);
                         }
                     }
 
                     const applyVars = (template, item) => {
                         if (!template) return '';
+                        const variants = Array.isArray(item.fields?.variants) ? item.fields.variants : [];
+                        let priceVal = item.fields?.price !== undefined ? item.fields.price : '';
+                        let variantsStr = '';
+
+                        if (variants.length > 0) {
+                            variantsStr = 'Variants:\n' + variants.map(v => `  - ${v.name}: Rs. ${v.price}`).join('\n');
+                            if (!priceVal || priceVal === 'N/A') {
+                                const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p));
+                                if (prices.length > 0) {
+                                    const min = Math.min(...prices);
+                                    const max = Math.max(...prices);
+                                    priceVal = min === max ? `${min}` : `${min} - ${max}`;
+                                }
+                            }
+                        }
+
                         return template
                             .replace(/\{\{name\}\}/g, item.fields?.name || '')
-                            .replace(/\{\{price\}\}/g, item.fields?.price !== undefined ? item.fields.price : 'N/A')
+                            .replace(/\{\{price\}\}/g, priceVal !== '' ? priceVal : 'N/A')
                             .replace(/\{\{category\}\}/g, item.fields?.category || '')
                             .replace(/\{\{type\}\}/g, item.type || '')
-                            .replace(/\{\{status\}\}/g, item.status || 'available');
+                            .replace(/\{\{status\}\}/g, item.status || 'available')
+                            .replace(/\{\{variants\}\}/g, variantsStr);
                     };
 
                     if (items.length === 0) {
@@ -680,9 +709,14 @@ class FlowRuntime {
                             this._emitVariables();
                         }
 
+                        // Determine item-specific next branch if configured
+                        const itemPortId = `cat_${selectedItem?._id || selectedItem?.id}`;
+                        const matchedOpt = (currentStep.options || []).find(opt => opt.id === itemPortId);
+                        const nextTarget = (matchedOpt && matchedOpt.next) ? matchedOpt.next : currentStep.next;
+
                         this.status = 'running';
-                        console.log(`[CatalogSelector Node ${currentStep.id}] ➡️ Advancing to next step: "${currentStep.next}"`);
-                        this._advance(currentStep.next);
+                        console.log(`[CatalogSelector Node ${currentStep.id}] ➡️ Advancing to next step: "${nextTarget}"`);
+                        this._advance(nextTarget);
                     } catch(e) {
                         console.error(`[CatalogSelector Node ${currentStep.id}] ❌ Exception during step execution:`, e);
                         this.status = 'running';
@@ -726,8 +760,13 @@ class FlowRuntime {
                             this.variables[varName] = selectedItem;
                             this._emitVariables();
                         }
+
+                        const itemPortId = `cat_${selectedItem?._id || selectedItem?.id}`;
+                        const matchedOpt = (currentStep.options || []).find(opt => opt.id === itemPortId);
+                        const nextTarget = (matchedOpt && matchedOpt.next) ? matchedOpt.next : currentStep.next;
+
                         this.status = 'running';
-                        this._advance(currentStep.next);
+                        this._advance(nextTarget);
                     }
                 } else {
                     // Ask user for catalog item choice

@@ -137,14 +137,32 @@
                     </div>
                 </div>
             </div>
-            <button class="btn-primary" onclick="saveMenuStyle()" style="padding: 0.7rem 1.4rem;">
-                <i class="ph-bold ph-floppy-disk"></i> Save Menu Style
-            </button>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <select id="style-selector" onchange="switchStyle(this.value)" style="padding: 0.6rem 0.8rem; border-radius: 12px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.15); font-size: 0.9rem; font-weight: 600;">
+                    <!-- Loaded dynamically -->
+                </select>
+                <button class="btn-secondary" onclick="createNewStyle()" style="padding: 0.65rem 1rem;">
+                    <i class="ph-bold ph-plus"></i> New Style
+                </button>
+                <button class="btn-secondary" onclick="deleteCurrentStyle()" style="padding: 0.65rem 1rem; color: #e74c3c;" id="btn-delete-style">
+                    <i class="ph-bold ph-trash"></i> Delete
+                </button>
+                <button class="btn-primary" onclick="saveAllMenuStyles()" style="padding: 0.65rem 1.4rem;">
+                    <i class="ph-bold ph-floppy-disk"></i> Save Menu Styles
+                </button>
+            </div>
         </header>
 
         <div class="designer-layout">
             <!-- Left Form Section -->
             <div class="editor-section">
+                <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 1rem;">
+                    <div>
+                        <label style="font-size: 0.82rem; color: var(--text-dim); display: block; margin-bottom: 0.3rem;">Style Name (Reference in Flow Manager)</label>
+                        <input type="text" id="style-name-input" oninput="updateActiveStyleName(this.value)" placeholder="e.g. Default or Minimal List" style="padding: 0.6rem 0.9rem; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; font-weight: 600; min-width: 250px;">
+                    </div>
+                </div>
+
                 <h3 style="margin-bottom: 0.5rem; color: var(--text);">Header Message</h3>
                 <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.8rem;">Sent as the first message. Supports item variables too.</p>
                 <div style="margin-bottom: 0.8rem;">
@@ -153,9 +171,10 @@
                     <span class="token-tag" onclick="insertToken('{{category}}')">{{category}}</span>
                     <span class="token-tag" onclick="insertToken('{{type}}')">{{type}}</span>
                     <span class="token-tag" onclick="insertToken('{{status}}')">{{status}}</span>
+                    <span class="token-tag" onclick="insertToken('{{variants}}')">{{variants}}</span>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
-                    <textarea id="menu-header" placeholder="e.g. 🛍️ *OUR CATALOG MENU*" oninput="updatePreview()" onfocus="setFocused(this)" style="width:100%; height:70px; font-family: monospace;"></textarea>
+                    <textarea id="menu-header" placeholder="e.g. 🛍️ *OUR CATALOG MENU*" oninput="updateActiveStyleContent(); updatePreview()" onfocus="setFocused(this)" style="width:100%; height:70px; font-family: monospace;"></textarea>
                 </div>
 
                 <h3 style="margin-bottom: 0.5rem; color: var(--text);">Item Format</h3>
@@ -169,9 +188,10 @@
                     <span class="token-tag" onclick="insertToken('{{type}}')">{{type}}</span>
                     <span class="token-tag" onclick="insertToken('{{status}}')">{{status}}</span>
                     <span class="token-tag" onclick="insertToken('{{imageId}}')">{{imageId}}</span>
+                    <span class="token-tag" onclick="insertToken('{{variants}}')">{{variants}}</span>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
-                    <textarea id="menu-item-format" placeholder="• *{{name}}*&#10;  Price: Rs. {{price}}&#10;  Category: _{{category}}_" oninput="updatePreview()" onfocus="setFocused(this)" style="width:100%; height:130px; font-family: monospace;"></textarea>
+                    <textarea id="menu-item-format" placeholder="• *{{name}}*&#10;  Price: Rs. {{price}}&#10;  Category: _{{category}}_" oninput="updateActiveStyleContent(); updatePreview()" onfocus="setFocused(this)" style="width:100%; height:130px; font-family: monospace;"></textarea>
                 </div>
 
                 <h3 style="margin-bottom: 0.5rem; color: var(--text);">Footer Message</h3>
@@ -182,9 +202,10 @@
                     <span class="token-tag" onclick="insertToken('{{category}}')">{{category}}</span>
                     <span class="token-tag" onclick="insertToken('{{type}}')">{{type}}</span>
                     <span class="token-tag" onclick="insertToken('{{status}}')">{{status}}</span>
+                    <span class="token-tag" onclick="insertToken('{{variants}}')">{{variants}}</span>
                 </div>
                 <div style="margin-bottom: 1.5rem;">
-                    <textarea id="menu-footer" placeholder="e.g. Type item name or reply with code to order!" oninput="updatePreview()" onfocus="setFocused(this)" style="width:100%; height:70px; font-family: monospace;"></textarea>
+                    <textarea id="menu-footer" placeholder="e.g. Type item name or reply with code to order!" oninput="updateActiveStyleContent(); updatePreview()" onfocus="setFocused(this)" style="width:100%; height:70px; font-family: monospace;"></textarea>
                 </div>
             </div>
 
@@ -212,6 +233,8 @@
         const token = localStorage.getItem('token');
 
         let catalogItems = [];
+        let menuStyles = [];
+        let activeStyleId = 'default';
 
         // Track which field is currently focused for token insertion
         let focusedField = null;
@@ -226,14 +249,12 @@
                 window.location.href = '/accounts.html';
                 return;
             }
-            // Default focused field is the item format textarea
             focusedField = document.getElementById('menu-item-format');
             loadMenuStyle();
         });
 
         async function loadMenuStyle() {
             try {
-                // Fetch settings and real catalog items in parallel
                 const [settRes, catRes] = await Promise.all([
                     fetch('/api/settings', {
                         headers: { 'x-account-id': accountId, 'x-auth-token': token }
@@ -252,40 +273,123 @@
                             category: item.fields?.category || '',
                             type: item.type || 'product',
                             status: item.status || 'available',
-                            imageId: item.fields?.imageId || item.fields?.mediaId || ''
+                            imageId: item.fields?.imageId || item.fields?.mediaId || '',
+                            variants: Array.isArray(item.fields?.variants) ? item.fields.variants : []
                         }));
                     }
                 }
 
-                // Fallback to sample items if no real catalog items exist yet
                 if (catalogItems.length === 0) {
                     catalogItems = [
-                        { name: 'Fresh Milk 500ml', price: 180, category: 'Dairy', type: 'product', status: 'available' },
-                        { name: 'Hair Cut & Styling', price: 1500, category: 'Salon', type: 'service', status: 'available' },
-                        { name: 'Organic Honey 250g', price: 950, category: 'Pantry', type: 'product', status: 'available' }
+                        { name: 'Fresh Milk', price: 180, category: 'Dairy', type: 'product', status: 'available', variants: [{ name: '500ml', price: 180 }, { name: '1L', price: 340 }] },
+                        { name: 'Hair Cut & Styling', price: 1500, category: 'Salon', type: 'service', status: 'available', variants: [] },
+                        { name: 'Organic Honey', price: 950, category: 'Pantry', type: 'product', status: 'available', variants: [{ name: '250g', price: 950 }, { name: '500g', price: 1800 }] }
                     ];
                 }
 
                 if (settRes.ok) {
                     const settings = await settRes.json();
-                    if (settings.menuStyle) {
-                        document.getElementById('menu-header').value = settings.menuStyle.header || '';
-                        document.getElementById('menu-item-format').value = settings.menuStyle.itemFormat || '';
-                        document.getElementById('menu-footer').value = settings.menuStyle.footer || '';
+                    if (Array.isArray(settings.menuStyles) && settings.menuStyles.length > 0) {
+                        menuStyles = settings.menuStyles;
+                    } else if (settings.menuStyle) {
+                        menuStyles = [{
+                            id: 'default',
+                            name: 'Default',
+                            header: settings.menuStyle.header || '🛍️ *OUR CATALOG*',
+                            itemFormat: settings.menuStyle.itemFormat || '• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_',
+                            footer: settings.menuStyle.footer || 'Type item name to order!'
+                        }];
                     } else {
-                        document.getElementById('menu-header').value = '🛍️ *OUR CATALOG*';
-                        document.getElementById('menu-item-format').value = '• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_';
-                        document.getElementById('menu-footer').value = 'Type item name to order!';
+                        menuStyles = [{
+                            id: 'default',
+                            name: 'Default',
+                            header: '🛍️ *OUR CATALOG*',
+                            itemFormat: '• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_',
+                            footer: 'Type item name to order!'
+                        }];
                     }
                 }
-                updatePreview();
+
+                renderStyleSelector();
+                switchStyle(menuStyles[0].id);
             } catch (err) {
                 console.error('Failed to load menu style or catalog:', err);
             }
         }
 
+        function renderStyleSelector() {
+            const selector = document.getElementById('style-selector');
+            selector.innerHTML = menuStyles.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            selector.value = activeStyleId;
+
+            const deleteBtn = document.getElementById('btn-delete-style');
+            if (deleteBtn) {
+                deleteBtn.style.display = menuStyles.length > 1 ? 'inline-flex' : 'none';
+            }
+        }
+
+        function switchStyle(id) {
+            activeStyleId = id;
+            const style = menuStyles.find(s => s.id === id) || menuStyles[0];
+            if (!style) return;
+
+            document.getElementById('style-selector').value = style.id;
+            document.getElementById('style-name-input').value = style.name || '';
+            document.getElementById('menu-header').value = style.header || '';
+            document.getElementById('menu-item-format').value = style.itemFormat || '';
+            document.getElementById('menu-footer').value = style.footer || '';
+
+            updatePreview();
+        }
+
+        function updateActiveStyleContent() {
+            const style = menuStyles.find(s => s.id === activeStyleId);
+            if (!style) return;
+            style.header = document.getElementById('menu-header').value;
+            style.itemFormat = document.getElementById('menu-item-format').value;
+            style.footer = document.getElementById('menu-footer').value;
+        }
+
+        function updateActiveStyleName(newName) {
+            const style = menuStyles.find(s => s.id === activeStyleId);
+            if (!style) return;
+            style.name = newName.trim() || 'Untitled Style';
+            const opt = document.querySelector(`#style-selector option[value="${activeStyleId}"]`);
+            if (opt) opt.textContent = style.name;
+        }
+
+        function createNewStyle() {
+            const name = prompt('Enter a name for the new Menu Style template:', 'New Style');
+            if (!name || !name.trim()) return;
+
+            const newId = 'style_' + Date.now();
+            const newStyle = {
+                id: newId,
+                name: name.trim(),
+                header: '🛍️ *OUR CATALOG*',
+                itemFormat: '• *{{name}}*\n  Price: Rs. {{price}}\n  {{variants}}',
+                footer: 'Type item name to order!'
+            };
+
+            menuStyles.push(newStyle);
+            renderStyleSelector();
+            switchStyle(newId);
+        }
+
+        function deleteCurrentStyle() {
+            if (menuStyles.length <= 1) {
+                alert('You must keep at least one Menu Style template.');
+                return;
+            }
+            const style = menuStyles.find(s => s.id === activeStyleId);
+            if (!confirm(`Are you sure you want to delete "${style ? style.name : 'this style'}"?`)) return;
+
+            menuStyles = menuStyles.filter(s => s.id !== activeStyleId);
+            renderStyleSelector();
+            switchStyle(menuStyles[0].id);
+        }
+
         function insertToken(tokenStr) {
-            // Insert into the last focused field, fall back to item format
             const field = focusedField || document.getElementById('menu-item-format');
             const start = field.selectionStart;
             const end = field.selectionEnd;
@@ -293,18 +397,35 @@
             field.value = text.substring(0, start) + tokenStr + text.substring(end);
             field.selectionStart = field.selectionEnd = start + tokenStr.length;
             field.focus();
+            updateActiveStyleContent();
             updatePreview();
         }
 
         function applyItemVars(template, item) {
             if (!template) return '';
+            let priceVal = item.price !== undefined ? item.price : '';
+            let variantsStr = '';
+
+            if (Array.isArray(item.variants) && item.variants.length > 0) {
+                variantsStr = 'Variants:\n' + item.variants.map(v => `  - ${v.name}: Rs. ${v.price}`).join('\n');
+                if (priceVal === 'N/A' || !priceVal) {
+                    const prices = item.variants.map(v => Number(v.price)).filter(p => !isNaN(p));
+                    if (prices.length > 0) {
+                        const min = Math.min(...prices);
+                        const max = Math.max(...prices);
+                        priceVal = min === max ? `${min}` : `${min} - ${max}`;
+                    }
+                }
+            }
+
             return template
                 .replace(/\{\{name\}\}/g, item.name || '')
-                .replace(/\{\{price\}\}/g, item.price !== undefined ? item.price : '')
+                .replace(/\{\{price\}\}/g, priceVal)
                 .replace(/\{\{category\}\}/g, item.category || '')
                 .replace(/\{\{type\}\}/g, item.type || '')
                 .replace(/\{\{status\}\}/g, item.status || '')
-                .replace(/\{\{imageId\}\}/g, item.imageId || '');
+                .replace(/\{\{imageId\}\}/g, item.imageId || '')
+                .replace(/\{\{variants\}\}/g, variantsStr);
         }
 
         function formatWhatsappMarkdown(text) {
@@ -347,19 +468,16 @@
                 { name: 'Fresh Milk 500ml', price: 180, category: 'Dairy', type: 'product', status: 'available' }
             ];
 
-            // Header bubble — uses first item's vars if variables present
             if (header) {
                 bubbles.push(makeBubble(header, items[0]));
             }
 
-            // One bubble per item
             items.forEach(item => {
                 if (itemFormat) {
                     bubbles.push(makeBubble(itemFormat, item));
                 }
             });
 
-            // Footer bubble — uses last item's vars if variables present
             if (footer) {
                 bubbles.push(makeBubble(footer, items[items.length - 1]));
             }
@@ -371,10 +489,9 @@
             }
         }
 
-        async function saveMenuStyle() {
-            const header = document.getElementById('menu-header').value;
-            const itemFormat = document.getElementById('menu-item-format').value;
-            const footer = document.getElementById('menu-footer').value;
+        async function saveAllMenuStyles() {
+            updateActiveStyleContent();
+            const activeStyle = menuStyles.find(s => s.id === activeStyleId) || menuStyles[0];
 
             try {
                 const res = await fetch('/api/settings', {
@@ -385,12 +502,17 @@
                         'x-auth-token': token
                     },
                     body: JSON.stringify({
-                        menuStyle: { header, itemFormat, footer }
+                        menuStyles: menuStyles,
+                        menuStyle: {
+                            header: activeStyle.header,
+                            itemFormat: activeStyle.itemFormat,
+                            footer: activeStyle.footer
+                        }
                     })
                 });
 
                 if (res.ok) {
-                    alert('Menu Style saved successfully!');
+                    alert('All Menu Styles saved successfully!');
                 } else {
                     const err = await res.json().catch(() => ({}));
                     alert('Save error: ' + (err.msg || err.message || 'Failed'));

@@ -247,3 +247,97 @@ exports.getResourceMetadata = async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 };
+
+exports.getAllFolders = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const folders = await Folder.find({ ownerId: userId }).sort({ name: 1 });
+        res.json(folders);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+exports.moveItem = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { itemId, itemType, targetFolderId } = req.body;
+
+        if (!itemId || !itemType) {
+            return res.status(400).json({ error: 'itemId and itemType are required' });
+        }
+
+        const normalizedTargetFolderId = (targetFolderId === 'root' || !targetFolderId) ? null : targetFolderId;
+
+        // Verify target folder exists if not root
+        if (normalizedTargetFolderId) {
+            const targetFolder = await Folder.findOne({ _id: normalizedTargetFolderId, ownerId: userId });
+            if (!targetFolder) {
+                return res.status(404).json({ error: 'Target folder not found' });
+            }
+        }
+
+        if (itemType === 'file') {
+            const file = await Resource.findOne({ _id: itemId, ownerId: userId });
+            if (!file) return res.status(404).json({ error: 'File not found' });
+
+            file.folderId = normalizedTargetFolderId;
+            file.modifiedDate = new Date();
+            await file.save();
+
+            return res.json({ message: 'File moved successfully', file });
+        } else if (itemType === 'folder') {
+            const folder = await Folder.findOne({ _id: itemId, ownerId: userId });
+            if (!folder) return res.status(404).json({ error: 'Folder not found' });
+
+            if (normalizedTargetFolderId && normalizedTargetFolderId.toString() === itemId.toString()) {
+                return res.status(400).json({ error: 'Cannot move folder into itself' });
+            }
+
+            // Check circular dependency
+            if (normalizedTargetFolderId) {
+                let currentParent = normalizedTargetFolderId;
+                while (currentParent) {
+                    if (currentParent.toString() === itemId.toString()) {
+                        return res.status(400).json({ error: 'Cannot move folder into its own subfolder' });
+                    }
+                    const parentFolder = await Folder.findOne({ _id: currentParent, ownerId: userId });
+                    currentParent = parentFolder ? parentFolder.parentId : null;
+                }
+            }
+
+            folder.parentId = normalizedTargetFolderId;
+            folder.updatedAt = new Date();
+            await folder.save();
+
+            return res.json({ message: 'Folder moved successfully', folder });
+        } else {
+            return res.status(400).json({ error: 'Invalid itemType' });
+        }
+    } catch (err) {
+        console.error('Move Error:', err);
+        res.status(500).json({ error: 'Server error during move', detail: err.message });
+    }
+};
+
+exports.viewResource = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { resourceId } = req.params;
+
+        const resource = await Resource.findOne({ _id: resourceId, ownerId: userId });
+        if (!resource) return res.status(404).json({ error: 'File not found' });
+
+        const filePath = path.join(ASSETS_DIR, userId.toString(), resource.storedName);
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Physical file missing' });
+        }
+
+        res.setHeader('Content-Type', resource.mimeType || 'application/octet-stream');
+        res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(resource.originalName)}"`);
+        fs.createReadStream(filePath).pipe(res);
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+

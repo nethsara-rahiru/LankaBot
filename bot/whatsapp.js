@@ -679,7 +679,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         await flow.resume();
                     };
 
-                    flow.onShowCatalog = async (showCatType) => {
+                    flow.onShowCatalog = async (showCatType, styleName) => {
                         try {
                             const CatalogItem = require('../models/CatalogItem');
                             const filter = { account: accountId };
@@ -690,11 +690,12 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                             return {
                                 items: items || [],
-                                menuStyle: currentSettings?.menuStyle || null
+                                menuStyle: currentSettings?.menuStyle || null,
+                                menuStyles: currentSettings?.menuStyles || []
                             };
                         } catch (err) {
                             console.error('[WhatsApp Flow] Error fetching catalog items for flow:', err);
-                            return { items: [], menuStyle: null };
+                            return { items: [], menuStyle: null, menuStyles: [] };
                         }
                     };
 

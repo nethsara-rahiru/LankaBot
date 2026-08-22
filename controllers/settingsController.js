@@ -15,6 +15,17 @@ exports.getSettings = async (req, res) => {
             settings = new Settings({ account: accountId });
             await settings.save();
         }
+        if (!Array.isArray(settings.menuStyles) || settings.menuStyles.length === 0) {
+            const defaultStyle = settings.menuStyle || {};
+            settings.menuStyles = [{
+                id: 'default',
+                name: 'Default',
+                header: defaultStyle.header || "🛍️ *OUR CATALOG*",
+                itemFormat: defaultStyle.itemFormat || "• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_",
+                footer: defaultStyle.footer || "Type item name or code to order!"
+            }];
+            await settings.save();
+        }
         res.json(settings);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -103,6 +114,11 @@ exports.updateSettings = async (req, res) => {
         if (req.body.menuStyle !== undefined) {
             settings.menuStyle = req.body.menuStyle;
             settings.markModified('menuStyle');
+        }
+
+        if (req.body.menuStyles !== undefined) {
+            settings.menuStyles = req.body.menuStyles;
+            settings.markModified('menuStyles');
         }
 
         if (req.body.customCatalogTypes !== undefined) {

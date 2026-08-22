@@ -59,9 +59,10 @@ class FlowCompiler {
                 next: null
             };
 
-            if (node.type === 'getOption') {
-                // For getOption, each option has its own output port
-                const options = (node.data.options || []).map(opt => {
+            if (node.type === 'getOption' || node.type === 'catalogSelector') {
+                // For getOption & catalogSelector, each item/option can have its own output port
+                const optsList = node.type === 'getOption' ? (node.data.options || []) : (node.data.catalogOptions || []);
+                const options = optsList.map(opt => {
                     const targetId = edgeMap[`${node.id}:${opt.id}`] || null;
                     if (targetId && !visited.has(targetId)) queue.push(targetId);
                     return {
@@ -71,6 +72,13 @@ class FlowCompiler {
                     };
                 });
                 step.options = options;
+                // Also support fallback next if connected to a general out port or single output fallback
+                let fallbackTarget = edgeMap[`${node.id}:out`] || null;
+                if (!fallbackTarget && node.type === 'catalogSelector') {
+                    const fallback = connections.find(c => c.source === node.id);
+                    if (fallback) fallbackTarget = fallback.target;
+                }
+                step.next = fallbackTarget;
             } else if (node.type === 'if' || node.type === 'ifAI') {
                 const trueTargetId = edgeMap[`${node.id}:true`] || null;
                 const falseTargetId = edgeMap[`${node.id}:false`] || null;
@@ -141,7 +149,7 @@ class FlowCompiler {
                 data: nodeData
             });
 
-            if (step.type === 'getOption' && step.options) {
+            if ((step.type === 'getOption' || step.type === 'catalogSelector') && step.options) {
                 step.options.forEach(opt => {
                     if (opt.next) {
                         connections.push({

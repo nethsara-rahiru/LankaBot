@@ -48,6 +48,15 @@ const SettingsSchema = new mongoose.Schema({
         itemFormat: { type: String, default: "• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_" },
         footer: { type: String, default: "Type item name or code to order!" }
     },
+    menuStyles: [
+        {
+            id: { type: String, required: true },
+            name: { type: String, required: true },
+            header: { type: String, default: "🛍️ *OUR CATALOG*" },
+            itemFormat: { type: String, default: "• *{{name}}*\n  Price: Rs. {{price}}\n  _{{category}}_" },
+            footer: { type: String, default: "Type item name or code to order!" }
+        }
+    ],
     supportedLanguages: {
         type: [String],
         default: ['en']

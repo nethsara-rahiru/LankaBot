@@ -126,6 +126,9 @@
                         <button class="btn-secondary" id="preview-download-btn">
                             <i class="ph-bold ph-download-simple"></i> Download
                         </button>
+                        <button class="btn-secondary" id="preview-move-btn">
+                            <i class="ph-bold ph-folder-notch-minus"></i> Move To...
+                        </button>
                         <button class="btn-danger" id="preview-delete-btn">
                             <i class="ph-bold ph-trash"></i> Delete
                         </button>
@@ -150,6 +153,26 @@
                 </div>
                 <div class="upload-progress-list" id="upload-progress-list">
                     <!-- Progress bars injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move Modal -->
+    <div class="modal-overlay" id="move-modal">
+        <div class="modal-content card">
+            <div class="modal-header">
+                <h3>Move Item</h3>
+                <button class="close-btn"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 1rem; color: var(--text-dim);" id="move-item-title">Select destination folder:</p>
+                <div class="move-folder-select-list" id="move-folder-select-list" style="max-height: 250px; overflow-y: auto;">
+                    <!-- Folder choices injected by JS -->
+                </div>
+                <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="btn-secondary close-btn-action" id="cancel-move-btn">Cancel</button>
+                    <button class="btn-primary" id="confirm-move-btn">Move Here</button>
                 </div>
             </div>
         </div>

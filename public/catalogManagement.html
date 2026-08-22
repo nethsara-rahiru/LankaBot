@@ -222,6 +222,19 @@
                         style="width: 100%; padding: 0.7rem; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1);">
                 </div>
 
+                <div style="margin-bottom: 1.5rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.85rem; font-weight: 600;">Variants & Pricing</label>
+                        <button type="button" class="btn-secondary" onclick="addVariantRow()" style="padding: 0.35rem 0.7rem; font-size: 0.78rem;">
+                            <i class="ph-bold ph-plus"></i> Add Variant
+                        </button>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-dim, rgba(255,255,255,0.6)); margin-bottom: 0.8rem;">Optionally add variants (e.g. 500g, 1kg, Red / L) with individual prices.</p>
+                    <div id="variants-list" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 180px; overflow-y: auto;">
+                        <!-- Dynamic variant rows -->
+                    </div>
+                </div>
+
                 <div style="display: flex; justify-content: flex-end; gap: 0.8rem;">
                     <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn-primary">Save Item</button>
@@ -420,7 +433,20 @@
 
             container.innerHTML = catalogItems.map(item => {
                 const name = item.fields?.name || 'Unnamed Item';
-                const price = item.fields?.price !== undefined && item.fields?.price !== null ? `Rs. ${item.fields.price}` : 'N/A';
+                const variants = Array.isArray(item.fields?.variants) ? item.fields.variants : [];
+                let priceDisplay = 'N/A';
+
+                if (variants.length > 0) {
+                    const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p));
+                    if (prices.length > 0) {
+                        const min = Math.min(...prices);
+                        const max = Math.max(...prices);
+                        priceDisplay = min === max ? `Rs. ${min}` : `Rs. ${min} - Rs. ${max}`;
+                    }
+                } else if (item.fields?.price !== undefined && item.fields?.price !== null) {
+                    priceDisplay = `Rs. ${item.fields.price}`;
+                }
+
                 const category = item.fields?.category || '';
                 const imageId = item.fields?.imageId || item.fields?.mediaId || '';
                 const status = item.status || 'available';
@@ -436,9 +462,17 @@
                             </div>
                             <h3 style="margin-bottom: 0.5rem;">${name}</h3>
                             <div class="fields-list">
-                                <div class="field-row"><span>Price:</span> <strong>${price}</strong></div>
+                                <div class="field-row"><span>Price:</span> <strong>${priceDisplay}</strong></div>
                                 ${category ? `<div class="field-row"><span>Category:</span> <span>${category}</span></div>` : ''}
                                 ${imageId ? `<div class="field-row"><span>Media ID:</span> <span style="font-family: monospace; color: #3498db; font-size: 0.8rem;">${imageId}</span></div>` : ''}
+                                ${variants.length > 0 ? `
+                                    <div style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgba(255,255,255,0.08);">
+                                        <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.3rem;">Variants (${variants.length}):</div>
+                                        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                                            ${variants.map(v => `<span style="background: rgba(255,255,255,0.08); padding: 0.2rem 0.4rem; border-radius: 6px; font-size: 0.75rem; color: #e9edef;">${v.name}: <strong style="color: #3498db;">Rs. ${v.price}</strong></span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                         <div style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.8rem;">
@@ -450,10 +484,50 @@
             }).join('');
         }
 
+        function addVariantRow(name = '', price = '') {
+            const list = document.getElementById('variants-list');
+            const row = document.createElement('div');
+            row.className = 'variant-row';
+            row.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;';
+            row.innerHTML = `
+                <input type="text" placeholder="Variant (e.g. 500g, Red / XL)" value="${name}" class="variant-name"
+                    style="flex: 2; padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); font-size: 0.82rem;">
+                <input type="number" placeholder="Price" value="${price}" class="variant-price"
+                    style="flex: 1; padding: 0.5rem; border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); font-size: 0.82rem;">
+                <button type="button" class="icon-btn" onclick="this.parentElement.remove()" style="color: #e74c3c; padding: 0.4rem;"><i class="ph-bold ph-trash"></i></button>
+            `;
+            list.appendChild(row);
+        }
+
+        function renderVariants(variants = []) {
+            const list = document.getElementById('variants-list');
+            list.innerHTML = '';
+            if (Array.isArray(variants) && variants.length > 0) {
+                variants.forEach(v => addVariantRow(v.name || '', v.price !== undefined ? v.price : ''));
+            }
+        }
+
+        function getVariantsFromForm() {
+            const rows = document.querySelectorAll('#variants-list .variant-row');
+            const variants = [];
+            rows.forEach(row => {
+                const name = row.querySelector('.variant-name').value.trim();
+                const price = row.querySelector('.variant-price').value.trim();
+                if (name) {
+                    variants.push({
+                        name,
+                        price: price ? Number(price) : 0
+                    });
+                }
+            });
+            return variants;
+        }
+
         function openCreateModal() {
             document.getElementById('modal-title').innerText = 'Add Catalog Item';
             document.getElementById('item-id').value = '';
             document.getElementById('item-form').reset();
+            renderVariants([]);
             document.getElementById('item-modal').classList.add('active');
         }
 
@@ -469,10 +543,12 @@
             document.getElementById('item-id').value = item._id;
             document.getElementById('item-type').value = item.type;
             document.getElementById('field-name').value = item.fields?.name || '';
-            document.getElementById('field-price').value = item.fields?.price || '';
+            document.getElementById('field-price').value = item.fields?.price !== undefined ? item.fields.price : '';
             document.getElementById('field-image-id').value = item.fields?.imageId || item.fields?.mediaId || '';
             document.getElementById('field-category').value = item.fields?.category || '';
             document.getElementById('item-status').value = item.status || 'available';
+
+            renderVariants(item.fields?.variants || []);
 
             document.getElementById('item-modal').classList.add('active');
         }
@@ -486,6 +562,7 @@
             const imageId = document.getElementById('field-image-id').value;
             const category = document.getElementById('field-category').value;
             const status = document.getElementById('item-status').value;
+            const variants = getVariantsFromForm();
 
             const payload = {
                 type,
@@ -494,7 +571,8 @@
                     name,
                     price: price ? Number(price) : undefined,
                     imageId: imageId ? imageId.trim() : undefined,
-                    category: category || undefined
+                    category: category || undefined,
+                    variants: variants.length > 0 ? variants : undefined
                 }
             };
 

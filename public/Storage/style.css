@@ -459,3 +459,73 @@
         display: none;
     }
 }
+
+/* Drag and Drop Move Styles */
+.file-item.dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    border: 2px dashed var(--primary);
+}
+
+.file-item.drag-over-folder,
+.tree-item.drag-over-folder,
+.crumb.drag-over-folder {
+    background: rgba(var(--primary-rgb), 0.25) !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 12px var(--primary-glow) !important;
+}
+
+/* Move Modal Options */
+.move-folder-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: var(--glass-heavy);
+    border: 1px solid var(--glass-border);
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.move-folder-option:hover,
+.move-folder-option.selected {
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.15);
+}
+
+.move-folder-option i {
+    font-size: 1.25rem;
+    color: var(--primary);
+}
+
+/* Text and media preview inside preview-visual */
+.preview-text-container {
+    width: 100%;
+    height: 100%;
+    padding: 0.8rem;
+    background: rgba(0, 0, 0, 0.4);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.75rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.preview-audio-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    gap: 0.5rem;
+    padding: 1rem;
+}
+
+.preview-audio-container audio {
+    width: 100%;
+    max-width: 250px;
+}

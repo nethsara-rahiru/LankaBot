@@ -299,6 +299,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <select class="node-data catalog-type-dropdown" data-key="itemType">
                         <option value="">All Items</option>
                     </select>
+                    <select class="node-data menu-style-dropdown" data-key="menuStyle" style="margin-top: 0.5rem;">
+                        <option value="">Default Menu Style</option>
+                    </select>
                 `;
                 break;
             case 'arrayManager':
@@ -406,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="port port-out" data-node-id="${id}" data-port-id="true" style="position: static; margin-left: -5px; transform: none; background: #2ecc71; border-color: #27ae60;" title="True"></div>
                     <div class="port port-out" data-node-id="${id}" data-port-id="false" style="position: static; margin-right: -5px; transform: none; background: #e74c3c; border-color: #c0392b;" title="False"></div>
                 </div>
-            ` : (type !== 'getOption' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
+            ` : (type !== 'getOption' && type !== 'catalogSelector' ? `<div class="port port-out" data-node-id="${id}" data-port-id="out"></div>` : '')}
         `;
     };
 
@@ -425,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setupPorts(div.querySelectorAll('.port'));
     };
 
-    // Render catalog items as a display list (no per-item ports — a single 'out' port is used)
+    // Render catalog items — each item gets its own output port for per-item branching
     const renderCatalogOptions = (nodeId, items) => {
         const container = document.getElementById(`catalog-options-${nodeId}`);
         if (!container) return;
@@ -441,15 +444,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = item.fields?.name || item.name || `Item ${idx + 1}`;
             const price = item.fields?.price !== undefined ? ` • Rs. ${item.fields.price}` : '';
             const category = item.fields?.category || item.category || '';
+            // Use _id as port ID so each item has a stable, unique port
+            const portId = `cat_${item._id || item.id || idx}`;
 
             const div = document.createElement('div');
-            div.className = 'node-option';
-            div.style.cssText = 'align-items: center; pointer-events: none;';
+            div.className = 'node-option catalog-item-option';
+            div.dataset.portId = portId;
             div.innerHTML = `
                 <span style="flex:1; font-size:0.82rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${name}${price}${category ? ' — ' + category : ''}">${name}<span style="color:var(--text-dim);font-size:0.75rem;">${price}</span></span>
+                <div class="port port-out" data-node-id="${nodeId}" data-port-id="${portId}" title="${name}"></div>
             `;
             container.appendChild(div);
         });
+
+        // Wire up ports for the newly added items
+        setupPorts(container.querySelectorAll('.port'));
 
         // Re-draw lines after ports are mounted
         requestAnimationFrame(() => updateConnections());
@@ -757,6 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         populateCatalogTypeDropdownsInNode(nodeEl);
+        populateMenuStyleDropdownsInNode(nodeEl);
     };
 
     const populateCatalogTypeDropdownsInNode = async (nodeEl) => {
@@ -788,6 +798,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (e) {
             console.error('Failed to populate catalog type dropdowns:', e);
+        }
+    };
+
+    const populateMenuStyleDropdownsInNode = async (nodeEl) => {
+        const selects = nodeEl ? nodeEl.querySelectorAll('select.menu-style-dropdown') : document.querySelectorAll('select.menu-style-dropdown');
+        if (!selects || selects.length === 0) return;
+
+        try {
+            const aId = localStorage.getItem('activeAccountId');
+            const tok = localStorage.getItem('token');
+            const res = await fetch('/api/settings', {
+                headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+            });
+            if (res.ok) {
+                const settings = await res.json();
+                const styles = (Array.isArray(settings.menuStyles) && settings.menuStyles.length > 0)
+                    ? settings.menuStyles
+                    : [{ id: 'default', name: 'Default' }];
+
+                selects.forEach(select => {
+                    const currentVal = select.value;
+                    let html = `<option value="">Default Menu Style</option>`;
+                    styles.forEach(s => {
+                        html += `<option value="${s.name}">${s.name}</option>`;
+                    });
+                    select.innerHTML = html;
+                    if (currentVal) select.value = currentVal;
+                });
+            }
+        } catch (e) {
+            console.error('Failed to populate menu style dropdowns:', e);
         }
     };
 
@@ -913,6 +954,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         data[el.dataset.key] = el.value;
                     }
                 });
+                if (n.type === 'catalogSelector') {
+                    data.catalogOptions = [];
+                    n.element.querySelectorAll('.catalog-item-option').forEach(el => {
+                        const portId = el.dataset.portId;
+                        const titleSpan = el.querySelector('span');
+                        const value = titleSpan ? titleSpan.textContent : '';
+                        data.catalogOptions.push({ id: portId, value: value });
+                    });
+                }
                 return {
                     id: n.id,
                     type: n.type,
