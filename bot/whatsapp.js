@@ -1,4 +1,5 @@
 const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const sessionManager = require('./sessionManager');
 const Rule = require('../models/Rule');
 const Settings = require('../models/Settings');
 const Account = require('../models/Account');
@@ -20,7 +21,6 @@ const clients = new Map(); // accountId -> Client instance
 const aiBuffers = new Map(); // userId_accountId -> { messages: [], timeout: null }
 const sheetCache = new Map(); // accountId -> { data: string, fetchedAt: number }
 const activeFlows = new Map(); // orgContactId -> FlowRuntime
-const pairingNumbers = new Map(); // accountId -> phoneNumber (for pairing code mode)
 
 // Fetches CSV from a Google Sheet URL with 60-second cache
 const fetchSheetData = async (accountId, url) => {
@@ -128,23 +128,7 @@ const startClient = async (accountId) => {
 
     let client;
     try {
-        client = new Client({
-            authStrategy: new LocalAuth({ clientId: account._id.toString() }),
-            puppeteer: {
-                headless: 'new', // 'new' is often faster in modern Chrome
-                timeout: 60000,
-                // executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',     //  Use in macos
-                executablePath: '/usr/bin/chromium-browser',     // Use in linux server
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote'
-                ]
-            }
-        });
+        client = await sessionManager.createClientSession(account, ioInstance);
     } catch (error) {
         console.error(`[WhatsApp ${account.sessionId}] ❌ Error instantiating client:`, error.message);
         await Account.findByIdAndUpdate(accountId, { status: 'disconnected' });
@@ -152,65 +136,6 @@ const startClient = async (accountId) => {
     }
 
     clients.set(accountId, client);
-
-    client.on('qr', async (qr) => {
-        // If a pairing number was set, request pairing code instead of showing QR
-        const pairingPhone = pairingNumbers.get(accountId);
-        if (pairingPhone) {
-            try {
-                const code = await client.requestPairingCode(pairingPhone);
-                console.log(`[WhatsApp ${account.sessionId}] 🔗 Pairing code generated: ${code}`);
-                await Account.findByIdAndUpdate(accountId, { status: 'qr' });
-                ioInstance.emit('account_pairing_code', { accountId, code });
-                ioInstance.emit('system_log', `[${account.sessionId}] Pairing code generated for ${pairingPhone}`);
-                pairingNumbers.delete(accountId);
-            } catch (e) {
-                console.error(`[WhatsApp ${account.sessionId}] ❌ Pairing code error:`, e.message);
-                // Fallback to QR
-                const url = await qrcodeImage.toDataURL(qr);
-                await Account.findByIdAndUpdate(accountId, { status: 'qr', lastQR: url });
-                ioInstance.emit('account_qr', { accountId, qr: url });
-                pairingNumbers.delete(accountId);
-            }
-            return;
-        }
-
-        console.log(`[WhatsApp ${account.sessionId}] 🔄 QR Code generated, waiting for scan...`);
-        const url = await qrcodeImage.toDataURL(qr);
-        await Account.findByIdAndUpdate(accountId, { status: 'qr', lastQR: url });
-        ioInstance.emit('account_qr', { accountId, qr: url });
-        ioInstance.emit('system_log', `[${account.sessionId}] QR Code generated.`);
-    });
-
-    client.on('ready', async () => {
-        const info = client.info;
-        console.log(`[WhatsApp ${account.sessionId}] ✅ Client is READY and connected as ${info.pushname} (${info.wid.user})`);
-
-        let profilePicUrl = '';
-        try {
-            profilePicUrl = await client.getProfilePicUrl(info.wid._serialized);
-        } catch (e) {
-            console.warn(`[WhatsApp ${account.sessionId}] ⚠️ Could not fetch profile picture:`, e.message);
-        }
-
-        const updatedAccount = await Account.findByIdAndUpdate(accountId, {
-            status: 'ready',
-            lastQR: null,
-            phoneNumber: info.wid.user,
-            pushName: info.pushname,
-            profilePic: profilePicUrl
-        }, { returnDocument: 'after' });
-
-        ioInstance.emit('account_ready', {
-            accountId,
-            accountInfo: {
-                name: updatedAccount.pushName,
-                number: updatedAccount.phoneNumber,
-                profilePic: updatedAccount.profilePic
-            }
-        });
-        ioInstance.emit('system_log', `[${account.sessionId}] Connected as ${info.pushname}`);
-    });
 
     client.on('message_create', async (msg) => {
         // Only process incoming messages (not ones sent by the bot itself)
@@ -1070,8 +995,8 @@ const resetActiveFlows = async (accountId) => {
 // Start a client specifically in pairing code mode
 const startClientWithPairing = async (accountId, phoneNumber) => {
     accountId = accountId.toString();
-    // Store the phone number so the QR handler uses pairing instead
-    pairingNumbers.set(accountId, phoneNumber);
+    // Store the phone number in sessionManager so QR event uses pairing instead
+    sessionManager.setPairingPhoneNumber(accountId, phoneNumber);
     // Start the client normally — the QR event will detect the pairing number
     startClient(accountId);
 };
