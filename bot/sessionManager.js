@@ -85,11 +85,8 @@ const createClientSession = async (account, ioInstance, callbacks = {}) => {
                 '--disable-dev-shm-usage',
                 '--disable-accelerated-2d-canvas',
                 '--no-first-run',
-                '--no-zygote',
                 '--disable-gpu',
-                '--disable-session-crashed-bubble',
-                '--disable-features=site-per-process',
-                '--single-process'
+                '--disable-session-crashed-bubble'
             ]
         }
     });

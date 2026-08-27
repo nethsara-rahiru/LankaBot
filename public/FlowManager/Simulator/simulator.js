@@ -313,6 +313,9 @@ class FlowSimulator {
             this._enableInput();
             this._updateButtonStates('waiting');
             document.getElementById('sim-bot-status').textContent = 'Waiting for input...';
+            if (options && options.length > 0) {
+                this._addOptionButtons(options);
+            }
         };
 
         this.runtime.onAIExtract = async (data) => {
@@ -555,9 +558,13 @@ class FlowSimulator {
         Object.entries(vars).forEach(([name, value]) => {
             const row = document.createElement('div');
             row.className = 'sim-var-row';
+            let displayVal = value;
+            if (typeof value === 'object' && value !== null) {
+                displayVal = value.name || value.label || JSON.stringify(value);
+            }
             row.innerHTML = `
                 <span class="sim-var-name">${name}</span>
-                <span class="sim-var-value ${value === null ? 'null' : ''}">${value !== null ? value : 'null'}</span>
+                <span class="sim-var-value ${value === null ? 'null' : ''}">${value !== null ? displayVal : 'null'}</span>
             `;
             this.varsPanel.appendChild(row);
         });

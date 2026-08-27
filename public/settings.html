@@ -147,6 +147,14 @@
                             (1000ms = 1s).
                         </p>
 
+                        <div class="input-group" style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; background: rgba(255, 255, 255, 0.05); padding: 1rem 1.25rem; border-radius: 14px; border: 1px solid var(--glass-border);">
+                            <div>
+                                <label style="margin: 0; font-weight: 600; color: #fff; font-size: 1rem; cursor: pointer;" for="sendTyping">Send Typing Indicator ("typing...")</label>
+                                <small style="display: block; margin-top: 0.25rem; color: var(--text-dim);">Enable to display typing indicator in WhatsApp. Disable for faster, instant responses.</small>
+                            </div>
+                            <input type="checkbox" id="sendTyping" style="width: 22px; height: 22px; cursor: pointer; accent-color: var(--primary);" checked>
+                        </div>
+
                         <div class="input-row">
                             <div class="input-group">
                                 <label>Initial Delay</label>
@@ -296,6 +304,7 @@
         const responseTimeInput = document.getElementById('responseTime');
         const typingTimeInput = document.getElementById('typingTime');
         const waitingTimeInput = document.getElementById('waitingTime');
+        const sendTypingInput = document.getElementById('sendTyping');
         const saveBtn = document.getElementById('save-settings');
 
         const defaultLanguageSelect = document.getElementById('defaultLanguage');
@@ -313,9 +322,12 @@
                 });
                 const data = await res.json();
 
-                responseTimeInput.value = data.responseTime || 2000;
-                typingTimeInput.value = data.typingTime || 3000;
-                waitingTimeInput.value = data.waitingTime || 1000;
+                responseTimeInput.value = data.responseTime !== undefined ? data.responseTime : 2000;
+                typingTimeInput.value = data.typingTime !== undefined ? data.typingTime : 3000;
+                waitingTimeInput.value = data.waitingTime !== undefined ? data.waitingTime : 1000;
+                if (sendTypingInput) {
+                    sendTypingInput.checked = data.sendTyping !== undefined ? data.sendTyping : true;
+                }
 
                 const supported = data.supportedLanguages || ['en'];
                 document.querySelectorAll('.lang-checkbox').forEach(cb => {
@@ -335,6 +347,7 @@
             const responseTime = parseInt(responseTimeInput.value);
             const typingTime = parseInt(typingTimeInput.value);
             const waitingTime = parseInt(waitingTimeInput.value);
+            const sendTyping = sendTypingInput ? sendTypingInput.checked : true;
 
             const selectedLangs = Array.from(document.querySelectorAll('.lang-checkbox:checked')).map(cb => cb.value);
             const defaultLanguage = defaultLanguageSelect.value;
@@ -366,6 +379,7 @@
                         responseTime, 
                         typingTime, 
                         waitingTime,
+                        sendTyping,
                         supportedLanguages: selectedLangs,
                         defaultLanguage
                     })

@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FrontDesk | Item Card Designer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .designer-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 2rem;
+            margin-top: 1.5rem;
+        }
+
+        .editor-section {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            backdrop-filter: blur(16px);
+        }
+
+        /* Preview panel */
+        .preview-section {
+            background: rgba(11, 20, 26, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            position: sticky;
+            top: 2rem;
+            height: fit-content;
+        }
+
+        /* WhatsApp chrome */
+        .whatsapp-header {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 1.2rem;
+        }
+
+        .whatsapp-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #00a884;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.1rem;
+        }
+
+        .whatsapp-chat-bg {
+            background-color: #0b141a;
+            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
+            background-size: 16px 16px;
+            border-radius: 16px;
+            padding: 1rem;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 0.7rem;
+        }
+
+        .whatsapp-bubble {
+            background: #005c4b;
+            color: #e9edef;
+            padding: 0.8rem 1rem;
+            border-radius: 12px 12px 12px 2px;
+            max-width: 90%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            word-break: break-word;
+            transition: all 0.3s ease;
+        }
+
+        .whatsapp-time {
+            font-size: 0.65rem;
+            color: rgba(233, 237, 239, 0.6);
+            float: right;
+            margin-top: 0.4rem;
+            margin-left: 0.8rem;
+        }
+
+        /* Token tags */
+        .token-tag {
+            display: inline-block;
+            background: rgba(155, 89, 182, 0.2);
+            color: #9b59b6;
+            border: 1px solid rgba(155, 89, 182, 0.4);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            font-family: monospace;
+            margin-right: 0.4rem;
+            margin-top: 0.4rem;
+            transition: all 0.2s ease;
+        }
+
+        .token-tag:hover {
+            background: rgba(155, 89, 182, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Item selector */
+        .item-selector-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .item-selector-wrap i {
+            font-size: 1.3rem;
+            color: var(--primary, #9b59b6);
+            flex-shrink: 0;
+        }
+
+        .item-selector-wrap select {
+            flex: 1;
+            padding: 0.5rem 0.7rem;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 0.9rem;
+            font-weight: 600;
+            font-family: inherit;
+        }
+
+        /* Preview header */
+        .preview-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255, 255, 255, 0.35);
+            margin-bottom: 0.8rem;
+        }
+
+        /* Item detail badge shown in preview panel */
+        .item-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: rgba(0, 168, 132, 0.1);
+            border: 1px solid rgba(0, 168, 132, 0.2);
+            border-radius: 10px;
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+            color: #00a884;
+            margin-bottom: 1rem;
+        }
+
+        /* Image placeholder in bubble */
+        .image-placeholder {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 0.6rem 0.8rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #3498db;
+        }
+
+        /* Empty state */
+        .empty-preview {
+            color: #8696a0;
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 2rem 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .designer-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .preview-section {
+                position: static;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <button class="icon-btn" onclick="window.location.href='/catalogManagement.html'" title="Back to Catalog Manager">
+                    <i class="ph-bold ph-arrow-left"></i>
+                </button>
+                <div class="logo-wrapper">
+                    <i class="ph-fill ph-card logo-icon" style="color: #9b59b6;"></i>
+                    <div class="logo">
+                        <h1>Item<span>Card Designer</span></h1>
+                        <p>Design the message sent for individual catalog items</p>
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <button class="btn-secondary" onclick="resetToDefault()" style="padding: 0.65rem 1rem;">
+                    <i class="ph-bold ph-arrow-counter-clockwise"></i> Reset
+                </button>
+                <button class="btn-primary" id="save-btn" onclick="saveTemplate()" style="padding: 0.65rem 1.4rem;">
+                    <i class="ph-bold ph-floppy-disk"></i> Save Template
+                </button>
+            </div>
+        </header>
+
+        <div class="designer-layout">
+
+            <!-- Left: Editor -->
+            <div class="editor-section">
+
+                <!-- Item selector & Image Control -->
+                <div class="item-selector-wrap" style="flex-direction: column; align-items: stretch; gap: 0.8rem;">
+                    <div style="display: flex; align-items: center; gap: 0.8rem;">
+                        <i class="ph-fill ph-storefront"></i>
+                        <div style="flex: 1;">
+                            <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 0.3rem;">Preview with Item</div>
+                            <select id="item-select" onchange="onItemChange()">
+                                <option value="">— Loading items... —</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.7rem;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.75rem; color: var(--text-dim); display: block; margin-bottom: 0.3rem;">Product Image ID / Media ID (from Storage)</label>
+                            <input type="text" id="item-image-input" placeholder="e.g. 64f1a2b3c4d5e6f7a8b9c0d1" oninput="updateItemImageOverride(this.value)"
+                                style="width: 100%; padding: 0.45rem 0.7rem; border-radius: 8px; background: rgba(52, 152, 219, 0.08); color: #fff; border: 1px solid rgba(52, 152, 219, 0.25); font-size: 0.82rem; font-family: monospace;">
+                        </div>
+                    </div>
+                    <div id="variants-preview-badge" style="font-size: 0.78rem; color: var(--text-dim); display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+                        <!-- Rendered dynamically on item select -->
+                    </div>
+                </div>
+
+                <!-- Template editor -->
+                <h3 style="margin-bottom: 0.4rem; color: var(--text);">Card Template</h3>
+                <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 0.8rem;">
+                    This message is sent when a bot shares a single catalog item. Click a token to insert it at the cursor.
+                </p>
+
+                <div style="margin-bottom: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.3rem;">
+                    <span class="token-tag" onclick="insertToken('{{name}}')">{{name}}</span>
+                    <span class="token-tag" onclick="insertToken('{{price}}')">{{price}}</span>
+                    <span class="token-tag" onclick="insertToken('{{description}}')">{{description}}</span>
+                    <span class="token-tag" onclick="insertToken('{{category}}')">{{category}}</span>
+                    <span class="token-tag" onclick="insertToken('{{status}}')">{{status}}</span>
+                    <span class="token-tag" onclick="insertToken('{{variants}}')">{{variants}}</span>
+                    <span class="token-tag" onclick="insertToken('{{imageId}}')">{{imageId}}</span>
+                    <span class="token-tag" onclick="insertToken('{{type}}')">{{type}}</span>
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <textarea id="card-template"
+                        placeholder="e.g. 🏷️ *{{name}}*&#10;💰 Price: Rs. {{price}}&#10;&#10;📝 {{description}}&#10;&#10;📦 {{variants}}"
+                        oninput="updatePreview()"
+                        style="width: 100%; height: 220px; font-family: monospace; font-size: 0.88rem; line-height: 1.6;"></textarea>
+                </div>
+
+                <!-- Tips box -->
+                <div style="background: rgba(52, 152, 219, 0.08); border: 1px solid rgba(52, 152, 219, 0.2); border-radius: 12px; padding: 1rem 1.2rem;">
+                    <div style="font-size: 0.82rem; font-weight: 700; color: #3498db; margin-bottom: 0.5rem;">
+                        <i class="ph-bold ph-lightbulb"></i> WhatsApp Formatting Tips
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-dim); line-height: 1.7;">
+                        <span style="color: #e9edef;"><strong>*bold*</strong></span> &nbsp;|&nbsp;
+                        <span style="color: #e9edef;"><em>_italic_</em></span> &nbsp;|&nbsp;
+                        <span style="color: #e9edef;"><del>~strikethrough~</del></span> &nbsp;|&nbsp;
+                        <code style="color: #e9edef;">```code```</code>
+                        <br>Use <code>{{variants}}</code> to auto-list all variants and prices.
+                        <br>Use <code>{{imageId}}</code> to show the media ID (image is sent separately).
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Live Preview -->
+            <div class="preview-section">
+                <div class="whatsapp-header">
+                    <div class="whatsapp-avatar">
+                        <i class="ph-bold ph-storefront"></i>
+                    </div>
+                    <div>
+                        <div style="font-weight: 700; color: #e9edef; font-size: 0.95rem;">FrontDesk Bot</div>
+                        <div style="font-size: 0.75rem; color: #8696a0;">online</div>
+                    </div>
+                </div>
+
+                <div class="preview-label">Live Preview</div>
+
+                <div id="preview-item-badge" class="item-badge" style="display:none;">
+                    <i class="ph-bold ph-package"></i>
+                    <span id="preview-item-name">—</span>
+                </div>
+
+                <div class="whatsapp-chat-bg" id="preview-chat">
+                    <div class="empty-preview">
+                        <i class="ph-bold ph-chat-teardrop-dots" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+                        Start typing a template to see the preview...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const accountId = localStorage.getItem('activeAccountId');
+        const token = localStorage.getItem('token');
+
+        let catalogItems = [];
+        let currentTemplate = '';
+        const DEFAULT_TEMPLATE = '🏷️ *{{name}}*\n💰 Price: Rs. {{price}}\n\n📝 {{description}}\n\n📦 {{variants}}\n\n_Status: {{status}}_';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!accountId) {
+                alert('No active account selected. Redirecting...');
+                window.location.href = '/accounts.html';
+                return;
+            }
+            await Promise.all([loadItems(), loadSavedTemplate()]);
+            updatePreview();
+        });
+
+        // ─── Data Loading ────────────────────────────────────────────
+
+        async function loadItems() {
+            try {
+                const res = await fetch('/api/catalog', {
+                    headers: { 'x-account-id': accountId, 'x-auth-token': token }
+                });
+                if (res.ok) {
+                    const raw = await res.json();
+                    catalogItems = raw.map(item => ({
+                        _id: item._id,
+                        name: item.fields?.name || 'Unnamed Item',
+                        price: item.fields?.price !== undefined ? item.fields.price : 'N/A',
+                        description: item.fields?.description || '',
+                        category: item.fields?.category || '',
+                        type: item.type || 'product',
+                        status: item.status || 'available',
+                        imageId: item.fields?.imageId || item.fields?.mediaId || '',
+                        variants: Array.isArray(item.fields?.variants) ? item.fields.variants : []
+                    }));
+                }
+            } catch (err) {
+                console.error('Failed to load catalog:', err);
+            }
+
+            // Fallback demo items if catalog is empty
+            if (catalogItems.length === 0) {
+                catalogItems = [
+                    { _id: '__demo1', name: 'Fresh Milk', price: 180, description: 'Farm-fresh full-cream milk, pasteurised and ready to serve.', category: 'Dairy', type: 'product', status: 'available', imageId: '', variants: [{ name: '500ml', price: 180 }, { name: '1L', price: 340 }] },
+                    { _id: '__demo2', name: 'Hair Cut & Styling', price: 1500, description: 'Professional haircut and styling by our expert team.', category: 'Salon', type: 'service', status: 'available', imageId: '', variants: [] }
+                ];
+            }
+
+            const select = document.getElementById('item-select');
+            select.innerHTML = catalogItems.map((item, i) =>
+                `<option value="${i}">${item.name} (${item.type})</option>`
+            ).join('');
+            onItemChange();
+        }
+
+        async function loadSavedTemplate() {
+            try {
+                const res = await fetch('/api/settings', {
+                    headers: { 'x-account-id': accountId, 'x-auth-token': token }
+                });
+                if (res.ok) {
+                    const settings = await res.json();
+                    currentTemplate = settings.itemCardTemplate || DEFAULT_TEMPLATE;
+                } else {
+                    currentTemplate = DEFAULT_TEMPLATE;
+                }
+            } catch (err) {
+                currentTemplate = DEFAULT_TEMPLATE;
+            }
+            document.getElementById('card-template').value = currentTemplate;
+        }
+
+        // ─── Token Insertion ─────────────────────────────────────────
+
+        function insertToken(tokenStr) {
+            const field = document.getElementById('card-template');
+            const start = field.selectionStart;
+            const end = field.selectionEnd;
+            field.value = field.value.substring(0, start) + tokenStr + field.value.substring(end);
+            field.selectionStart = field.selectionEnd = start + tokenStr.length;
+            field.focus();
+            updatePreview();
+        }
+
+        // ─── Item Change ─────────────────────────────────────────────
+
+        function onItemChange() {
+            const item = getSelectedItem();
+            const imgInput = document.getElementById('item-image-input');
+            const badgeEl = document.getElementById('variants-preview-badge');
+            
+            if (item) {
+                if (imgInput) imgInput.value = item.imageId || '';
+                
+                if (badgeEl) {
+                    if (Array.isArray(item.variants) && item.variants.length > 0) {
+                        badgeEl.innerHTML = `<span style="font-weight:600; color:var(--text);">Variants (${item.variants.length}):</span> ` +
+                            item.variants.map(v => `<span style="background: rgba(255,255,255,0.08); padding: 0.15rem 0.4rem; border-radius: 6px; font-size: 0.75rem; color: #e9edef;">${v.name}: <strong style="color: #3498db;">Rs. ${v.price}</strong></span>`).join(' ');
+                    } else {
+                        badgeEl.innerHTML = `<span style="color: rgba(255,255,255,0.4);">No variants attached to this item.</span>`;
+                    }
+                }
+            }
+            updatePreview();
+        }
+
+        function updateItemImageOverride(val) {
+            const item = getSelectedItem();
+            if (item) {
+                item.imageId = val.trim();
+            }
+            updatePreview();
+        }
+
+        // ─── Preview Rendering ────────────────────────────────────────
+
+        function getSelectedItem() {
+            const idx = parseInt(document.getElementById('item-select').value, 10);
+            if (isNaN(idx) || !catalogItems[idx]) return null;
+            return catalogItems[idx];
+        }
+
+        function buildVariantsString(variants) {
+            if (!Array.isArray(variants) || variants.length === 0) return '';
+            return '📦 *Available Variants:*\n' + variants.map(v => `  • ${v.name}: *Rs. ${v.price}*`).join('\n');
+        }
+
+        function buildPriceDisplay(item) {
+            if (Array.isArray(item.variants) && item.variants.length > 0) {
+                const prices = item.variants.map(v => Number(v.price)).filter(p => !isNaN(p));
+                if (prices.length > 0) {
+                    const min = Math.min(...prices);
+                    const max = Math.max(...prices);
+                    return min === max ? `${min}` : `${min} – ${max}`;
+                }
+            }
+            return item.price !== undefined && item.price !== '' ? String(item.price) : 'N/A';
+        }
+
+        function resolveTemplate(template, item) {
+            if (!template || !item) return template || '';
+            const variantsStr = buildVariantsString(item.variants);
+            const priceStr = buildPriceDisplay(item);
+            return template
+                .replace(/\{\{name\}\}/g, item.name || '')
+                .replace(/\{\{price\}\}/g, priceStr)
+                .replace(/\{\{description\}\}/g, item.description || '—')
+                .replace(/\{\{category\}\}/g, item.category || '—')
+                .replace(/\{\{status\}\}/g, item.status || 'available')
+                .replace(/\{\{imageId\}\}/g, item.imageId || '')
+                .replace(/\{\{type\}\}/g, item.type || '')
+                .replace(/\{\{variants\}\}/g, variantsStr);
+        }
+
+        function formatWhatsappMarkdown(text) {
+            if (!text) return '';
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\n/g, '<br>');
+            html = html.replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+            html = html.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+            html = html.replace(/~([^~\n]+)~/g, '<del>$1</del>');
+            html = html.replace(/```([^`]+)```/g, '<code style="background:rgba(255,255,255,0.1);padding:0.1rem 0.3rem;border-radius:4px;">$1</code>');
+            return html;
+        }
+
+        function updatePreview() {
+            const template = document.getElementById('card-template').value;
+            const item = getSelectedItem();
+            const container = document.getElementById('preview-chat');
+            const badge = document.getElementById('preview-item-badge');
+            const badgeName = document.getElementById('preview-item-name');
+
+            // Update badge
+            if (item) {
+                badge.style.display = 'flex';
+                badgeName.textContent = item.name;
+            } else {
+                badge.style.display = 'none';
+            }
+
+            if (!template.trim()) {
+                container.innerHTML = `<div class="empty-preview">
+                    <i class="ph-bold ph-chat-teardrop-dots" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+                    Start typing a template...
+                </div>`;
+                return;
+            }
+
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const resolved = resolveTemplate(template, item);
+            const html = formatWhatsappMarkdown(resolved);
+
+            let imageHtml = '';
+            if (item && item.imageId) {
+                const imgUrl = `/api/storage/download/${item.imageId}?token=${token}`;
+                imageHtml = `
+                    <div style="position: relative; margin-bottom: 0.5rem;">
+                        <img src="${imgUrl}" style="max-width: 100%; border-radius: 8px; display: block; max-height: 220px; object-fit: cover;"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" alt="Product Image">
+                        <div class="image-placeholder" style="display: none;">
+                            <i class="ph-bold ph-image" style="font-size: 1.1rem;"></i>
+                            <span>Attached Image (ID: <strong>${item.imageId}</strong>)</span>
+                        </div>
+                    </div>`;
+            }
+
+            container.innerHTML = `
+                <div class="whatsapp-bubble">
+                    ${imageHtml}
+                    <div>${html}</div>
+                    <span class="whatsapp-time">${timeStr} <i class="ph-fill ph-checks" style="color: #53bdeb; font-size: 0.75rem;"></i></span>
+                </div>`;
+        }
+
+        // ─── Reset & Save ─────────────────────────────────────────────
+
+        function resetToDefault() {
+            if (!confirm('Reset template to the default? This will not save.')) return;
+            document.getElementById('card-template').value = DEFAULT_TEMPLATE;
+            updatePreview();
+        }
+
+        async function saveTemplate() {
+            const tmpl = document.getElementById('card-template').value;
+            const btn = document.getElementById('save-btn');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph-bold ph-spinner"></i> Saving...';
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-account-id': accountId,
+                        'x-auth-token': token
+                    },
+                    body: JSON.stringify({ itemCardTemplate: tmpl })
+                });
+
+                if (res.ok) {
+                    btn.innerHTML = '<i class="ph-bold ph-check"></i> Saved!';
+                    btn.style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+                    setTimeout(() => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Template';
+                        btn.style.background = '';
+                    }, 2000);
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    alert('Save error: ' + (err.message || err.msg || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Template';
+                }
+            } catch (err) {
+                console.error('Save failed:', err);
+                alert('Save failed: Network error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph-bold ph-floppy-disk"></i> Save Template';
+            }
+        }
+    </script>
+</body>
+
+</html>

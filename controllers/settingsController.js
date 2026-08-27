@@ -72,6 +72,7 @@ exports.updateSettings = async (req, res) => {
         if (req.body.responseTime !== undefined) settings.responseTime = req.body.responseTime;
         if (req.body.typingTime !== undefined) settings.typingTime = req.body.typingTime;
         if (req.body.waitingTime !== undefined) settings.waitingTime = req.body.waitingTime;
+        if (req.body.sendTyping !== undefined) settings.sendTyping = req.body.sendTyping;
 
         if (req.body.aiEnabled !== undefined) settings.aiEnabled = req.body.aiEnabled;
         
@@ -124,6 +125,10 @@ exports.updateSettings = async (req, res) => {
         if (req.body.customCatalogTypes !== undefined) {
             settings.customCatalogTypes = req.body.customCatalogTypes;
             settings.markModified('customCatalogTypes');
+        }
+
+        if (req.body.itemCardTemplate !== undefined) {
+            settings.itemCardTemplate = req.body.itemCardTemplate;
         }
         
         const updatedSettings = await settings.save();

@@ -779,6 +779,309 @@ class FlowRuntime {
                 break;
             }
 
+            case 'variantSelector': {
+                console.log('[VariantSelector] step.next =', currentStep.next, '| step:', JSON.stringify({ id: currentStep.id, type: currentStep.type, next: currentStep.next }));
+                const mode = currentStep.data.productMode || 'dropdown';
+                const productId = currentStep.data.productId || '';
+                const productVarName = currentStep.data.productVariable || 'selectedItem';
+                
+                let targetProduct = null;
+
+                if (mode === 'dropdown' && productId) {
+                    try {
+                        if (this.onShowCatalog) {
+                            const result = await this.onShowCatalog('');
+                            if (result && Array.isArray(result.items)) {
+                                targetProduct = result.items.find(i => String(i._id || i.id) === String(productId));
+                            }
+                        } else {
+                            const accountId = (typeof localStorage !== 'undefined') ? localStorage.getItem('activeAccountId') : null;
+                            const simToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+                            const headers = { 'x-auth-token': simToken || '' };
+                            if (accountId) headers['x-account-id'] = accountId;
+                            const catRes = await fetch(`/api/catalog`, { headers });
+                            if (catRes.ok) {
+                                const allItems = await catRes.json();
+                                targetProduct = allItems.find(i => String(i._id || i.id) === String(productId));
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error fetching catalog product for variant selector:', e);
+                    }
+                } else {
+                    const varVal = this.variables[productVarName];
+                    if (typeof varVal === 'object' && varVal !== null) {
+                        targetProduct = varVal;
+                    } else if (typeof varVal === 'string') {
+                        const resolvedId = this._interpolate(varVal || productVarName);
+                        try {
+                            if (this.onShowCatalog) {
+                                const result = await this.onShowCatalog('');
+                                if (result && Array.isArray(result.items)) {
+                                    targetProduct = result.items.find(i => String(i._id || i.id) === String(resolvedId) || (i.fields?.name && i.fields.name.toLowerCase() === resolvedId.toLowerCase()));
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                let variants = [];
+                if (targetProduct) {
+                    if (Array.isArray(targetProduct.fields?.variants)) {
+                        variants = targetProduct.fields.variants;
+                    } else if (Array.isArray(targetProduct.variants)) {
+                        variants = targetProduct.variants;
+                    }
+                }
+
+                const productName = targetProduct?.fields?.name || targetProduct?.name || 'Product';
+
+                if (variants.length === 0) {
+                    console.warn(`[VariantSelector Node ${currentStep.id}] No variants found for product "${productName}". Advancing.`);
+                    if (this.onBotMessage) {
+                        await this.onBotMessage(`No specific variants available for ${productName}. Standard item selected.`);
+                    }
+                    const varName = currentStep.data.variable;
+                    if (varName) {
+                        this.variables[varName] = { name: 'Standard', price: targetProduct?.fields?.price || targetProduct?.price || 0 };
+                        this._emitVariables();
+                    }
+                    this.status = 'running';
+                    this._advance(currentStep.next);
+                    break;
+                }
+
+                const variantOptionsList = variants.map((v, idx) => {
+                    const name = v.name || v.label || `Variant ${idx + 1}`;
+                    const price = v.price !== undefined ? ` (Rs. ${v.price})` : '';
+                    return `${name}${price}`;
+                });
+
+                if (this.status === 'waiting_ai' && userInput !== null) {
+                    try {
+                        let parsed = null;
+                        const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
+                        try {
+                            const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
+                            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+                            else parsed = JSON.parse(cleanInput);
+                        } catch(e) {
+                            parsed = { status: 'fail', followUp: `Thank you for your message. Please select one of the available variants for ${productName}: ${variantOptionsList.join(', ')}.` };
+                        }
+
+                        if (parsed.status === 'redirect' && parsed.topicId) {
+                            this.nodeHistory = [];
+                            const entrypoint = this.compiled.entrypoints && this.compiled.entrypoints[parsed.topicId];
+                            this.currentNodeId = entrypoint ? entrypoint.id : parsed.topicId;
+                            this.status = 'running';
+                            await this.step(null);
+                            return this.status;
+                        }
+
+                        const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                        const findMatchingVariant = (valToMatch) => {
+                            const normVal = normalizeStr(valToMatch);
+                            if (!normVal) return null;
+                            return variants.find((v, idx) => {
+                                const vName = normalizeStr(v.name || v.label || '');
+                                const normIndex = String(idx + 1);
+                                return normVal === vName || normVal === normIndex || (vName && (normVal.includes(vName) || vName.includes(normVal)));
+                            });
+                        };
+
+                        if (parsed.status === 'fail') {
+                            const lastUserMsg = (this.nodeHistory && this.nodeHistory.length > 0)
+                                ? this.nodeHistory[this.nodeHistory.length - 1].content
+                                : cleanInput;
+                            const directMatch = findMatchingVariant(lastUserMsg) || findMatchingVariant(cleanInput);
+                            if (directMatch) {
+                                parsed = { status: 'success', value: directMatch.name || directMatch.label };
+                            } else {
+                                if (this.onBotMessage && parsed.followUp) {
+                                    await this.onBotMessage(parsed.followUp);
+                                    if (!this.nodeHistory) this.nodeHistory = [];
+                                    this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                                }
+                                this.status = 'waiting_option';
+                                return this.status;
+                            }
+                        }
+
+                        this.nodeHistory = [];
+                        const val = parsed.value !== undefined ? parsed.value : userInput;
+                        let selectedVariant = findMatchingVariant(val) || variants[0];
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = selectedVariant;
+                            console.log(`[VariantSelector Node ${currentStep.id}] 💾 Saved selected variant to variable "${varName}":`, JSON.stringify(selectedVariant));
+                            this._emitVariables();
+                        }
+
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    } catch(e) {
+                        console.error(`[VariantSelector Node ${currentStep.id}] ❌ Exception during step execution:`, e);
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                } else if (this.status === 'waiting_option' && userInput !== null) {
+                    if (this.onAIExtract) {
+                        this.status = 'waiting_ai';
+                        const defaultAiPrompt = `Select the exact variant of ${productName} the customer wants. Available options: ${variantOptionsList.join(', ')}.`;
+                        const aiPrompt = currentStep.data.aiPrompt ? this._interpolate(currentStep.data.aiPrompt) : defaultAiPrompt;
+                        const userPrompt = this._interpolate(currentStep.data.prompt || `Which variant of ${productName} would you like?`);
+
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        const currentTopic = this._getCurrentTopicContext();
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
+
+                        this.onAIExtract({
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt,
+                            options: variantOptionsList,
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: false
+                        });
+                    } else {
+                        const matchedVariant = variants.find(v => {
+                            const vName = String(v.name || v.label || '').toLowerCase();
+                            return vName.includes(userInput.toLowerCase().trim()) || userInput.toLowerCase().includes(vName);
+                        }) || variants[0];
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = matchedVariant;
+                            this._emitVariables();
+                        }
+
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                } else {
+                    this.status = 'waiting_option';
+                    if (this.onWaitingForOption) {
+                        const rawPrompt = currentStep.data.prompt || `Which size/variant would you like for ${productName}?`;
+                        const prompt = this._interpolate(rawPrompt).replace(/\{\{productName\}\}/g, productName);
+                        await this.onWaitingForOption(prompt, variantOptionsList);
+                    }
+                }
+                break;
+            }
+
+            case 'showProductCard': {
+                let targetProduct = null;
+                const productMode = currentStep.data.productMode || 'dropdown';
+
+                if (productMode === 'variable') {
+                    const varName = currentStep.data.productVariable;
+                    if (varName && this.variables[varName]) {
+                        targetProduct = this.variables[varName];
+                    }
+                } else {
+                    const pId = currentStep.data.productId;
+                    if (pId) {
+                        try {
+                            const aId = localStorage.getItem('activeAccountId');
+                            const tok = localStorage.getItem('token');
+                            const res = await fetch('/api/catalog', {
+                                headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+                            });
+                            if (res.ok) {
+                                const items = await res.json();
+                                targetProduct = items.find(i => (i._id === pId || i.id === pId));
+                            }
+                        } catch (e) {
+                            console.error('[FlowRuntime] Failed to fetch catalog items for showProductCard:', e);
+                        }
+                    }
+                }
+
+                if (!targetProduct) {
+                    targetProduct = {
+                        fields: {
+                            name: 'Product Card',
+                            price: 0,
+                            description: '',
+                            category: '',
+                            variants: []
+                        },
+                        type: 'product',
+                        status: 'available'
+                    };
+                }
+
+                const fields = targetProduct.fields || targetProduct;
+                const name = fields.name || targetProduct.name || 'Product';
+                const description = fields.description || targetProduct.description || '';
+                const category = fields.category || targetProduct.category || '';
+                const type = targetProduct.type || 'product';
+                const status = targetProduct.status || 'available';
+                const imageId = fields.imageId || fields.mediaId || targetProduct.imageId || targetProduct.mediaId || '';
+                const variants = Array.isArray(fields.variants) ? fields.variants : (Array.isArray(targetProduct.variants) ? targetProduct.variants : []);
+
+                let priceVal = fields.price !== undefined ? fields.price : targetProduct.price;
+                let variantsStr = '';
+                if (variants.length > 0) {
+                    variantsStr = 'Variants:\n' + variants.map(v => `  • ${v.name}: Rs. ${v.price}`).join('\n');
+                    if (priceVal === undefined || priceVal === null || priceVal === '' || priceVal === 'N/A') {
+                        const prices = variants.map(v => Number(v.price)).filter(p => !isNaN(p));
+                        if (prices.length > 0) {
+                            const min = Math.min(...prices);
+                            const max = Math.max(...prices);
+                            priceVal = min === max ? `${min}` : `${min} - ${max}`;
+                        }
+                    }
+                }
+                if (priceVal === undefined || priceVal === null) priceVal = 'N/A';
+
+                let template = currentStep.data.cardTemplate;
+                if (!template) {
+                    try {
+                        const aId = localStorage.getItem('activeAccountId');
+                        const tok = localStorage.getItem('token');
+                        const res = await fetch('/api/settings', {
+                            headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+                        });
+                        if (res.ok) {
+                            const settings = await res.json();
+                            template = settings.itemCardTemplate;
+                        }
+                    } catch (e) {}
+                }
+
+                if (!template) {
+                    template = '🏷️ *{{name}}*\n💰 Price: Rs. {{price}}\n\n📝 {{description}}\n\n📦 {{variants}}\n\n_Status: {{status}}_';
+                }
+
+                let cardMessage = template
+                    .replace(/\{\{name\}\}/g, name)
+                    .replace(/\{\{price\}\}/g, priceVal)
+                    .replace(/\{\{description\}\}/g, description || '—')
+                    .replace(/\{\{category\}\}/g, category || '—')
+                    .replace(/\{\{type\}\}/g, type)
+                    .replace(/\{\{status\}\}/g, status)
+                    .replace(/\{\{imageId\}\}/g, imageId)
+                    .replace(/\{\{variants\}\}/g, variantsStr);
+
+                cardMessage = this._interpolate(cardMessage);
+
+                if (this.onBotMessage) {
+                    await this.onBotMessage(cardMessage, imageId || null);
+                }
+
+                this._advance(currentStep.next);
+                break;
+            }
+
             case 'arrayManager':
                 const action = currentStep.data.action || 'push';
                 const arrVarName = currentStep.data.variable;

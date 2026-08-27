@@ -77,9 +77,17 @@ const SettingsSchema = new mongoose.Schema({
         type: Number,
         default: 1000
     },
+    sendTyping: {
+        type: Boolean,
+        default: true
+    },
     customCatalogTypes: {
         type: [String],
         default: ['product', 'service']
+    },
+    itemCardTemplate: {
+        type: String,
+        default: '🏷️ *{{name}}*\n💰 Price: Rs. {{price}}\n\n📝 {{description}}\n\n📦 {{variants}}\n\n_Status: {{status}}_'
     }
 });
 

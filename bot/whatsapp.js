@@ -432,7 +432,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         while (flow.status === 'running') {
                             console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}'...`);
                             await flow.step(null);
-                            await new Promise(r => setTimeout(r, 100)); // small delay to ensure order
+                            await new Promise(r => setTimeout(r, 10)); // minimal delay to ensure order
                         }
                         console.log(`[WhatsApp Flow] ⏸️ flow.resume loop stopped. Final status: '${flow.status}', currentNode: '${flow.currentNodeId}'`);
                         flow._isRunning = false;
@@ -442,16 +442,20 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         const currentCustomer = await Customer.findOne({ phoneNumber: user });
                         const translatedText = text ? await processOutgoingMessage(text, currentCustomer, settings) : text;
 
-                        // Count words and wait 0.4 seconds per word, max 3 seconds
-                        const wordCount = (translatedText || '').split(/\s+/).filter(w => w.length > 0).length;
-                        const typingMs = Math.min(wordCount * 400, 3000);
-                        try {
-                            const chat = await msg.getChat();
-                            if (chat.sendPresence) await chat.sendPresence('composing');
-                            else if (chat.sendStateTyping) await chat.sendStateTyping();
-                        } catch (e) { }
-
-                        await new Promise(r => setTimeout(r, typingMs));
+                        const isTypingEnabled = settings?.sendTyping !== false;
+                        if (isTypingEnabled) {
+                            const wordCount = (translatedText || '').split(/\s+/).filter(w => w.length > 0).length;
+                            const maxTyping = (settings?.typingTime !== undefined && settings.typingTime !== null) ? settings.typingTime : 3000;
+                            const typingMs = Math.min(wordCount * 400, maxTyping);
+                            if (typingMs > 0) {
+                                try {
+                                    const chat = await msg.getChat();
+                                    if (chat.sendPresence) await chat.sendPresence('composing');
+                                    else if (chat.sendStateTyping) await chat.sendStateTyping();
+                                } catch (e) { }
+                                await new Promise(r => setTimeout(r, typingMs));
+                            }
+                        }
 
                         let mediaContent = null;
                         if (mediaId) {
@@ -880,18 +884,24 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         const aiResponse = await processOutgoingMessage(rawAiResponse, freshCustomer, settings);
 
                         try {
-                            try {
-                                const chat = await msg.getChat();
-                                if (chat.sendPresence) {
-                                    await chat.sendPresence('composing');
-                                } else if (chat.sendStateTyping) {
-                                    await chat.sendStateTyping();
+                            const isTypingEnabled = settings?.sendTyping !== false;
+                            if (isTypingEnabled) {
+                                try {
+                                    const chat = await msg.getChat();
+                                    if (chat.sendPresence) {
+                                        await chat.sendPresence('composing');
+                                    } else if (chat.sendStateTyping) {
+                                        await chat.sendStateTyping();
+                                    }
+                                } catch (chatErr) {
+                                    console.warn(`[WhatsApp ${account.sessionId}] ⚠️ Skipping typing indicator: could not fetch chat window for ${msg.from}`);
                                 }
-                            } catch (chatErr) {
-                                console.warn(`[WhatsApp ${account.sessionId}] ⚠️ Skipping typing indicator: could not fetch chat window for ${msg.from}`);
-                            }
 
-                            await new Promise(r => setTimeout(r, settings.typingTime || 3000));
+                                const delay = (settings.typingTime !== undefined && settings.typingTime !== null) ? settings.typingTime : 3000;
+                                if (delay > 0) {
+                                    await new Promise(r => setTimeout(r, delay));
+                                }
+                            }
 
                             try {
                                 await msg.reply(aiResponse);

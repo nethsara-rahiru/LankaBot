@@ -293,6 +293,58 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select>
                 `;
                 break;
+            case 'variantSelector':
+                content = `
+                    <select class="node-data" data-key="productMode" style="margin-bottom: 0.5rem; width: 100%;" onchange="toggleVariantProductMode('${id}', this.value)">
+                        <option value="dropdown">Select Product (Dropdown)</option>
+                        <option value="variable">Use Product Variable</option>
+                    </select>
+                    
+                    <div id="product-dropdown-container-${id}">
+                        <select class="node-data product-list-dropdown" data-key="productId" style="width: 100%;">
+                            <option value="">Loading Products...</option>
+                        </select>
+                    </div>
+
+                    <div id="product-variable-container-${id}" style="display: none;">
+                        <select class="node-data" data-key="productVariable" style="width: 100%;">
+                            <option value="">Select Product Variable...</option>
+                            ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <input type="text" placeholder="Prompt message (e.g. Select a size/variant for {{productName}})" class="node-data" data-key="prompt" style="margin-top: 0.5rem;">
+                    <input type="text" placeholder="AI Prompt (Optional variant extraction instructions)" class="node-data" data-key="aiPrompt" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
+                    
+                    <select class="node-data" data-key="variable" style="margin-top: 0.5rem;">
+                        <option value="">Save Selected Variant to Variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                break;
+            case 'showProductCard':
+                content = `
+                    <select class="node-data" data-key="productMode" style="margin-bottom: 0.5rem; width: 100%;" onchange="toggleVariantProductMode('${id}', this.value)">
+                        <option value="dropdown">Select Product (Dropdown)</option>
+                        <option value="variable">Use Product Variable</option>
+                    </select>
+                    
+                    <div id="product-dropdown-container-${id}">
+                        <select class="node-data product-list-dropdown" data-key="productId" style="width: 100%;">
+                            <option value="">Loading Products...</option>
+                        </select>
+                    </div>
+
+                    <div id="product-variable-container-${id}" style="display: none;">
+                        <select class="node-data" data-key="productVariable" style="width: 100%;">
+                            <option value="">Select Product Variable...</option>
+                            ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <input type="text" placeholder="Card Message Template (Optional override, e.g. 🏷️ *{{name}}*\nRs. {{price}})" class="node-data" data-key="cardTemplate" style="margin-top: 0.5rem; font-size: 0.8rem;">
+                `;
+                break;
             case 'showCatalog':
                 content = `
                     <p style="margin:0 0 0.5rem; font-size: 0.8rem; color: var(--text-dim);">Send catalog items using the configured Menu Style template.</p>
@@ -353,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p style="margin:0 0 0.5rem 0; font-size: 0.78rem; color: var(--text-dim);">Map manual data entry columns to variables or values:</p>
                     <div style="display: flex; flex-direction: column; gap: 0.35rem;">
                         ${fieldsToRender.map(f => `
-                            <div class="order-field-row" style="display:flex; align-items:center; justify-content:space-between; gap:0.4rem;">
+                            <div class="order-field-row" style="display:flex; align-items:center; justify-space-between; gap:0.4rem;">
                                 <label style="font-size:0.75rem; color:var(--text-dim); min-width:100px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${f.label}">${f.label}:</label>
                                 <input type="text" placeholder="e.g. ${f.defaultVar}" class="node-data" data-key="field_${f.key}" style="font-size:0.78rem; padding:0.25rem 0.4rem; flex:1;">
                             </div>
@@ -372,6 +424,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if: 'If',
             ifAI: 'If (AI)',
             catalogSelector: 'Catalog Selector',
+            variantSelector: 'Variant Selector',
+            showProductCard: 'Show Product Card',
             showCatalog: 'Show Catalog',
             arrayManager: 'Array Manager',
             placeOrder: 'Place Order',
@@ -386,6 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if: 'ph-git-merge',
             ifAI: 'ph-brain',
             catalogSelector: 'ph-storefront',
+            variantSelector: 'ph-swatchbook',
+            showProductCard: 'ph-card',
             showCatalog: 'ph-list-numbers',
             arrayManager: 'ph-list-plus',
             placeOrder: 'ph-shopping-cart',
@@ -746,9 +802,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Update all select dropdowns
-        document.querySelectorAll('select.node-data[data-key="variable"]').forEach(select => {
+        document.querySelectorAll('select.node-data[data-key="variable"], select.node-data[data-key="productVariable"]').forEach(select => {
             const currentVal = select.value;
-            select.innerHTML = `<option value="">Select Variable...</option>` + 
+            const placeholder = select.getAttribute('data-key') === 'productVariable' ? 'Select Product Variable...' : 'Select Variable...';
+            select.innerHTML = `<option value="">${placeholder}</option>` + 
                 Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('');
             if (variables.has(currentVal)) {
                 select.value = currentVal;
@@ -756,10 +813,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+    window.toggleVariantProductMode = (nodeId, mode) => {
+        const dropdownContainer = document.getElementById(`product-dropdown-container-${nodeId}`);
+        const variableContainer = document.getElementById(`product-variable-container-${nodeId}`);
+        if (dropdownContainer && variableContainer) {
+            if (mode === 'variable') {
+                dropdownContainer.style.display = 'none';
+                variableContainer.style.display = 'block';
+            } else {
+                dropdownContainer.style.display = 'block';
+                variableContainer.style.display = 'none';
+            }
+        }
+    };
+
     const updateVariableDropdownsInNode = (nodeEl) => {
-        nodeEl.querySelectorAll('select.node-data[data-key="variable"]').forEach(select => {
+        nodeEl.querySelectorAll('select.node-data[data-key="variable"], select.node-data[data-key="productVariable"]').forEach(select => {
             const currentVal = select.value;
-            select.innerHTML = `<option value="">Select Variable...</option>` + 
+            const placeholder = select.getAttribute('data-key') === 'productVariable' ? 'Select Product Variable...' : 'Select Variable...';
+            select.innerHTML = `<option value="">${placeholder}</option>` + 
                 Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('');
             if (variables.has(currentVal)) {
                 select.value = currentVal;
@@ -767,6 +839,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         populateCatalogTypeDropdownsInNode(nodeEl);
         populateMenuStyleDropdownsInNode(nodeEl);
+        populateProductDropdownInNode(nodeEl);
+    };
+
+    const populateProductDropdownInNode = async (nodeEl) => {
+        const selects = nodeEl ? nodeEl.querySelectorAll('select.product-list-dropdown') : document.querySelectorAll('select.product-list-dropdown');
+        if (!selects || selects.length === 0) return;
+
+        try {
+            const aId = localStorage.getItem('activeAccountId');
+            const tok = localStorage.getItem('token');
+            const res = await fetch('/api/catalog', {
+                headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+            });
+            if (res.ok) {
+                const items = await res.json();
+                selects.forEach(select => {
+                    const currentVal = select.value;
+                    let html = `<option value="">Select a Product...</option>`;
+                    items.forEach(item => {
+                        const name = item.fields?.name || item.name || 'Unnamed Product';
+                        const price = item.fields?.price !== undefined ? ` (Rs. ${item.fields.price})` : '';
+                        const idVal = item._id || item.id;
+                        html += `<option value="${idVal}">${name}${price}</option>`;
+                    });
+                    select.innerHTML = html;
+                    if (currentVal) select.value = currentVal;
+                });
+            }
+        } catch (e) {
+            console.error('Failed to populate product dropdowns for variant selector:', e);
+        }
     };
 
     const populateCatalogTypeDropdownsInNode = async (nodeEl) => {
@@ -926,6 +1029,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Restore catalogSelector: async-refresh items from API (display only, no per-item ports)
                 if (n.type === 'catalogSelector') {
                     loadCatalogOptions(n.id, n.data.itemType || '');
+                }
+
+                if (n.type === 'variantSelector' || n.type === 'showProductCard') {
+                    if (n.data.productMode) {
+                        toggleVariantProductMode(n.id, n.data.productMode);
+                    }
+                    populateProductDropdownInNode(nodeEl);
                 }
             }
         });

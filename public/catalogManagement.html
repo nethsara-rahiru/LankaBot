@@ -167,6 +167,9 @@
                     <button class="btn-secondary" onclick="window.location.href='/catalogMenuStyle.html'">
                         <i class="ph-bold ph-palette"></i> Menu Style
                     </button>
+                    <button class="btn-secondary" onclick="window.location.href='/catalogItemCard.html'">
+                        <i class="ph-bold ph-card"></i> Item Card
+                    </button>
                     <button class="btn-primary" onclick="openCreateModal()">
                         <i class="ph-bold ph-plus"></i> Add Item
                     </button>
@@ -219,11 +222,17 @@
                         style="width: 100%; padding: 0.7rem; border-radius: 10px; background: rgba(52, 152, 219, 0.05); color: #fff; border: 1px solid rgba(52, 152, 219, 0.2);">
                 </div>
 
-                <div style="margin-bottom: 1.5rem;">
+                <div style="margin-bottom: 1rem;">
                     <label style="display: block; font-size: 0.85rem; margin-bottom: 0.4rem;">Category / Additional
                         Details</label>
                     <input type="text" id="field-category" placeholder="e.g. Dairy or Salon Services"
                         style="width: 100%; padding: 0.7rem; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1);">
+                </div>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <label style="display: block; font-size: 0.85rem; margin-bottom: 0.4rem;">Description</label>
+                    <textarea id="field-description" placeholder="e.g. Fresh full-cream milk, sourced locally from Sri Lankan farms..."
+                        style="width: 100%; padding: 0.7rem; border-radius: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); resize: vertical; min-height: 80px; font-family: inherit; font-size: 0.9rem; line-height: 1.5;"></textarea>
                 </div>
 
                 <div style="margin-bottom: 1.5rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1rem;">
@@ -550,6 +559,7 @@
             document.getElementById('field-price').value = item.fields?.price !== undefined ? item.fields.price : '';
             document.getElementById('field-image-id').value = item.fields?.imageId || item.fields?.mediaId || '';
             document.getElementById('field-category').value = item.fields?.category || '';
+            document.getElementById('field-description').value = item.fields?.description || '';
             document.getElementById('item-status').value = item.status || 'available';
 
             renderVariants(item.fields?.variants || []);
@@ -565,6 +575,7 @@
             const price = document.getElementById('field-price').value;
             const imageId = document.getElementById('field-image-id').value;
             const category = document.getElementById('field-category').value;
+            const description = document.getElementById('field-description').value;
             const status = document.getElementById('item-status').value;
             const variants = getVariantsFromForm();
 
@@ -576,6 +587,7 @@
                     price: price ? Number(price) : undefined,
                     imageId: imageId ? imageId.trim() : undefined,
                     category: category || undefined,
+                    description: description || undefined,
                     variants: variants.length > 0 ? variants : undefined
                 }
             };

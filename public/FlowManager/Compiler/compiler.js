@@ -92,7 +92,7 @@ class FlowCompiler {
 
                 // catalogSelector migration: old flows stored per-item port IDs instead of 'out'.
                 // Fall back to the first connection from this node, regardless of port name.
-                if (!targetId && node.type === 'catalogSelector') {
+                if (!targetId && (node.type === 'catalogSelector' || node.type === 'variantSelector' || node.type === 'showProductCard')) {
                     const fallback = connections.find(c => c.source === node.id);
                     if (fallback) targetId = fallback.target;
                 }
