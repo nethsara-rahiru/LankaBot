@@ -397,7 +397,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             const currentSettings = await Settings.findOne({ account: accountId });
                             const currentCustomer = await Customer.findOne({ phoneNumber: user });
                             const business = {
-                                name: currentSettings?.aiConfig?.organizationName || currentAccount?.pushName || 'FrontDesk',
+                                name: currentSettings?.aiConfig?.organizationName || account?.pushName || 'FrontDesk',
                                 description: currentSettings?.aiConfig?.aiPersonality || null,
                                 settings: currentSettings || {},
                                 customer: currentCustomer || null
@@ -463,9 +463,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}'...`);
                             const inputToPass = pendingInput;
                             await flow.step(inputToPass);
-                            if (inputToPass !== null && flow.status !== 'running') {
-                                pendingInput = null;
-                            }
+                            pendingInput = null;
                             await new Promise(r => setTimeout(r, 10)); // minimal delay to ensure order
                         }
                         console.log(`[WhatsApp Flow] ⏸️ flow.resume loop stopped. Final status: '${flow.status}', currentNode: '${flow.currentNodeId}'`);
