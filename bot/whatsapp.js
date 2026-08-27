@@ -771,6 +771,10 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     flow.currentNodeId = shouldRedirect;
                     flow.status = 'running';
                     await flow.step(null);
+                    if ((flow.status === 'waiting_option' || flow.status === 'waiting_input') && (msg.effectiveInput || msg.body)) {
+                        console.log(`[WhatsApp Flow] ⚡ Passing user intent "${msg.effectiveInput || msg.body}" to new redirected topic node '${flow.currentNodeId}'`);
+                        await flow.step(msg.effectiveInput || msg.body);
+                    }
                 } else if (flow.status === 'idle') {
                     console.log(`[WhatsApp Flow] 🎬 Starting flow instance for contact ${orgId}`);
                     flow.start(settings.compiledFlow);
@@ -781,9 +785,13 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     }
                     flow.status = 'running';
                     await flow.step(null);
+                    if ((flow.status === 'waiting_option' || flow.status === 'waiting_input') && (msg.effectiveInput || msg.body)) {
+                        console.log(`[WhatsApp Flow] ⚡ Passing initial user intent "${msg.effectiveInput || msg.body}" to starting flow node '${flow.currentNodeId}'`);
+                        await flow.step(msg.effectiveInput || msg.body);
+                    }
                 } else {
                     console.log(`[WhatsApp Flow] 📥 Handing user message "${msg.body}" to active flow (status: '${flow.status}', currentNode: '${flow.currentNodeId}')`);
-                    await flow.step(msg.body);
+                    await flow.step(msg.effectiveInput || msg.body);
                 }
 
                 // Automatically run until user input is required
