@@ -944,6 +944,60 @@ INSTRUCTIONS FOR AI:
                         this.status = 'running';
                         this._advance(nextTarget);
                     }
+                } else if (userInput !== null && userInput !== undefined) {
+                    // User input was provided upon entering the node for the first time!
+                    // Process userInput directly via AI Extract or direct match without sending initial prompt message!
+                    if (this.onAIExtract) {
+                        this.status = 'waiting_ai';
+                        const customPrompt = currentStep.data.aiPrompt ? this._interpolate(currentStep.data.aiPrompt) : '';
+                        const defaultAiPrompt = `Analyze the user message and conversation history to select the EXACT catalog item the customer wants from the catalog list below:
+
+${optionsList.join('\n')}
+
+INSTRUCTIONS FOR AI:
+1. Compare user message, item names, descriptions, categories, item IDs, and Singlish/Tamil transliterations (e.g. "devil kaju" = Devilled Cashews / ඩෙවිල් කජු, "roast kaju" = Roasted Cashews).
+2. If the user refers to a product by its name, description keywords, category, number, or flavor, you MUST match it to the exact Item ID or Name and output status: "success".
+3. Return JSON: {"status": "success", "value": "matched_item_name_or_id"}
+4. DO NOT return status "fail" if a matching or relevant catalog item exists in the list above.
+5. Only return status "fail" with a followUp question if the user message is completely unrelated to any item in the catalog.`;
+
+                        const interpolatedAiPrompt = customPrompt
+                            ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions:\n${optionsList.join('\n')}`
+                            : defaultAiPrompt;
+
+                        const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
+                        
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        const currentTopic = this._getCurrentTopicContext();
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
+
+                        this.onAIExtract({
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt: interpolatedAiPrompt,
+                            options: optionsList,
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: false
+                        });
+                    } else {
+                        let selectedItem = this._findMatchingCatalogItem(catalogItems, userInput) || catalogItems[0];
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = selectedItem;
+                            this._emitVariables();
+                        }
+                        const itemPortId = `cat_${selectedItem?._id || selectedItem?.id}`;
+                        const matchedOpt = (currentStep.options || []).find(opt => opt.id === itemPortId);
+                        const nextTarget = (matchedOpt && matchedOpt.next) ? matchedOpt.next : currentStep.next;
+                        this.status = 'running';
+                        this._advance(nextTarget);
+                    }
                 } else {
                     // Ask user for catalog item choice
                     this.status = 'waiting_option';

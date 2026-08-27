@@ -448,16 +448,21 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
                     // ──────────────────────────────────────────────────────────────────────
 
-                    flow.resume = async () => {
+                    flow.resume = async (initialInput = null) => {
                         console.log(`[WhatsApp Flow] 🔄 flow.resume() called. Current status: '${flow.status}', isRunning: ${flow._isRunning}, currentNode: '${flow.currentNodeId}'`);
                         if (flow._isRunning) {
                             console.log('[WhatsApp Flow] ⚠️ flow.resume() already running, skipping re-entry.');
                             return;
                         }
                         flow._isRunning = true;
+                        let pendingInput = initialInput;
                         while (flow.status === 'running') {
                             console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}'...`);
-                            await flow.step(null);
+                            const inputToPass = pendingInput;
+                            await flow.step(inputToPass);
+                            if (inputToPass !== null && flow.status !== 'running') {
+                                pendingInput = null;
+                            }
                             await new Promise(r => setTimeout(r, 10)); // minimal delay to ensure order
                         }
                         console.log(`[WhatsApp Flow] ⏸️ flow.resume loop stopped. Final status: '${flow.status}', currentNode: '${flow.currentNodeId}'`);
@@ -763,8 +768,6 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     activeFlows.set(orgId, flow);
                 }
 
-                let pendingInputToFeed = null;
-
                 if (shouldRedirect) {
                     console.log(`[WhatsApp Flow] 🔀 Redirecting flow to topic entrypoint node '${shouldRedirect}'`);
                     flow.variables = {};
@@ -772,7 +775,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     flow.start(settings.compiledFlow);
                     flow.currentNodeId = shouldRedirect;
                     flow.status = 'running';
-                    pendingInputToFeed = msg.effectiveInput || msg.body;
+                    await flow.resume(msg.effectiveInput || msg.body);
                 } else if (flow.status === 'idle') {
                     console.log(`[WhatsApp Flow] 🎬 Starting flow instance for contact ${orgId}`);
                     flow.start(settings.compiledFlow);
@@ -782,22 +785,10 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         flow.currentNodeId = entrypoints[entryKeys[0]].id; // fallback
                     }
                     flow.status = 'running';
-                    pendingInputToFeed = msg.effectiveInput || msg.body;
+                    await flow.resume(msg.effectiveInput || msg.body);
                 } else {
                     console.log(`[WhatsApp Flow] 📥 Handing user message "${msg.body}" to active flow (status: '${flow.status}', currentNode: '${flow.currentNodeId}')`);
                     await flow.step(msg.effectiveInput || msg.body);
-                }
-
-                // Automatically run until user input is required
-                console.log(`[WhatsApp Flow] 🔄 Triggering flow.resume() for contact ${orgId}...`);
-                await flow.resume();
-
-                // If flow reached a waiting state upon startup/redirection and has a pending user message intent, feed it!
-                if (pendingInputToFeed && (flow.status === 'waiting_option' || flow.status === 'waiting_input')) {
-                    console.log(`[WhatsApp Flow] ⚡ Feeding initial user intent "${pendingInputToFeed}" to waiting node '${flow.currentNodeId}'`);
-                    const textToFeed = pendingInputToFeed;
-                    pendingInputToFeed = null;
-                    await flow.step(textToFeed);
                     await flow.resume();
                 }
 
