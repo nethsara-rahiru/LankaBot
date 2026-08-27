@@ -134,7 +134,7 @@ class FlowRuntime {
             .trim();
         const normCleanVal = normalizeStr(cleanNameVal);
 
-        // 3. Exact name / normalized name match
+        // 3. Exact name / normalized name & sub-name match
         for (let i = 0; i < catalogItems.length; i++) {
             const item = catalogItems[i];
             const name = item.fields?.name || item.name || item.fields?.title || item.title || '';
@@ -146,9 +146,23 @@ class FlowRuntime {
             if (normName && (normName === normVal || normName === normCleanVal)) {
                 return item;
             }
+
+            // Match sub-names inside parentheses e.g. "ඩෙවිල් කජු ( Devilled Cashews )"
+            if (name.includes('(') && name.includes(')')) {
+                const parts = name.split(/[\(\)]/).map(p => p.trim()).filter(Boolean);
+                for (const part of parts) {
+                    const normPart = normalizeStr(part);
+                    if (part.toLowerCase() === strVal.toLowerCase() || part.toLowerCase() === cleanNameVal.toLowerCase()) {
+                        return item;
+                    }
+                    if (normPart && (normPart === normVal || normPart === normCleanVal)) {
+                        return item;
+                    }
+                }
+            }
         }
 
-        // 4. Substring & Token Overlap Scoring
+        // 4. Substring & Semantic Token Overlap Scoring
         const tokenize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
         const valTokens = tokenize(cleanNameVal || strVal);
 
@@ -158,9 +172,10 @@ class FlowRuntime {
         catalogItems.forEach((item) => {
             const name = item.fields?.name || item.name || item.fields?.title || item.title || '';
             const category = item.fields?.category || item.category || '';
+            const description = item.fields?.description || item.description || '';
             const normName = normalizeStr(name);
             const normCat = normalizeStr(category);
-            const fullText = `${name} ${category} ${item.fields?.description || ''}`;
+            const fullText = `${name} ${category} ${description}`;
             const itemTokens = tokenize(fullText);
 
             let score = 0;
@@ -181,7 +196,7 @@ class FlowRuntime {
                         matchCount++;
                     }
                 });
-                const tokenScore = (matchCount / valTokens.length) * 50;
+                const tokenScore = (matchCount / valTokens.length) * 60;
                 score += tokenScore;
             }
 
@@ -807,35 +822,35 @@ class FlowRuntime {
                             return this.status;
                         }
 
-                        const val = parsed.value !== undefined ? parsed.value : userInput;
+                        const val = parsed.value !== undefined ? parsed.value : null;
+
+                        // Extract actual original user message from nodeHistory (not the AI JSON response string)
+                        let realUserMsg = null;
+                        if (Array.isArray(this.nodeHistory) && this.nodeHistory.length > 0) {
+                            const userEntries = this.nodeHistory.filter(m => typeof m === 'object' && m.role === 'user');
+                            if (userEntries.length > 0) {
+                                realUserMsg = userEntries[userEntries.length - 1].content;
+                            }
+                        }
 
                         // Match selected item object using robust multi-strategy matching
                         let selectedItem = this._findMatchingCatalogItem(catalogItems, val);
 
-                        if (!selectedItem && (parsed.status === 'fail' || !parsed.value)) {
-                            const lastUserMsg = (this.nodeHistory && this.nodeHistory.length > 0)
-                                ? (typeof this.nodeHistory[this.nodeHistory.length - 1] === 'object'
-                                    ? this.nodeHistory[this.nodeHistory.length - 1].content
-                                    : this.nodeHistory[this.nodeHistory.length - 1])
-                                : cleanInput;
-
-                            selectedItem = this._findMatchingCatalogItem(catalogItems, userInput)
-                                        || this._findMatchingCatalogItem(catalogItems, lastUserMsg)
-                                        || this._findMatchingCatalogItem(catalogItems, cleanInput);
-
-                            if (selectedItem) {
-                                console.log(`[CatalogSelector Node ${currentStep.id}] 💡 AI returned fail, but direct/token match succeeded: "${selectedItem.fields?.name || selectedItem.name}"`);
-                                parsed = { status: 'success', value: selectedItem.fields?.name || selectedItem.name };
-                            }
+                        if (!selectedItem && realUserMsg) {
+                            selectedItem = this._findMatchingCatalogItem(catalogItems, realUserMsg);
                         }
 
                         if (!selectedItem) {
-                            selectedItem = this._findMatchingCatalogItem(catalogItems, userInput)
-                                        || this._findMatchingCatalogItem(catalogItems, cleanInput);
+                            selectedItem = this._findMatchingCatalogItem(catalogItems, cleanInput);
+                        }
+
+                        if (selectedItem) {
+                            console.log(`[CatalogSelector Node ${currentStep.id}] 💡 Item matched successfully: "${selectedItem.fields?.name || selectedItem.name}"`);
+                            parsed = { status: 'success', value: selectedItem.fields?.name || selectedItem.name };
                         }
 
                         if (!selectedItem && parsed.status === 'fail') {
-                            console.warn(`[CatalogSelector Node ${currentStep.id}] ⚠️ Selection failed for input: "${cleanInput}"`);
+                            console.warn(`[CatalogSelector Node ${currentStep.id}] ⚠️ Selection failed for input: "${realUserMsg || cleanInput}"`);
                             if (this.onBotMessage && parsed.followUp) {
                                 await this.onBotMessage(parsed.followUp);
                                 if (!this.nodeHistory) this.nodeHistory = [];
@@ -882,10 +897,11 @@ class FlowRuntime {
 ${optionsList.join('\n')}
 
 INSTRUCTIONS FOR AI:
-1. Compare user message, item names, descriptions, categories, and item IDs.
-2. If the user refers to a product by its name, description keywords, category, or number, match it to the exact Item ID or Name.
+1. Compare user message, item names, descriptions, categories, item IDs, and Singlish/Tamil transliterations (e.g. "devil kaju" = Devilled Cashews / ඩෙවිල් කජු, "roast kaju" = Roasted Cashews).
+2. If the user refers to a product by its name, description keywords, category, number, or flavor, you MUST match it to the exact Item ID or Name and output status: "success".
 3. Return JSON: {"status": "success", "value": "matched_item_name_or_id"}
-4. If ambiguous or missing, return JSON: {"status": "fail", "followUp": "friendly clarifying question"}`;
+4. DO NOT return status "fail" if a matching or relevant catalog item exists in the list above.
+5. Only return status "fail" with a followUp question if the user message is completely unrelated to any item in the catalog.`;
 
                         const interpolatedAiPrompt = customPrompt
                             ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions:\n${optionsList.join('\n')}`
