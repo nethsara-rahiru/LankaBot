@@ -56,20 +56,42 @@ class FlowRuntime {
 
         let strVal = '';
         if (typeof valToMatch === 'object') {
-            strVal = valToMatch.fields?.name || valToMatch.name || valToMatch._id || valToMatch.id || JSON.stringify(valToMatch);
+            if (valToMatch._id || valToMatch.id) {
+                const found = catalogItems.find(i => String(i._id || i.id) === String(valToMatch._id || valToMatch.id));
+                if (found) return found;
+            }
+            strVal = valToMatch.fields?.name || valToMatch.name || valToMatch.fields?.title || valToMatch.title || JSON.stringify(valToMatch);
         } else {
             strVal = String(valToMatch).trim();
         }
         if (!strVal) return null;
 
+        // Extract Item ID or Name if strVal is a formatted AI product string
+        const idMatch = strVal.match(/Item ID:\s*["']?([^"'|\n]+)["']?/i);
+        if (idMatch && idMatch[1]) {
+            const matchedById = catalogItems.find(i => String(i._id || i.id) === idMatch[1].trim());
+            if (matchedById) return matchedById;
+        }
+
+        const nameMatch = strVal.match(/Name:\s*["']?([^"'|\n]+)["']?/i);
+        if (nameMatch && nameMatch[1]) {
+            const matchedByName = catalogItems.find(i => {
+                const n = i.fields?.name || i.name || i.fields?.title || i.title || '';
+                return n.toLowerCase().trim() === nameMatch[1].toLowerCase().trim();
+            });
+            if (matchedByName) return matchedByName;
+        }
+
         // If the string contains a quoted message payload, try matching the quoted payload first
         const replyMatch = strVal.match(/\[Replying to (?:message: )?["']?([\s\S]*?)["']?\]/i);
         if (replyMatch && replyMatch[1]) {
             const quotedContent = replyMatch[1].trim();
-            // Prevent infinite recursion by stripping the tag before recursing
-            const cleanQuotedStr = strVal.replace(/\[Replying to (?:message: )?[\s\S]*?\]/gi, '').trim();
+            const cleanWithoutReply = strVal.replace(/\[Replying to (?:message: )?[\s\S]*?\]/gi, '').trim();
+            
             const quotedMatchItem = this._findMatchingCatalogItem(catalogItems, quotedContent);
             if (quotedMatchItem) return quotedMatchItem;
+
+            if (cleanWithoutReply) strVal = cleanWithoutReply;
         }
 
         const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -85,32 +107,56 @@ class FlowRuntime {
             }
         }
 
-        // 2. Index number matches (e.g. "1", "2", "option 1", "item 2", "#1", "first", "second")
-        const indexMatch = strVal.match(/(?:option|item|#)?\s*(\d+)/i);
-        if (indexMatch) {
-            const idx = parseInt(indexMatch[1], 10) - 1;
+        // 2. Index number matches (e.g. "1", "2", "option 1", "item #2", "choice 1")
+        // STRICT: Only match as index if strVal is explicitly an option index selection, NOT a product name with numbers like "500ml" or "2L"
+        let indexNum = null;
+        if (/^\s*\d+\s*$/.test(strVal)) {
+            indexNum = parseInt(strVal.trim(), 10);
+        } else if (/^\s*(?:option|item|choice|number|#)\s*:?\s*(\d+)\s*$/i.test(strVal)) {
+            const m = strVal.match(/(\d+)/);
+            if (m) indexNum = parseInt(m[1], 10);
+        } else if (/^\s*(\d+)[\.\s\-]+\D/i.test(strVal)) {
+            const m = strVal.match(/^\s*(\d+)[\.\s\-]/);
+            if (m) indexNum = parseInt(m[1], 10);
+        }
+
+        if (indexNum !== null) {
+            const idx = indexNum - 1;
             if (idx >= 0 && idx < catalogItems.length) {
                 return catalogItems[idx];
             }
         }
 
-        // 3. Exact name or normalized name match
+        // Clean string value by removing option numbers (e.g. "1. ") and trailing details (e.g. "(Rs. 180, Dairy)")
+        const cleanNameVal = strVal
+            .replace(/^\s*\d+[\.\s\-]+/, '')
+            .replace(/\s*\([^)]*\)/g, '')
+            .trim();
+        const normCleanVal = normalizeStr(cleanNameVal);
+
+        // 3. Exact name / normalized name match
         for (let i = 0; i < catalogItems.length; i++) {
             const item = catalogItems[i];
-            const name = item.fields?.name || item.name || '';
-            if (name.toLowerCase().trim() === strVal.toLowerCase().trim()) return item;
-            if (normalizeStr(name) && normalizeStr(name) === normVal) return item;
+            const name = item.fields?.name || item.name || item.fields?.title || item.title || '';
+            const normName = normalizeStr(name);
+
+            if (name.toLowerCase().trim() === strVal.toLowerCase().trim() || name.toLowerCase().trim() === cleanNameVal.toLowerCase().trim()) {
+                return item;
+            }
+            if (normName && (normName === normVal || normName === normCleanVal)) {
+                return item;
+            }
         }
 
         // 4. Substring & Token Overlap Scoring
         const tokenize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
-        const valTokens = tokenize(strVal);
+        const valTokens = tokenize(cleanNameVal || strVal);
 
         let bestItem = null;
         let bestScore = 0;
 
         catalogItems.forEach((item) => {
-            const name = item.fields?.name || item.name || '';
+            const name = item.fields?.name || item.name || item.fields?.title || item.title || '';
             const category = item.fields?.category || item.category || '';
             const normName = normalizeStr(name);
             const normCat = normalizeStr(category);
@@ -120,12 +166,13 @@ class FlowRuntime {
             let score = 0;
 
             if (normName) {
-                if (normVal === normName) score += 100;
-                else if (normVal.includes(normName)) score += 80;
+                if (normVal === normName || normCleanVal === normName) score += 100;
+                else if (normVal.includes(normName) || normCleanVal.includes(normName)) score += 80;
                 else if (normName.includes(normVal) && normVal.length >= 3) score += 70;
+                else if (normCleanVal && normName.includes(normCleanVal) && normCleanVal.length >= 3) score += 70;
             }
 
-            if (normCat && normVal.includes(normCat)) score += 30;
+            if (normCat && (normVal.includes(normCat) || normCleanVal.includes(normCat))) score += 30;
 
             if (valTokens.length > 0 && itemTokens.length > 0) {
                 let matchCount = 0;
@@ -721,9 +768,17 @@ class FlowRuntime {
 
                 const optionsList = catalogItems.map((item, idx) => {
                     const name = item.fields?.name || item.name || 'Unnamed Item';
-                    const price = item.fields?.price !== undefined ? item.fields.price : (item.price || 'N/A');
+                    const price = item.fields?.price !== undefined ? item.fields.price : (item.price !== undefined ? item.price : 'N/A');
                     const category = item.fields?.category || item.category || '';
-                    return `${idx + 1}. ${name} (Rs. ${price}${category ? ', ' + category : ''})`;
+                    const description = item.fields?.description || item.description || '';
+                    const itemType = item.type || '';
+
+                    let str = `${idx + 1}. Item ID: "${item._id || item.id || idx + 1}" | Name: "${name}"`;
+                    if (price !== 'N/A') str += ` | Price: Rs. ${price}`;
+                    if (category) str += ` | Category: "${category}"`;
+                    if (itemType) str += ` | Type: "${itemType}"`;
+                    if (description) str += ` | Description: "${description}"`;
+                    return str;
                 });
 
                 if (this.status === 'waiting_ai' && userInput !== null) {
@@ -821,8 +876,21 @@ class FlowRuntime {
                 } else if (this.status === 'waiting_option' && userInput !== null) {
                     if (this.onAIExtract) {
                         this.status = 'waiting_ai';
-                        const aiPrompt = currentStep.data.aiPrompt || 'Select the exact catalog item the customer wants. If the customer request is ambiguous or vague, ask clarifying follow-up questions to identify the correct item.';
-                        const interpolatedAiPrompt = this._interpolate(aiPrompt);
+                        const customPrompt = currentStep.data.aiPrompt ? this._interpolate(currentStep.data.aiPrompt) : '';
+                        const defaultAiPrompt = `Analyze the user message and conversation history to select the EXACT catalog item the customer wants from the catalog list below:
+
+${optionsList.join('\n')}
+
+INSTRUCTIONS FOR AI:
+1. Compare user message, item names, descriptions, categories, and item IDs.
+2. If the user refers to a product by its name, description keywords, category, or number, match it to the exact Item ID or Name.
+3. Return JSON: {"status": "success", "value": "matched_item_name_or_id"}
+4. If ambiguous or missing, return JSON: {"status": "fail", "followUp": "friendly clarifying question"}`;
+
+                        const interpolatedAiPrompt = customPrompt
+                            ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions:\n${optionsList.join('\n')}`
+                            : defaultAiPrompt;
+
                         const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
                         
                         if (!this.nodeHistory) this.nodeHistory = [];
