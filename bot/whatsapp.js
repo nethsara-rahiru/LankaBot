@@ -763,6 +763,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     activeFlows.set(orgId, flow);
                 }
 
+                let pendingInputToFeed = null;
+
                 if (shouldRedirect) {
                     console.log(`[WhatsApp Flow] 🔀 Redirecting flow to topic entrypoint node '${shouldRedirect}'`);
                     flow.variables = {};
@@ -770,11 +772,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     flow.start(settings.compiledFlow);
                     flow.currentNodeId = shouldRedirect;
                     flow.status = 'running';
-                    await flow.step(null);
-                    if ((flow.status === 'waiting_option' || flow.status === 'waiting_input') && (msg.effectiveInput || msg.body)) {
-                        console.log(`[WhatsApp Flow] ⚡ Passing user intent "${msg.effectiveInput || msg.body}" to new redirected topic node '${flow.currentNodeId}'`);
-                        await flow.step(msg.effectiveInput || msg.body);
-                    }
+                    pendingInputToFeed = msg.effectiveInput || msg.body;
                 } else if (flow.status === 'idle') {
                     console.log(`[WhatsApp Flow] 🎬 Starting flow instance for contact ${orgId}`);
                     flow.start(settings.compiledFlow);
@@ -784,11 +782,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         flow.currentNodeId = entrypoints[entryKeys[0]].id; // fallback
                     }
                     flow.status = 'running';
-                    await flow.step(null);
-                    if ((flow.status === 'waiting_option' || flow.status === 'waiting_input') && (msg.effectiveInput || msg.body)) {
-                        console.log(`[WhatsApp Flow] ⚡ Passing initial user intent "${msg.effectiveInput || msg.body}" to starting flow node '${flow.currentNodeId}'`);
-                        await flow.step(msg.effectiveInput || msg.body);
-                    }
+                    pendingInputToFeed = msg.effectiveInput || msg.body;
                 } else {
                     console.log(`[WhatsApp Flow] 📥 Handing user message "${msg.body}" to active flow (status: '${flow.status}', currentNode: '${flow.currentNodeId}')`);
                     await flow.step(msg.effectiveInput || msg.body);
@@ -797,6 +791,16 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                 // Automatically run until user input is required
                 console.log(`[WhatsApp Flow] 🔄 Triggering flow.resume() for contact ${orgId}...`);
                 await flow.resume();
+
+                // If flow reached a waiting state upon startup/redirection and has a pending user message intent, feed it!
+                if (pendingInputToFeed && (flow.status === 'waiting_option' || flow.status === 'waiting_input')) {
+                    console.log(`[WhatsApp Flow] ⚡ Feeding initial user intent "${pendingInputToFeed}" to waiting node '${flow.currentNodeId}'`);
+                    const textToFeed = pendingInputToFeed;
+                    pendingInputToFeed = null;
+                    await flow.step(textToFeed);
+                    await flow.resume();
+                }
+
                 console.log(`[WhatsApp Flow] ✅ Flow reply sequence completed for contact ${orgId}`);
 
                 return; // Stop processing further for Flow Reply
