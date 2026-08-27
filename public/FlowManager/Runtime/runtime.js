@@ -1142,13 +1142,35 @@ INSTRUCTIONS FOR AI:
                         const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
                         const findMatchingVariant = (valToMatch) => {
-                            const normVal = normalizeStr(valToMatch);
+                            if (valToMatch === null || valToMatch === undefined) return null;
+                            const strVal = String(typeof valToMatch === 'object' ? (valToMatch.name || valToMatch.label || valToMatch.value || '') : valToMatch);
+                            const normVal = normalizeStr(strVal);
                             if (!normVal) return null;
-                            return variants.find((v, idx) => {
+                            
+                            // 1. Direct normalized match or index match
+                            let match = variants.find((v, idx) => {
                                 const vName = normalizeStr(v.name || v.label || '');
                                 const normIndex = String(idx + 1);
-                                return normVal === vName || normVal === normIndex || (vName && (normVal.includes(vName) || vName.includes(normVal)));
+                                return normVal === vName || normVal === normIndex;
                             });
+                            if (match) return match;
+
+                            // 2. Partial containment match (e.g. "1kg" matching "1kg Pack", or "250" matching "250g")
+                            match = variants.find(v => {
+                                const vName = normalizeStr(v.name || v.label || '');
+                                return vName && (normVal.includes(vName) || vName.includes(normVal));
+                            });
+                            if (match) return match;
+
+                            // 3. Numeric extraction match (e.g. "1" or "1000" matching "1kg")
+                            const numVal = normVal.replace(/[^0-9]/g, '');
+                            if (numVal) {
+                                match = variants.find(v => {
+                                    const vNum = normalizeStr(v.name || v.label || '').replace(/[^0-9]/g, '');
+                                    return vNum && (vNum === numVal || (numVal === '1' && vNum === '1000') || (numVal === '1000' && vNum === '1'));
+                                });
+                            }
+                            return match || null;
                         };
 
                         if (parsed.status === 'fail') {
@@ -1202,6 +1224,48 @@ INSTRUCTIONS FOR AI:
                         const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
 
                         this.onAIExtract({
+                            nodeType: 'variantSelector',
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt,
+                            options: variantOptionsList,
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: false
+                        });
+                    } else {
+                        const matchedVariant = variants.find(v => {
+                            const vName = String(v.name || v.label || '').toLowerCase();
+                            return vName.includes(userInput.toLowerCase().trim()) || userInput.toLowerCase().includes(vName);
+                        }) || variants[0];
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = matchedVariant;
+                            this._emitVariables();
+                        }
+
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                } else if (userInput !== null && userInput !== undefined) {
+                    if (this.onAIExtract) {
+                        this.status = 'waiting_ai';
+                        const defaultAiPrompt = `Select the exact variant of ${productName} the customer wants. Available options: ${variantOptionsList.join(', ')}.`;
+                        const aiPrompt = currentStep.data.aiPrompt ? this._interpolate(currentStep.data.aiPrompt) : defaultAiPrompt;
+                        const userPrompt = this._interpolate(currentStep.data.prompt || `Which variant of ${productName} would you like?`);
+
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        const currentTopic = this._getCurrentTopicContext();
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
+
+                        this.onAIExtract({
+                            nodeType: 'variantSelector',
                             userInput: fullContext,
                             userPrompt,
                             aiPrompt,
