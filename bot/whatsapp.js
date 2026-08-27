@@ -554,9 +554,16 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         }
                     };
 
-                    flow.onWaitingForOption = async (prompt, options) => {
+                    flow.onWaitingForOption = async (prompt, options, nodeType) => {
                         const currentCustomer = await Customer.findOne({ phoneNumber: user });
-                        const translatedPrompt = await processOutgoingMessage(prompt, currentCustomer, settings);
+                        
+                        let fullMessageText = prompt;
+                        if (nodeType === 'variantSelector' && Array.isArray(options) && options.length > 0) {
+                            const formattedOptions = options.map((opt) => `• ${opt}`).join('\n');
+                            fullMessageText = `${prompt}\n\n${formattedOptions}`;
+                        }
+
+                        const translatedPrompt = await processOutgoingMessage(fullMessageText, currentCustomer, settings);
 
                         await msg.reply(translatedPrompt);
                         try {

@@ -585,7 +585,7 @@ class FlowRuntime {
                     if (this.onWaitingForOption) {
                         const prompt = this._interpolate(currentStep.data.prompt || 'Choose an option:');
                         const opts = (currentStep.options || []).map(o => o.value);
-                        await this.onWaitingForOption(prompt, opts);
+                        await this.onWaitingForOption(prompt, opts, 'getOption');
                     }
                 }
                 break;
@@ -1232,7 +1232,7 @@ INSTRUCTIONS FOR AI:
                     if (this.onWaitingForOption) {
                         const rawPrompt = currentStep.data.prompt || `Which size/variant would you like for ${productName}?`;
                         const prompt = this._interpolate(rawPrompt).replace(/\{\{productName\}\}/g, productName);
-                        await this.onWaitingForOption(prompt, variantOptionsList);
+                        await this.onWaitingForOption(prompt, variantOptionsList, 'variantSelector');
                     }
                 }
                 break;
