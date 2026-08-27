@@ -49,6 +49,109 @@ class FlowRuntime {
     }
 
     /**
+     * Helper to reliably match catalog items by ID, Index, Name, Substring, or Word Overlap
+     */
+    _findMatchingCatalogItem(catalogItems, valToMatch) {
+        if (!valToMatch || !Array.isArray(catalogItems) || catalogItems.length === 0) return null;
+
+        let strVal = '';
+        if (typeof valToMatch === 'object') {
+            strVal = valToMatch.fields?.name || valToMatch.name || valToMatch._id || valToMatch.id || JSON.stringify(valToMatch);
+        } else {
+            strVal = String(valToMatch).trim();
+        }
+        if (!strVal) return null;
+
+        // If the string contains a quoted message payload, try matching the quoted payload first
+        const replyMatch = strVal.match(/\[Replying to (?:message: )?["']?([\s\S]*?)["']?\]/i);
+        if (replyMatch && replyMatch[1]) {
+            const quotedContent = replyMatch[1].trim();
+            // Prevent infinite recursion by stripping the tag before recursing
+            const cleanQuotedStr = strVal.replace(/\[Replying to (?:message: )?[\s\S]*?\]/gi, '').trim();
+            const quotedMatchItem = this._findMatchingCatalogItem(catalogItems, quotedContent);
+            if (quotedMatchItem) return quotedMatchItem;
+        }
+
+        const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normVal = normalizeStr(strVal);
+
+        // 1. Direct ID / Port ID matches
+        for (let i = 0; i < catalogItems.length; i++) {
+            const item = catalogItems[i];
+            const itemId = String(item._id || item.id || '');
+            const portId = `cat_${itemId}`;
+            if (strVal === itemId || strVal === portId || (normVal && (normVal === normalizeStr(itemId) || normVal === normalizeStr(portId)))) {
+                return item;
+            }
+        }
+
+        // 2. Index number matches (e.g. "1", "2", "option 1", "item 2", "#1", "first", "second")
+        const indexMatch = strVal.match(/(?:option|item|#)?\s*(\d+)/i);
+        if (indexMatch) {
+            const idx = parseInt(indexMatch[1], 10) - 1;
+            if (idx >= 0 && idx < catalogItems.length) {
+                return catalogItems[idx];
+            }
+        }
+
+        // 3. Exact name or normalized name match
+        for (let i = 0; i < catalogItems.length; i++) {
+            const item = catalogItems[i];
+            const name = item.fields?.name || item.name || '';
+            if (name.toLowerCase().trim() === strVal.toLowerCase().trim()) return item;
+            if (normalizeStr(name) && normalizeStr(name) === normVal) return item;
+        }
+
+        // 4. Substring & Token Overlap Scoring
+        const tokenize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 1);
+        const valTokens = tokenize(strVal);
+
+        let bestItem = null;
+        let bestScore = 0;
+
+        catalogItems.forEach((item) => {
+            const name = item.fields?.name || item.name || '';
+            const category = item.fields?.category || item.category || '';
+            const normName = normalizeStr(name);
+            const normCat = normalizeStr(category);
+            const fullText = `${name} ${category} ${item.fields?.description || ''}`;
+            const itemTokens = tokenize(fullText);
+
+            let score = 0;
+
+            if (normName) {
+                if (normVal === normName) score += 100;
+                else if (normVal.includes(normName)) score += 80;
+                else if (normName.includes(normVal) && normVal.length >= 3) score += 70;
+            }
+
+            if (normCat && normVal.includes(normCat)) score += 30;
+
+            if (valTokens.length > 0 && itemTokens.length > 0) {
+                let matchCount = 0;
+                valTokens.forEach(vt => {
+                    if (itemTokens.some(it => it.includes(vt) || vt.includes(it))) {
+                        matchCount++;
+                    }
+                });
+                const tokenScore = (matchCount / valTokens.length) * 50;
+                score += tokenScore;
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestItem = item;
+            }
+        });
+
+        if (bestScore >= 30) {
+            return bestItem;
+        }
+
+        return null;
+    }
+
+    /**
      * Load compiled flow and reset state
      */
     start(compiled) {
@@ -616,11 +719,11 @@ class FlowRuntime {
                     ];
                 }
 
-                const optionsList = catalogItems.map(item => {
+                const optionsList = catalogItems.map((item, idx) => {
                     const name = item.fields?.name || item.name || 'Unnamed Item';
                     const price = item.fields?.price !== undefined ? item.fields.price : (item.price || 'N/A');
                     const category = item.fields?.category || item.category || '';
-                    return `${name} (Rs. ${price}${category ? ', ' + category : ''})`;
+                    return `${idx + 1}. ${name} (Rs. ${price}${category ? ', ' + category : ''})`;
                 });
 
                 if (this.status === 'waiting_ai' && userInput !== null) {
@@ -649,56 +752,49 @@ class FlowRuntime {
                             return this.status;
                         }
 
-                        const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const val = parsed.value !== undefined ? parsed.value : userInput;
 
-                        // Helper for flexible item matching
-                        const findMatchingItem = (valToMatch) => {
-                            const normVal = normalizeStr(valToMatch);
-                            if (!normVal) return null;
+                        // Match selected item object using robust multi-strategy matching
+                        let selectedItem = this._findMatchingCatalogItem(catalogItems, val);
 
-                            return catalogItems.find((item, idx) => {
-                                const name = item.fields?.name || item.name || '';
-                                const normName = normalizeStr(name);
-                                const normId = normalizeStr(item._id || item.id);
-                                const normIndex = String(idx + 1);
-
-                                if (normVal === normId || normVal === normName || normVal === normIndex) return true;
-                                if (normName && (normVal.includes(normName) || normName.includes(normVal))) return true;
-
-                                const fullText = normalizeStr(`${name} ${item.fields?.price || ''} ${item.fields?.category || ''}`);
-                                if (fullText && (fullText.includes(normVal) || normVal.includes(fullText))) return true;
-
-                                return false;
-                            });
-                        };
-
-                        if (parsed.status === 'fail') {
-                            // Attempt direct match on raw history or prompt before declaring failure
+                        if (!selectedItem && (parsed.status === 'fail' || !parsed.value)) {
                             const lastUserMsg = (this.nodeHistory && this.nodeHistory.length > 0)
-                                ? this.nodeHistory[this.nodeHistory.length - 1].content
+                                ? (typeof this.nodeHistory[this.nodeHistory.length - 1] === 'object'
+                                    ? this.nodeHistory[this.nodeHistory.length - 1].content
+                                    : this.nodeHistory[this.nodeHistory.length - 1])
                                 : cleanInput;
 
-                            const directMatch = findMatchingItem(lastUserMsg) || findMatchingItem(cleanInput);
-                            if (directMatch) {
-                                console.log(`[CatalogSelector Node ${currentStep.id}] 💡 AI returned fail, but direct match succeeded: "${directMatch.fields?.name || directMatch.name}"`);
-                                parsed = { status: 'success', value: directMatch.fields?.name || directMatch.name };
-                            } else {
-                                console.warn(`[CatalogSelector Node ${currentStep.id}] ⚠️ Selection failed for input: "${cleanInput}"`);
-                                if (this.onBotMessage && parsed.followUp) {
-                                    await this.onBotMessage(parsed.followUp);
-                                    if (!this.nodeHistory) this.nodeHistory = [];
-                                    this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
-                                }
-                                this.status = 'waiting_option';
-                                return this.status;
+                            selectedItem = this._findMatchingCatalogItem(catalogItems, userInput)
+                                        || this._findMatchingCatalogItem(catalogItems, lastUserMsg)
+                                        || this._findMatchingCatalogItem(catalogItems, cleanInput);
+
+                            if (selectedItem) {
+                                console.log(`[CatalogSelector Node ${currentStep.id}] 💡 AI returned fail, but direct/token match succeeded: "${selectedItem.fields?.name || selectedItem.name}"`);
+                                parsed = { status: 'success', value: selectedItem.fields?.name || selectedItem.name };
                             }
                         }
 
-                        this.nodeHistory = [];
-                        const val = parsed.value !== undefined ? parsed.value : userInput;
+                        if (!selectedItem) {
+                            selectedItem = this._findMatchingCatalogItem(catalogItems, userInput)
+                                        || this._findMatchingCatalogItem(catalogItems, cleanInput);
+                        }
 
-                        // Match selected item object
-                        let selectedItem = findMatchingItem(val) || catalogItems[0];
+                        if (!selectedItem && parsed.status === 'fail') {
+                            console.warn(`[CatalogSelector Node ${currentStep.id}] ⚠️ Selection failed for input: "${cleanInput}"`);
+                            if (this.onBotMessage && parsed.followUp) {
+                                await this.onBotMessage(parsed.followUp);
+                                if (!this.nodeHistory) this.nodeHistory = [];
+                                this.nodeHistory.push({ role: 'bot', content: parsed.followUp });
+                            }
+                            this.status = 'waiting_option';
+                            return this.status;
+                        }
+
+                        if (!selectedItem) {
+                            selectedItem = catalogItems[0];
+                        }
+
+                        this.nodeHistory = [];
                         const itemName = selectedItem ? (selectedItem.fields?.name || selectedItem.name || 'Selected Item') : 'Selected Item';
                         console.log(`[CatalogSelector Node ${currentStep.id}] ✅ Selected item matched: "${itemName}" (ID: ${selectedItem?._id || 'N/A'})`);
 
@@ -748,12 +844,8 @@ class FlowRuntime {
                             noAiPrompt: false
                         });
                     } else {
-                        // Match user input directly
-                        let selectedItem = catalogItems.find(item => {
-                            const itemName = item.fields?.name || item.name || '';
-                            return itemName.toLowerCase().includes(userInput.toLowerCase().trim()) ||
-                                   userInput.toLowerCase().includes(itemName.toLowerCase().trim());
-                        }) || catalogItems[0];
+                        // Match user input directly using multi-strategy finder
+                        let selectedItem = this._findMatchingCatalogItem(catalogItems, userInput) || catalogItems[0];
 
                         const varName = currentStep.data.variable;
                         if (varName) {

@@ -169,6 +169,38 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('zoom-out').addEventListener('click', () => { scale /= 1.2; updateCanvasTransform(); });
     document.getElementById('zoom-reset').addEventListener('click', () => { scale = 1; panX = 0; panY = 0; updateCanvasTransform(); });
 
+    // Arrow key panning for diagram canvas
+    window.addEventListener('keydown', (e) => {
+        const active = document.activeElement;
+        if (active && (
+            active.tagName === 'INPUT' ||
+            active.tagName === 'TEXTAREA' ||
+            active.tagName === 'SELECT' ||
+            active.isContentEditable
+        )) {
+            return;
+        }
+
+        const step = e.shiftKey ? 100 : 40;
+        if (e.key === 'ArrowUp') {
+            panY += step;
+            updateCanvasTransform();
+            e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+            panY -= step;
+            updateCanvasTransform();
+            e.preventDefault();
+        } else if (e.key === 'ArrowLeft') {
+            panX += step;
+            updateCanvasTransform();
+            e.preventDefault();
+        } else if (e.key === 'ArrowRight') {
+            panX -= step;
+            updateCanvasTransform();
+            e.preventDefault();
+        }
+    });
+
     // ----- Drag & Drop from Palette -----
     
     paletteItems.forEach(item => {

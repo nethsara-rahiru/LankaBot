@@ -87,7 +87,13 @@ const buildContext = (flow, userInput, business = {}, catalog = []) => {
 const formatConversationHistory = (conversation) => {
     if (!Array.isArray(conversation) || conversation.length === 0) return 'No previous conversation.';
     return conversation
-        .map(m => `${m.role === 'bot' ? 'BOT' : 'USER'}: ${m.content}`)
+        .map(m => {
+            const role = m.role === 'bot' ? 'BOT' : 'USER';
+            const quoted = m.quotedMessage && m.quotedMessage.content
+                ? ` [Replying to ${m.quotedMessage.role || 'bot'} message: "${m.quotedMessage.content}"]`
+                : '';
+            return `${role}: ${m.content}${quoted}`;
+        })
         .join('\n');
 };
 

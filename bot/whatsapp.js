@@ -191,12 +191,37 @@ const startClient = async (accountId) => {
                 await orgContact.save();
             }
 
+            // Detect and fetch quoted/replied message if present
+            let quotedMessageData = null;
+            if (msg.hasQuotedMsg) {
+                try {
+                    const quotedMsg = await msg.getQuotedMessage();
+                    if (quotedMsg && quotedMsg.body) {
+                        quotedMessageData = {
+                            content: quotedMsg.body,
+                            role: quotedMsg.fromMe ? 'bot' : 'user'
+                        };
+                        console.log(`[WhatsApp ${account.sessionId}] 💬 Quoted message detected (${quotedMessageData.role}): "${quotedMsg.body.substring(0, 60)}"`);
+                    }
+                } catch (e) {
+                    console.warn(`[WhatsApp ${account.sessionId}] ⚠️ Error fetching quoted message:`, e.message);
+                }
+            }
+
+            const effectiveInput = quotedMessageData && quotedMessageData.content
+                ? `[Replying to message: "${quotedMessageData.content}"]\n${msg.body}`
+                : msg.body;
+
+            msg.effectiveInput = effectiveInput;
+            msg.quotedMessageData = quotedMessageData;
+
             // 3. Save Message
             const newMsg = new Message({
                 organizationContact: orgContact._id,
                 role: 'user',
                 content: msg.body,
-                messageType: msg.type || 'text'
+                messageType: msg.type || 'text',
+                quotedMessage: quotedMessageData || undefined
             });
             await newMsg.save();
 
@@ -318,8 +343,9 @@ Current Topic Description: ${currentTopic.description}
 You MUST assume their message is a response to the ongoing flow (output "continue"), UNLESS they are explicitly demanding to change the subject to one of the available flows.`;
                     }
 
+                    const routerInput = msg.effectiveInput || msg.body;
                     const routerPrompt = `You are a conversational router AI for a WhatsApp bot.
-The user sent a new message: "${msg.body}"
+The user sent a new message: "${routerInput}"
 
 CONTEXT:
 ${currentContext}
@@ -332,7 +358,7 @@ The user may write in any language or transliteration style. You MUST understand
 - Singlish (Sinhala written in English letters, e.g. "mage bill eka" = "my bill", "mama ganna" = "I want to take/get", "kohomada" = "how is", "api" = "we/us")
 - Native Sinhala script (e.g. "මගේ බිල්", "ගෙවීම")
 - Romanized Tamil (e.g. "en bill", "vanakkam", "enna" = "what")
-- Native Tamil script (e.g. "என் பில்")
+- Native Tamil script (e.g. "என் පில்")
 - Mixed English + Sinhala or Tamil words
 Mentally translate the user's intent to English and match it against the available flow descriptions.
 
@@ -342,7 +368,7 @@ If the message clearly matches one of the flow descriptions (even in another lan
 Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                     try {
-                        const routeRes = (await getAIResponse(msg.body, routerPrompt, 1)) || 'continue';
+                        const routeRes = (await getAIResponse(routerInput, routerPrompt, 1)) || 'continue';
                         const decidedRoute = routeRes.trim();
                         if (decidedRoute !== 'continue' && entrypoints[decidedRoute]) {
                             shouldRedirect = entrypoints[decidedRoute].id;

@@ -6,6 +6,10 @@ const MessageSchema = new mongoose.Schema({
     content: { type: String, required: true },
     messageType: { type: String, default: 'text' },
     timestamp: { type: Date, default: Date.now },
+    quotedMessage: {
+        content: { type: String, default: null },
+        role: { type: String, enum: ['user', 'bot', null], default: null }
+    },
     aiMetadata: {
         model: { type: String, default: "" },
         inputTokens: { type: Number, default: 0 },

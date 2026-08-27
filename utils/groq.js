@@ -164,7 +164,8 @@ Your task is to extract information from the user's response based on the origin
 
 TRANSLATION & PROCESSING STEP (CRITICAL):
 1. Mentally or explicitly translate the user's input into clear English first (handling Singlish, native Sinhala, romanized Tamil, native Tamil, or any other language/transliteration).
-2. Process all decision-making (topic redirect evaluation, value extraction, option matching, boolean evaluation) using the TRANSLATED ENGLISH MEANING of the user's input, as the flow system logic and options are written in English.
+2. If the user input contains a quoted/replied message (formatted as [Replying to message: "..."]), inspect the quoted message content to identify the referenced product, option, item number, or prompt context, and combine it with the user's reply to determine the extracted value or option match.
+3. Process all decision-making (topic redirect evaluation, value extraction, option matching, boolean evaluation) using the TRANSLATED ENGLISH MEANING of the user's input and quoted reply context.
 
 CURRENT ACTIVE TOPIC:
 - Topic ID: ${data.currentTopicId || 'default'}

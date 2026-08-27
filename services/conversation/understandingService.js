@@ -128,7 +128,7 @@ Detect:
 6. Greetings / Salutations (e.g. "hi", "hello", "hey", "good morning", "ayubowan", "vanakkam", "halo", etc.)
 7. Multiple intents in the same message
 
-IMPORTANT RULES:
+- If the user's message is a reply to a previous message (e.g. "[Replying to message: ...]"), use the quoted message text to resolve ambiguous references like "this product", "tell me more about this", "I want this one", etc., and extract the relevant product name or details.
 - If the user explicitly greets (e.g. "hi", "hello", "hey", "good morning", "ayubowan", etc.), set "intent": "GREETING".
 - If the user explicitly refuses, declines, says "skip", "no", "pass", "never mind", "I don't want to share/tell", or indicates they do not want to answer the requested question, set "intent": "REFUSE", "userRefused": true, and "continueFlow": false.
 - If the user provides a value for a variable that is already collected, treat it as a CORRECTION (not a new entry).
