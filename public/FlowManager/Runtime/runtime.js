@@ -1041,28 +1041,57 @@ INSTRUCTIONS FOR AI:
                         console.error('Error fetching catalog product for variant selector:', e);
                     }
                 } else {
-                    const varVal = this.variables[productVarName];
+                    let varVal = this.variables[productVarName];
+                    if (varVal === undefined || varVal === null) {
+                        // Fall back to checking common item variable names if configured productVariable was not set
+                        varVal = this.variables['item'] || this.variables['selectedItem'] || this.variables['product'];
+                    }
+
                     if (typeof varVal === 'object' && varVal !== null) {
                         targetProduct = varVal;
-                    } else if (typeof varVal === 'string') {
-                        const resolvedId = this._interpolate(varVal || productVarName);
+                    } else if (typeof varVal === 'string' || typeof varVal === 'number') {
+                        const searchStr = String(varVal).trim();
                         try {
                             if (this.onShowCatalog) {
                                 const result = await this.onShowCatalog('');
                                 if (result && Array.isArray(result.items)) {
-                                    targetProduct = result.items.find(i => String(i._id || i.id) === String(resolvedId) || (i.fields?.name && i.fields.name.toLowerCase() === resolvedId.toLowerCase()));
+                                    targetProduct = result.items.find(i => {
+                                        const iId = String(i._id || i.id || '');
+                                        const iName = String(i.fields?.name || i.name || '').toLowerCase();
+                                        const queryLower = searchStr.toLowerCase();
+                                        return iId === searchStr || iName === queryLower || iName.includes(queryLower) || queryLower.includes(iName);
+                                    });
+                                }
+                            } else {
+                                const accountId = (typeof localStorage !== 'undefined') ? localStorage.getItem('activeAccountId') : null;
+                                const simToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+                                const headers = { 'x-auth-token': simToken || '' };
+                                if (accountId) headers['x-account-id'] = accountId;
+                                const catRes = await fetch(`/api/catalog`, { headers });
+                                if (catRes.ok) {
+                                    const allItems = await catRes.json();
+                                    targetProduct = allItems.find(i => {
+                                        const iId = String(i._id || i.id || '');
+                                        const iName = String(i.fields?.name || i.name || '').toLowerCase();
+                                        const queryLower = searchStr.toLowerCase();
+                                        return iId === searchStr || iName === queryLower || iName.includes(queryLower) || queryLower.includes(iName);
+                                    });
                                 }
                             }
-                        } catch (e) {}
+                        } catch (e) {
+                            console.error('[VariantSelector] Error resolving product from string variable:', e);
+                        }
                     }
                 }
 
                 let variants = [];
                 if (targetProduct) {
-                    if (Array.isArray(targetProduct.fields?.variants)) {
-                        variants = targetProduct.fields.variants;
-                    } else if (Array.isArray(targetProduct.variants)) {
-                        variants = targetProduct.variants;
+                    const rawVariants = targetProduct.fields?.variants || targetProduct.variants || targetProduct.fields?.options || targetProduct.options;
+                    if (Array.isArray(rawVariants)) {
+                        variants = rawVariants;
+                    } else if (typeof rawVariants === 'string' && rawVariants.trim()) {
+                        // Parse string/comma-separated variant lists if stored as string
+                        variants = rawVariants.split(/,|\n/).map(s => s.trim()).filter(Boolean).map(v => ({ name: v }));
                     }
                 }
 
