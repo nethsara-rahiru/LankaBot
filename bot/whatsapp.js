@@ -556,7 +556,15 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 
                     flow.onWaitingForOption = async (prompt, options) => {
                         const currentCustomer = await Customer.findOne({ phoneNumber: user });
-                        const translatedPrompt = await processOutgoingMessage(prompt, currentCustomer, settings);
+
+                        // Build the full message: prompt + numbered options list
+                        let fullMessage = prompt;
+                        if (Array.isArray(options) && options.length > 0) {
+                            const optionsText = options.map((opt, idx) => `${idx + 1}. ${opt}`).join('\n');
+                            fullMessage = `${prompt}\n\n${optionsText}`;
+                        }
+
+                        const translatedPrompt = await processOutgoingMessage(fullMessage, currentCustomer, settings);
 
                         await msg.reply(translatedPrompt);
                         try {
