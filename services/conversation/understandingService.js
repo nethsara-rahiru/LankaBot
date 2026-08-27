@@ -184,13 +184,22 @@ const understandMessage = async (ctx) => {
 
     // ── Incoming Translation Pre-Processing ────────────────────────────────────
     // Translate non-English input (Sinhala, Singlish, Tamil, etc.) to English before AI processing.
+    // IMPORTANT: If the input has a [Replying to message: "..."] prefix, only translate the actual
+    // user reply part — not the structured prefix — then re-assemble so the AI gets correct context.
     let workingInput = ctx.userInput;
     try {
-        const { translatedText, wasTranslated } = await translateIncomingToEnglish(ctx.userInput, ctx.customer);
+        // Split off any [Replying to message: "..."] prefix from the actual reply text
+        const replyPrefixMatch = workingInput.match(/^(\[Replying to message: "[\s\S]*?"\]\s*)([\s\S]*)$/);
+        const prefix = replyPrefixMatch ? replyPrefixMatch[1] : '';
+        const actualReply = replyPrefixMatch ? replyPrefixMatch[2].trim() : workingInput;
+
+        const { translatedText, wasTranslated } = await translateIncomingToEnglish(actualReply, ctx.customer);
         if (wasTranslated && translatedText) {
-            console.log(`[UnderstandingService] 🌐 Pre-translated input to English for AI Stage 1: "${ctx.userInput}" → "${translatedText}"`);
-            workingInput = translatedText;
-            ctx.userInput = translatedText;
+            console.log(`[UnderstandingService] 🌐 Pre-translated user reply to English for AI Stage 1: "${actualReply}" → "${translatedText}"`);
+            // Reassemble: keep the structured prefix intact, replace only the translated reply
+            const reassembled = prefix ? `${prefix}${translatedText}` : translatedText;
+            workingInput = reassembled;
+            ctx.userInput = reassembled;
         }
     } catch (err) {
         console.error('[UnderstandingService] ⚠️ Translation pre-processing error:', err.message);
@@ -198,7 +207,9 @@ const understandMessage = async (ctx) => {
 
     // ── Fast-path 1: Greeting detection (no AI call) ──────────────────────────
     // Check common multi-language greetings locally before hitting the AI.
-    if (isGreeting(workingInput)) {
+    // For reply messages, extract only the actual reply part for greeting detection.
+    const greetingCheckInput = workingInput.replace(/^\[Replying to message: "[\s\S]*?"\]\s*/, '').trim();
+    if (isGreeting(greetingCheckInput)) {
         console.log(`[UnderstandingService] 👋 Greeting detected via local pattern match — skipping AI. Input: "${workingInput}"`);
         return {
             intent: 'GREETING',

@@ -358,9 +358,12 @@ The user may write in any language or transliteration style. You MUST understand
 - Singlish (Sinhala written in English letters, e.g. "mage bill eka" = "my bill", "mama ganna" = "I want to take/get", "kohomada" = "how is", "api" = "we/us")
 - Native Sinhala script (e.g. "මගේ බිල්", "ගෙවීම")
 - Romanized Tamil (e.g. "en bill", "vanakkam", "enna" = "what")
-- Native Tamil script (e.g. "என் පில்")
+- Native Tamil script (e.g. "என் பில்")
 - Mixed English + Sinhala or Tamil words
 Mentally translate the user's intent to English and match it against the available flow descriptions.
+
+REPLY MESSAGES:
+If the user's message starts with [Replying to message: "..."], the user is replying to a previous bot message. This is almost ALWAYS a continuation of the current flow (output "continue"), not a topic change. Only redirect if the reply text itself explicitly demands a completely different topic.
 
 Based on the user's message, decide if they are trying to start or switch to one of the available flows.
 If the message is a normal continuation of the current conversation and does NOT indicate a deliberate topic change, output "continue".
