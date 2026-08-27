@@ -584,18 +584,22 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onAIExtract = async (data) => {
-                        // Translate user input to English before AI processing (if not already English)
-                        try {
-                            const currentCustForTranslation = await Customer.findOne({ phoneNumber: user });
-                            if (currentCustForTranslation) {
-                                const { translatedText, wasTranslated } = await translateIncomingToEnglish(data.userInput, currentCustForTranslation);
-                                if (wasTranslated) {
-                                    console.log(`[Flow AIExtract] 🌐 User input translated to English for AI processing.`);
-                                    data = { ...data, userInput: translatedText };
+                        // Skip pre-translation for CatalogSelector node — feed raw user input directly to AI so it matches Sinhala/Singlish item names natively
+                        if (data.nodeType !== 'catalogSelector') {
+                            try {
+                                const currentCustForTranslation = await Customer.findOne({ phoneNumber: user });
+                                if (currentCustForTranslation) {
+                                    const { translatedText, wasTranslated } = await translateIncomingToEnglish(data.userInput, currentCustForTranslation);
+                                    if (wasTranslated) {
+                                        console.log(`[Flow AIExtract] 🌐 User input translated to English for AI processing.`);
+                                        data = { ...data, userInput: translatedText };
+                                    }
                                 }
+                            } catch (e) {
+                                console.error('[Flow AIExtract] ⚠️ Translation pre-processing failed, using original input:', e.message);
                             }
-                        } catch (e) {
-                            console.error('[Flow AIExtract] ⚠️ Translation pre-processing failed, using original input:', e.message);
+                        } else {
+                            console.log(`[Flow AIExtract] ⏩ Skipping Luma translation for CatalogSelector node. Feeding raw user input directly to AI.`);
                         }
 
                         const systemPrompt = buildExtractionPrompt(data);

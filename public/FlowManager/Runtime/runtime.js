@@ -917,6 +917,7 @@ INSTRUCTIONS FOR AI:
                         const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
 
                         this.onAIExtract({
+                            nodeType: 'catalogSelector',
                             userInput: fullContext,
                             userPrompt,
                             aiPrompt: interpolatedAiPrompt,
@@ -975,6 +976,7 @@ INSTRUCTIONS FOR AI:
                         const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
 
                         this.onAIExtract({
+                            nodeType: 'catalogSelector',
                             userInput: fullContext,
                             userPrompt,
                             aiPrompt: interpolatedAiPrompt,
