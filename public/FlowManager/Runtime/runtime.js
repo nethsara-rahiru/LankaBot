@@ -230,6 +230,10 @@ class FlowRuntime {
      * Reset to beginning
      */
     reset() {
+        if (this._waitTimer) {
+            clearTimeout(this._waitTimer);
+            this._waitTimer = null;
+        }
         if (this.compiled) {
             this.start(this.compiled);
         }
@@ -239,6 +243,10 @@ class FlowRuntime {
      * Stop the flow
      */
     stop() {
+        if (this._waitTimer) {
+            clearTimeout(this._waitTimer);
+            this._waitTimer = null;
+        }
         this.status = 'idle';
         this.currentNodeId = null;
     }
@@ -341,7 +349,7 @@ class FlowRuntime {
                     } else {
                         // First user message — hand off to Conversation Engine.
                         this.status = 'waiting_ce';
-                        this.onConversationEngine(this, userInput);
+                        await this.onConversationEngine(this, userInput);
                     }
                     break;
                 }
@@ -470,7 +478,7 @@ class FlowRuntime {
                     } else {
                         // First user message — hand off to Conversation Engine.
                         this.status = 'waiting_ce';
-                        this.onConversationEngine(this, userInput);
+                        await this.onConversationEngine(this, userInput);
                     }
                     break;
                 }
@@ -594,24 +602,39 @@ class FlowRuntime {
                 const duration = parseInt(currentStep.data.duration) || 1;
                 this.status = 'waiting_timer';
                 if (this.onWait) this.onWait(duration);
-                // The Simulator will call _advanceAfterWait after the timer
+                if (this._waitTimer) clearTimeout(this._waitTimer);
                 this._waitTimer = setTimeout(() => {
-                    this.status = 'running';
-                    this._advance(currentStep.next);
+                    this._waitTimer = null;
+                    if (this.status === 'waiting_timer') {
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
                 }, duration * 1000);
                 break;
 
             case 'if':
-                const var1 = this._interpolate(currentStep.data.var1 || '');
-                const var2 = this._interpolate(currentStep.data.var2 || '');
+                const rawV1 = this._interpolate(currentStep.data.var1 || '');
+                const rawV2 = this._interpolate(currentStep.data.var2 || '');
                 const op = currentStep.data.condition || '==';
                 
                 let result = false;
                 try {
-                    // Safe evaluation
-                    const v1 = isNaN(Number(var1)) ? `"${var1}"` : var1;
-                    const v2 = isNaN(Number(var2)) ? `"${var2}"` : var2;
-                    result = new Function(`return ${v1} ${op} ${v2}`)();
+                    const num1 = Number(rawV1);
+                    const num2 = Number(rawV2);
+                    const isNum = !isNaN(num1) && !isNaN(num2) && String(rawV1).trim() !== '' && String(rawV2).trim() !== '';
+
+                    const val1 = isNum ? num1 : String(rawV1);
+                    const val2 = isNum ? num2 : String(rawV2);
+
+                    switch (op) {
+                        case '==': result = val1 == val2; break;
+                        case '!=': result = val1 != val2; break;
+                        case '>':  result = val1 > val2;  break;
+                        case '<':  result = val1 < val2;  break;
+                        case '>=': result = val1 >= val2; break;
+                        case '<=': result = val1 <= val2; break;
+                        default:   result = val1 == val2; break;
+                    }
                 } catch(e) {
                     result = false;
                 }
@@ -654,7 +677,7 @@ class FlowRuntime {
 
             case 'showCatalog': {
                 const showCatType = currentStep.data.itemType || '';
-                const requestedStyleName = currentStep.data.menuStyle || currentStep.data.menuStyleName || '';
+                const requestedStyleName = currentStep.data.menuStyle || currentStep.data.menuStyleName || currentStep.data.styleName || '';
                 try {
                     let items = [];
                     let menuStyle = {
@@ -666,10 +689,10 @@ class FlowRuntime {
                     const pickStyle = (stylesArray, defaultSingleStyle) => {
                         if (Array.isArray(stylesArray) && stylesArray.length > 0) {
                             if (requestedStyleName) {
-                                const found = stylesArray.find(s => String(s.name || '').toLowerCase() === String(requestedStyleName).toLowerCase());
+                                const found = stylesArray.find(s => s && s.name && String(s.name).toLowerCase() === String(requestedStyleName).toLowerCase());
                                 if (found) return found;
                             }
-                            return stylesArray[0];
+                            return stylesArray[0] || menuStyle;
                         }
                         return defaultSingleStyle || menuStyle;
                     };
@@ -861,7 +884,15 @@ class FlowRuntime {
                         }
 
                         if (!selectedItem) {
-                            selectedItem = catalogItems[0];
+                            console.warn(`[CatalogSelector Node ${currentStep.id}] ⚠️ No matching catalog item found for user input.`);
+                            if (this.onBotMessage) {
+                                const followUp = (parsed && parsed.followUp) || `Could you please specify which item from our catalog you would like?`;
+                                await this.onBotMessage(followUp);
+                                if (!this.nodeHistory) this.nodeHistory = [];
+                                this.nodeHistory.push({ role: 'bot', content: followUp });
+                            }
+                            this.status = 'waiting_option';
+                            return this.status;
                         }
 
                         this.nodeHistory = [];
@@ -1315,14 +1346,21 @@ INSTRUCTIONS FOR AI:
                     const pId = currentStep.data.productId;
                     if (pId) {
                         try {
-                            const aId = localStorage.getItem('activeAccountId');
-                            const tok = localStorage.getItem('token');
-                            const res = await fetch('/api/catalog', {
-                                headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
-                            });
-                            if (res.ok) {
-                                const items = await res.json();
-                                targetProduct = items.find(i => (i._id === pId || i.id === pId));
+                            if (this.onShowCatalog) {
+                                const result = await this.onShowCatalog('');
+                                if (result && Array.isArray(result.items)) {
+                                    targetProduct = result.items.find(i => String(i._id || i.id) === String(pId));
+                                }
+                            } else if (typeof localStorage !== 'undefined') {
+                                const aId = localStorage.getItem('activeAccountId');
+                                const tok = localStorage.getItem('token');
+                                const res = await fetch('/api/catalog', {
+                                    headers: { 'x-account-id': aId || '', 'x-auth-token': tok || '' }
+                                });
+                                if (res.ok) {
+                                    const items = await res.json();
+                                    targetProduct = items.find(i => (i._id === pId || i.id === pId));
+                                }
                             }
                         } catch (e) {
                             console.error('[FlowRuntime] Failed to fetch catalog items for showProductCard:', e);
@@ -1369,7 +1407,7 @@ INSTRUCTIONS FOR AI:
                 if (priceVal === undefined || priceVal === null) priceVal = 'N/A';
 
                 let template = currentStep.data.cardTemplate;
-                if (!template) {
+                if (!template && typeof localStorage !== 'undefined') {
                     try {
                         const aId = localStorage.getItem('activeAccountId');
                         const tok = localStorage.getItem('token');
@@ -1418,6 +1456,24 @@ INSTRUCTIONS FOR AI:
                     // Push the item object from last selected item variable or default structured item
                     const itemToPush = this.variables['selectedItem'] || { itemId: 'ITEM_1', quantity: 1, addedAt: new Date().toISOString() };
                     currentArr.push(itemToPush);
+                } else if (action === 'edit') {
+                    // Edit last item or item matching target id/variable
+                    const itemToEdit = this.variables['selectedItem'];
+                    if (itemToEdit && currentArr.length > 0) {
+                        const targetId = itemToEdit._id || itemToEdit.id;
+                        const idx = targetId ? currentArr.findIndex(i => (i._id || i.id) === targetId) : currentArr.length - 1;
+                        if (idx !== -1) currentArr[idx] = { ...currentArr[idx], ...itemToEdit };
+                    }
+                } else if (action === 'delete') {
+                    // Delete item matching selectedItem or pop last item
+                    const itemToDelete = this.variables['selectedItem'];
+                    if (itemToDelete && currentArr.length > 0) {
+                        const targetId = itemToDelete._id || itemToDelete.id;
+                        const idx = targetId ? currentArr.findIndex(i => (i._id || i.id) === targetId) : currentArr.length - 1;
+                        if (idx !== -1) currentArr.splice(idx, 1);
+                    } else if (currentArr.length > 0) {
+                        currentArr.pop();
+                    }
                 }
 
                 if (arrVarName) {
@@ -1643,12 +1699,14 @@ INSTRUCTIONS FOR AI:
      * Simple option matching (case-insensitive includes)
      */
     _matchOption(input, options) {
-        const lower = input.toLowerCase().trim();
+        if (!input || !Array.isArray(options)) return null;
+        const lower = String(typeof input === 'object' ? (input.value || input.name || JSON.stringify(input)) : input).toLowerCase().trim();
+        if (!lower) return null;
         // Exact match first
-        let match = options.find(o => o.value.toLowerCase().trim() === lower);
+        let match = options.find(o => o && o.value && String(o.value).toLowerCase().trim() === lower);
         if (match) return match;
         // Partial match
-        match = options.find(o => lower.includes(o.value.toLowerCase().trim()) || o.value.toLowerCase().trim().includes(lower));
+        match = options.find(o => o && o.value && (lower.includes(String(o.value).toLowerCase().trim()) || String(o.value).toLowerCase().trim().includes(lower)));
         return match || null;
     }
 
