@@ -68,6 +68,7 @@ class FlowCompiler {
                     return {
                         id: opt.id,
                         value: opt.value,
+                        keywords: opt.keywords || '',
                         next: targetId
                     };
                 });

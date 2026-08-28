@@ -442,7 +442,26 @@ class FlowRuntime {
                 }
                 break;
 
-            case 'getOption':
+            case 'getOption': {
+                const options = currentStep.options || [];
+                const wordLists = this.wordLists || (this.compiled && this.compiled.wordLists) || [];
+
+                // ─── ⚡ Fast-path exact keyword matching (bypass AI & translation) ─────
+                if ((this.status === 'waiting_option' || this.status === 'waiting_ce') && userInput && userInput !== '__ce_satisfied__' && userInput !== '__ce_pending__') {
+                    const fastMatch = this._fastMatchOption(userInput, options, wordLists);
+                    if (fastMatch) {
+                        console.log(`[FlowRuntime][getOption] ⚡ Fast-path exact keyword match: "${userInput}" → option "${fastMatch.value}" (Next: "${fastMatch.next}")`);
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            this.variables[varName] = fastMatch.value;
+                            this._emitVariables();
+                        }
+                        this.status = 'running';
+                        this._advance(fastMatch.next);
+                        break;
+                    }
+                }
+
                 // ─── Conversation Engine path (new) ────────────────────────────────────
                 // CE handles natural language option selection, questions, and ambiguity.
                 // The CE resolves the option, sets the variable, and sends the response.
@@ -451,7 +470,6 @@ class FlowRuntime {
                 if (this.onConversationEngine && (this.status === 'waiting_option' || this.status === 'waiting_ce') && userInput !== null) {
                     if (userInput === '__ce_satisfied__') {
                         const varName = currentStep.data.variable;
-                        const options = currentStep.options || [];
                         // The CE has already applied the variable. Find the matched branch.
                         const resolvedVal = varName ? this.variables[varName] : null;
                         const matched = resolvedVal ? this._matchOption(resolvedVal, options) : null;
@@ -470,7 +488,7 @@ class FlowRuntime {
                     } else {
                         // First user message — hand off to Conversation Engine.
                         this.status = 'waiting_ce';
-                        this.onConversationEngine(this, userInput);
+                        await this.onConversationEngine(this, userInput);
                     }
                     break;
                 }
@@ -589,6 +607,7 @@ class FlowRuntime {
                     }
                 }
                 break;
+            }
 
             case 'wait':
                 const duration = parseInt(currentStep.data.duration) || 1;
@@ -1637,6 +1656,69 @@ INSTRUCTIONS FOR AI:
             return { id: firstKey, description: entrypoints[firstKey].description || 'No description provided' };
         }
         return { id: 'default', description: 'General Flow Context' };
+    }
+
+    /**
+     * Expand keyword string containing delimiters (| or ,) and #wordlist tags
+     * @param {string} rawKeywords - e.g. "yes, yeah | #yes_words"
+     * @param {Array} wordLists - list of { id, name, keywords: [String] }
+     * @returns {string[]} - Array of normalised keyword strings
+     */
+    _expandKeywords(rawKeywords, wordLists = []) {
+        if (!rawKeywords || typeof rawKeywords !== 'string') return [];
+        
+        const tokens = rawKeywords.split(/[|,-]/).map(t => t.trim()).filter(Boolean);
+        const result = new Set();
+
+        for (const token of tokens) {
+            if (token.startsWith('#')) {
+                const groupName = token.substring(1).trim().toLowerCase();
+                const group = (wordLists || []).find(w => w && (String(w.id || '').toLowerCase() === groupName || String(w.name || '').toLowerCase() === groupName));
+                if (group && Array.isArray(group.keywords)) {
+                    group.keywords.forEach(k => {
+                        if (k) result.add(String(k).trim().toLowerCase());
+                    });
+                }
+            } else {
+                result.add(token.toLowerCase());
+            }
+        }
+
+        return Array.from(result);
+    }
+
+    /**
+     * Fast-path exact keyword matching for getOption node.
+     * Compares normalised user input against option value & option keywords (with #wordlist expansion).
+     * Returns the matched option object, or null.
+     */
+    _fastMatchOption(userInput, options = [], wordLists = []) {
+        if (!userInput || typeof userInput !== 'string' || !Array.isArray(options)) return null;
+
+        const normalisedInput = userInput.trim().toLowerCase().replace(/[!?.,'\u200b\u200c\u200d]/g, '').trim();
+        if (!normalisedInput) return null;
+
+        for (const option of options) {
+            if (!option) continue;
+
+            // 1. Check primary option value
+            const optVal = option.value ? String(option.value).trim().toLowerCase().replace(/[!?.,'\u200b\u200c\u200d]/g, '').trim() : '';
+            if (optVal && optVal === normalisedInput) {
+                return option;
+            }
+
+            // 2. Check candidate keywords (including #group expansion)
+            const rawKw = option.keywords || (option.data && option.data.keywords) || '';
+            const candidates = this._expandKeywords(rawKw, wordLists);
+            for (const cand of candidates) {
+                const normCand = cand.replace(/[!?.,'\u200b\u200c\u200d]/g, '').trim();
+                if (normCand && normCand === normalisedInput) {
+                    return option;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

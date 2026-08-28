@@ -387,17 +387,34 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                 if (isNewFlowInstance) {
 
                     // ─── Conversation Engine (new) ─────────────────────────────────────────
-                    // This is the primary handler for 'get' and 'getOption' nodes.
-                    // It runs the full 2-stage pipeline: understand → apply → respond.
                     flow.onConversationEngine = async (flowInstance, userInput) => {
                         try {
-                            const { processMessage } = require('../services/conversation/conversationService');
-
-                            // Load business context from settings & account
                             const currentSettings = await Settings.findOne({ account: accountId });
+                            const currentStep = flowInstance.compiled?.steps?.find(s => s.id === flowInstance.currentNodeId);
+
+                            // ⚡ Fast-path exact keyword check for getOption nodes (bypass translation & AI)
+                            if (currentStep && currentStep.type === 'getOption') {
+                                const wordLists = currentSettings?.wordLists || [];
+                                flowInstance.wordLists = wordLists;
+                                const fastMatch = flowInstance._fastMatchOption(userInput, currentStep.options, wordLists);
+                                if (fastMatch) {
+                                    console.log(`[WhatsApp CE] ⚡ Fast-path exact keyword match: "${userInput}" → option "${fastMatch.value}" (Next: "${fastMatch.next}"). Bypassing translation & AI.`);
+                                    const varName = currentStep.data?.variable;
+                                    if (varName) {
+                                        flowInstance.variables[varName] = fastMatch.value;
+                                        flowInstance._emitVariables();
+                                    }
+                                    flowInstance.status = 'running';
+                                    flowInstance._advance(fastMatch.next);
+                                    await flow.resume();
+                                    return;
+                                }
+                            }
+
+                            const { processMessage } = require('../services/conversation/conversationService');
                             const currentCustomer = await Customer.findOne({ phoneNumber: user });
                             const business = {
-                                name: currentSettings?.aiConfig?.organizationName || currentAccount?.pushName || 'FrontDesk',
+                                name: currentSettings?.aiConfig?.organizationName || account?.pushName || 'FrontDesk',
                                 description: currentSettings?.aiConfig?.aiPersonality || null,
                                 settings: currentSettings || {},
                                 customer: currentCustomer || null

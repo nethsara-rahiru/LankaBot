@@ -124,18 +124,18 @@ Detect:
 2. Questions the user is asking (even if unrelated to the flow)
 3. Corrections to previously collected data
 4. Whether the user is switching topics
-5. Whether they are confirming, rejecting, or REFUSING/DECLINING to answer (e.g. "no", "I don't want to tell you", "skip", "pass", "mind your business", "never mind", "no thanks", "I decline")
+5. Whether they are confirming, rejecting, or STRICTLY REFUSING/DECLINING to answer requested private/personal information (e.g. "why do you need my name?", "I don't want to share my email", "mind your own business", "I refuse to answer"). Note: Simple negative answers or choices like "no", "na", "ba", "epa", "nope", or option selections are NOT refusals — classify them as REJECT or option choice.
 6. Greetings / Salutations (e.g. "hi", "hello", "hey", "good morning", "ayubowan", "vanakkam", "halo", etc.)
 7. Multiple intents in the same message
 
 - If the user's message is a reply to a previous message (e.g. "[Replying to message: ...]"), use the quoted message text to resolve ambiguous references like "this product", "tell me more about this", "I want this one", etc., and extract the relevant product name or details.
 - If the user explicitly greets (e.g. "hi", "hello", "hey", "good morning", "ayubowan", etc.), set "intent": "GREETING".
-- If the user explicitly refuses, declines, says "skip", "no", "pass", "never mind", "I don't want to share/tell", or indicates they do not want to answer the requested question, set "intent": "REFUSE", "userRefused": true, and "continueFlow": false.
+- Set "intent": "REFUSE", "userRefused": true, and "continueFlow": false ONLY if the user explicitly and strictly refuses to provide requested private/personal information (e.g. "why do you need my name?", "I don't want to give my number", "mind your own business", "skip this question", "I refuse"). Do NOT set REFUSE for simple negative choices or answers like "no", "na", "ba", "epa", "nope" to options or yes/no questions — classify simple "no" as REJECT instead.
 - If the user provides a value for a variable that is already collected, treat it as a CORRECTION (not a new entry).
 - If the user asks a question, include it in "questions". Do NOT ignore it.
 - Only set "topicChange" if the user is clearly and intentionally switching to a different topic — not for temporary questions.
 - For uncertain values, set confidence to "low" and do NOT include the data in extractedData.
-- "continueFlow" should be true unless the user is cancelling, refusing to answer, or switching topics.
+- "continueFlow" should be true unless the user is cancelling, strictly refusing to answer, or switching topics.
 
 Return ONLY this JSON:
 {

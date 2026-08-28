@@ -37,6 +37,9 @@
                     <i class="ph-bold ph-list-dashes"></i>
                 </button>
                 <!-- Action buttons -->
+                <button class="btn-primary" id="open-wordlists-btn" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); margin-right: 0.5rem;">
+                    <i class="ph-bold ph-book-bookmark"></i><span class="btn-label"> Word Lists</span>
+                </button>
                 <button class="btn-primary" id="run-simulator-btn" style="background: linear-gradient(135deg, #f39c12, #e67e22); margin-right: 0.5rem;">
                     <i class="ph-bold ph-play-circle"></i><span class="btn-label"> Run Simulator</span>
                 </button>
@@ -156,6 +159,30 @@
                 </div>
             </aside>
         </main>
+    </div>
+
+    <!-- Word List Manager Modal -->
+    <div class="modal-overlay" id="wordlist-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 999; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: var(--bg-card, #1a1a2e); border: 1px solid var(--border, rgba(255,255,255,0.1)); border-radius: 12px; width: 90%; max-width: 520px; padding: 1.5rem; color: var(--text, #fff); box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.75rem;">
+                <h3 style="margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;"><i class="ph-bold ph-book-bookmark" style="color: #9b59b6;"></i> Word List Manager</h3>
+                <button class="icon-btn" id="close-wordlist-modal" style="background: none; border: none; color: #fff; cursor: pointer; font-size: 1.2rem;"><i class="ph-bold ph-x"></i></button>
+            </div>
+            <p style="font-size: 0.82rem; color: var(--text-dim, #a0a0b0); margin: 0 0 1rem;">Group keywords together (e.g. <code>no, na, ba, epa</code>) into a shorthand tag like <code>#no</code> to use in option nodes.</p>
+            
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <input type="text" id="wl-group-id" placeholder="Group tag (e.g. no)" style="flex: 1; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-size: 0.85rem;">
+                    <input type="text" id="wl-group-name" placeholder="Display Name (e.g. No Words)" style="flex: 1.2; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-size: 0.85rem;">
+                </div>
+                <textarea id="wl-keywords" placeholder="Keywords separated by commas (e.g. no, na, ba, epa, nope)" style="width: 100%; height: 60px; padding: 0.5rem; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; color: #fff; font-size: 0.85rem; resize: vertical; box-sizing: border-box;"></textarea>
+                <button class="btn-primary" id="save-wordlist-item-btn" style="margin-top: 0.5rem; width: 100%; background: linear-gradient(135deg, #9b59b6, #8e44ad); font-size: 0.85rem; padding: 0.5rem;"><i class="ph-bold ph-plus"></i> Save Word List</button>
+            </div>
+
+            <div id="wordlists-container" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                <!-- Word list cards rendered here -->
+            </div>
+        </div>
     </div>
 
     <script src="Compiler/compiler.js"></script>

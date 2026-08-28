@@ -88,7 +88,14 @@ const SettingsSchema = new mongoose.Schema({
     itemCardTemplate: {
         type: String,
         default: '🏷️ *{{name}}*\n💰 Price: Rs. {{price}}\n\n📝 {{description}}\n\n📦 {{variants}}\n\n_Status: {{status}}_'
-    }
+    },
+    wordLists: [
+        {
+            id: { type: String, required: true },
+            name: { type: String, required: true },
+            keywords: { type: [String], default: [] }
+        }
+    ]
 });
 
 module.exports = mongoose.model('Settings', SettingsSchema);

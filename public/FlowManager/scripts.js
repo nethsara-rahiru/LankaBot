@@ -275,9 +275,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="text" placeholder="Prompt message..." class="node-data" data-key="prompt">
                     <input type="text" placeholder="AI Prompt (e.g. Extract selection) [Optional]" class="node-data" data-key="aiPrompt" style="margin-top: 0.5rem; font-size: 0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
                     <div class="options-container" id="options-${id}" style="margin-top: 0.5rem;">
-                        <div class="node-option">
-                            <input type="text" placeholder="Option 1" class="node-data option-input" data-option-id="opt1">
-                            <div class="port port-out" data-node-id="${id}" data-port-id="opt1"></div>
+                        <div class="node-option" style="flex-direction: column; align-items: stretch; margin-bottom: 0.5rem; background: rgba(0,0,0,0.15); padding: 0.4rem; border-radius: 6px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <input type="text" placeholder="Option 1 label" class="node-data option-input" data-option-id="opt1" style="font-weight: 600;">
+                                <div class="port port-out" data-node-id="${id}" data-port-id="opt1" title="Branch output"></div>
+                            </div>
+                            <input type="text" placeholder="Keywords (e.g. yes,yeah|#yes_group)" class="node-data option-keywords" data-option-kw-id="opt1" style="margin-top: 0.3rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
                         </div>
                     </div>
                     <button class="add-option-btn" onclick="addOption('${id}')"><i class="ph-bold ph-plus"></i> Add Option</button>
@@ -508,9 +511,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const div = document.createElement('div');
         div.className = 'node-option';
+        div.style.cssText = 'flex-direction: column; align-items: stretch; margin-bottom: 0.5rem; background: rgba(0,0,0,0.15); padding: 0.4rem; border-radius: 6px;';
         div.innerHTML = `
-            <input type="text" placeholder="Option ${optCount}" class="node-data option-input" data-option-id="${optId}">
-            <div class="port port-out" data-node-id="${nodeId}" data-port-id="${optId}"></div>
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <input type="text" placeholder="Option ${optCount} label" class="node-data option-input" data-option-id="${optId}" style="font-weight: 600;">
+                <div class="port port-out" data-node-id="${nodeId}" data-port-id="${optId}" title="Branch output"></div>
+            </div>
+            <input type="text" placeholder="Keywords (e.g. yes,yeah|#yes_group)" class="node-data option-keywords" data-option-kw-id="${optId}" style="margin-top: 0.3rem; font-size: 0.75rem; background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1);">
         `;
         container.appendChild(div);
         setupPorts(div.querySelectorAll('.port'));
@@ -1027,32 +1034,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (n.type === 'getOption' && n.data.options) {
                     const container = nodeEl.querySelector('.options-container');
                     if (container) {
-                        // First option already exists from template
                         const existingOptions = container.querySelectorAll('.node-option');
                         n.data.options.forEach((opt, idx) => {
-                            if (idx === 0 && existingOptions[0]) {
-                                // Update the first existing option
-                                const input = existingOptions[0].querySelector('.option-input');
+                            let optRow = existingOptions[idx];
+                            if (!optRow) {
+                                addOption(n.id);
+                                const currentOpts = container.querySelectorAll('.node-option');
+                                optRow = currentOpts[currentOpts.length - 1];
+                            }
+                            if (optRow) {
+                                const input = optRow.querySelector('.option-input');
                                 if (input) {
-                                    input.value = opt.value;
+                                    input.value = opt.value || '';
                                     input.dataset.optionId = opt.id;
                                 }
-                                const port = existingOptions[0].querySelector('.port-out');
-                                if (port) port.dataset.portId = opt.id;
-                            } else {
-                                // Add additional options
-                                addOption(n.id);
-                                const allOpts = container.querySelectorAll('.node-option');
-                                const lastOpt = allOpts[allOpts.length - 1];
-                                if (lastOpt) {
-                                    const input = lastOpt.querySelector('.option-input');
-                                    if (input) {
-                                        input.value = opt.value;
-                                        input.dataset.optionId = opt.id;
-                                    }
-                                    const port = lastOpt.querySelector('.port-out');
-                                    if (port) port.dataset.portId = opt.id;
+                                const kwInput = optRow.querySelector('.option-keywords');
+                                if (kwInput) {
+                                    kwInput.value = opt.keywords || '';
+                                    kwInput.dataset.optionKwId = opt.id;
                                 }
+                                const port = optRow.querySelector('.port-out');
+                                if (port) port.dataset.portId = opt.id;
                             }
                         });
                     }
@@ -1088,14 +1090,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             nodes: Array.from(nodes.values()).map(n => {
                 const data = {};
+                const optionMap = new Map();
+
                 n.element.querySelectorAll('.node-data').forEach(el => {
                     if (el.dataset.optionId) {
-                        if (!data.options) data.options = [];
-                        data.options.push({ id: el.dataset.optionId, value: el.value });
+                        const optId = el.dataset.optionId;
+                        if (!optionMap.has(optId)) optionMap.set(optId, { id: optId, value: '', keywords: '' });
+                        optionMap.get(optId).value = el.value;
+                    } else if (el.dataset.optionKwId) {
+                        const optId = el.dataset.optionKwId;
+                        if (!optionMap.has(optId)) optionMap.set(optId, { id: optId, value: '', keywords: '' });
+                        optionMap.get(optId).keywords = el.value;
                     } else {
                         data[el.dataset.key] = el.value;
                     }
                 });
+
+                if (optionMap.size > 0) {
+                    data.options = Array.from(optionMap.values());
+                }
                 if (n.type === 'catalogSelector') {
                     data.catalogOptions = [];
                     n.element.querySelectorAll('.catalog-item-option').forEach(el => {
@@ -1296,5 +1309,122 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('touchend', () => {
         if (isDrawingConnection) cancelConnection();
     }, { passive: true });
+
+    // ----- Word List Manager UI Logic -----
+    const modal = document.getElementById('wordlist-modal');
+    const openBtn = document.getElementById('open-wordlists-btn');
+    const closeBtn = document.getElementById('close-wordlist-modal');
+    const saveItemBtn = document.getElementById('save-wordlist-item-btn');
+    const container = document.getElementById('wordlists-container');
+
+    let currentWordLists = [];
+
+    const loadWordLists = async () => {
+        try {
+            const res = await fetch('/api/settings', {
+                headers: {
+                    'x-account-id': localStorage.getItem('activeAccountId') || '',
+                    'x-auth-token': localStorage.getItem('token') || ''
+                }
+            });
+            if (res.ok) {
+                const settings = await res.json();
+                currentWordLists = settings.wordLists || [];
+                renderWordLists();
+            }
+        } catch (err) {
+            console.error('Error loading word lists:', err);
+        }
+    };
+
+    const renderWordLists = () => {
+        if (!container) return;
+        container.innerHTML = '';
+        if (currentWordLists.length === 0) {
+            container.innerHTML = `<div style="font-size:0.8rem; color:var(--text-dim); text-align:center; padding:1rem;">No word lists created yet. Create one above!</div>`;
+            return;
+        }
+
+        currentWordLists.forEach(wl => {
+            const card = document.createElement('div');
+            card.style.cssText = 'background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 0.6rem 0.8rem; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;';
+            card.innerHTML = `
+                <div style="flex:1;">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #9b59b6;">#${wl.id} <span style="font-weight:400; color:var(--text-dim); font-size:0.75rem;">(${wl.name})</span></div>
+                    <div style="font-size:0.78rem; color:var(--text-dim); margin-top:0.2rem;">${(wl.keywords || []).join(', ')}</div>
+                </div>
+                <button class="icon-btn delete-wl-btn" data-id="${wl.id}" style="color: #e74c3c; background: none; border: none; cursor: pointer; font-size: 1rem;"><i class="ph-bold ph-trash"></i></button>
+            `;
+            container.appendChild(card);
+        });
+
+        container.querySelectorAll('.delete-wl-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const targetId = btn.dataset.id;
+                currentWordLists = currentWordLists.filter(w => w.id !== targetId);
+                await persistWordLists();
+            });
+        });
+    };
+
+    const persistWordLists = async () => {
+        try {
+            const res = await fetch('/api/settings', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-account-id': localStorage.getItem('activeAccountId') || '',
+                    'x-auth-token': localStorage.getItem('token') || ''
+                },
+                body: JSON.stringify({ wordLists: currentWordLists })
+            });
+            if (res.ok) {
+                renderWordLists();
+            }
+        } catch (err) {
+            console.error('Error saving word lists:', err);
+        }
+    };
+
+    if (openBtn && modal) {
+        openBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+            loadWordLists();
+        });
+    }
+
+    if (closeBtn && modal) {
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    if (saveItemBtn) {
+        saveItemBtn.addEventListener('click', async () => {
+            const groupId = document.getElementById('wl-group-id')?.value.trim().replace(/^#/, '');
+            const groupName = document.getElementById('wl-group-name')?.value.trim() || groupId;
+            const kwRaw = document.getElementById('wl-keywords')?.value.trim();
+
+            if (!groupId || !kwRaw) {
+                alert('Please enter a group tag and keywords!');
+                return;
+            }
+
+            const keywords = kwRaw.split(/[,|]/).map(k => k.trim()).filter(Boolean);
+            
+            const existingIdx = currentWordLists.findIndex(w => w.id.toLowerCase() === groupId.toLowerCase());
+            if (existingIdx !== -1) {
+                currentWordLists[existingIdx] = { id: groupId, name: groupName, keywords };
+            } else {
+                currentWordLists.push({ id: groupId, name: groupName, keywords });
+            }
+
+            document.getElementById('wl-group-id').value = '';
+            document.getElementById('wl-group-name').value = '';
+            document.getElementById('wl-keywords').value = '';
+
+            await persistWordLists();
+        });
+    }
 });
 

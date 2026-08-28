@@ -130,6 +130,11 @@ exports.updateSettings = async (req, res) => {
         if (req.body.itemCardTemplate !== undefined) {
             settings.itemCardTemplate = req.body.itemCardTemplate;
         }
+
+        if (req.body.wordLists !== undefined) {
+            settings.wordLists = req.body.wordLists;
+            settings.markModified('wordLists');
+        }
         
         const updatedSettings = await settings.save();
         res.json(updatedSettings);

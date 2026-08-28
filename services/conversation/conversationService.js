@@ -74,7 +74,7 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
     if (!flow.nodeHistory) flow.nodeHistory = [];
     flow.nodeHistory.push({ role: 'user', content: userInput });
 
-    // --- Step 7: Determine refusal, greeting restart, and what the flow still needs ---
+    // --- Step 7: Determine refusal, greeting restart, and node type handling ---
     const isRefusal = understanding.intent === 'REFUSE' || understanding.userRefused === true;
     const isGreeting = understanding.intent === 'GREETING';
     let flowRestarted = false;
@@ -87,21 +87,34 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
         }
     }
 
-    const nodeSatisfied = isCurrentNodeSatisfied(flow, updatedVariables);
-    const nextRequired = (nodeSatisfied || isRefusal || isGreeting) ? null : getCurrentRequiredVariable(flow);
+    const currentStepObj = (flow.compiled?.steps || []).find(s => s.id === flow.currentNodeId);
+    const currentNodeType = currentStepObj ? currentStepObj.type : null;
 
-    // If user refused, reset flow status to idle so the user is not trapped in waiting_input
+    let nodeSatisfied = isCurrentNodeSatisfied(flow, updatedVariables);
+
     if (isRefusal) {
-        console.log(`[ConversationService] ✋ User refused to answer variable "${getCurrentRequiredVariable(flow)}". Releasing flow lock.`);
-        flow.status = 'idle';
+        if (currentNodeType === 'getOption') {
+            // For getOption: Stay in waiting_option state for an empathetic AI re-prompt
+            console.log(`[ConversationService] 🤝 Refusal in getOption node "${flow.currentNodeId}". Staying in waiting_option state for empathetic AI response.`);
+            flow.status = 'waiting_option';
+            nodeSatisfied = false;
+        } else if (currentNodeType === 'get') {
+            // For get node: Apologize via AI and skip the node/question
+            console.log(`[ConversationService] ⏩ Refusal in get node "${flow.currentNodeId}". Apologizing and skipping question.`);
+            flow.status = 'running';
+            nodeSatisfied = true; // Mark satisfied so flow advances to next node
+        } else {
+            console.log(`[ConversationService] ✋ User refused at node "${flow.currentNodeId}". Releasing flow lock to idle.`);
+            flow.status = 'idle';
+        }
     }
+
+    const nextRequired = (nodeSatisfied || isRefusal || isGreeting) ? null : getCurrentRequiredVariable(flow);
 
     // --- Step 8: Rebuild context with updated variable state for response generation ---
     const updatedCtx = buildContext(flow, userInput, business, catalog);
 
     // --- Step 9: Stage 2 — Generate natural response conditionally ---
-    // If the node is satisfied and the user didn't ask any questions or interrupt/refuse/change topic,
-    // skip Stage 2 AI to prevent unnecessary follow-up responses before moving to the next node.
     let response = null;
     const needsStage2AI = hasQuestions || interrupted || topicChanged || isRefusal || isGreeting || !nodeSatisfied;
 
@@ -115,7 +128,7 @@ const processMessage = async (flow, userInput, business = {}, catalog = []) => {
         console.log(`[ConversationService] ⚡ Node satisfied with no side questions — skipping Stage 2 AI response generation.`);
     }
 
-    const shouldContinueFlow = understanding.continueFlow !== false && !topicChanged && !isRefusal && !isGreeting;
+    const shouldContinueFlow = (currentNodeType === 'get' && isRefusal) ? true : (understanding.continueFlow !== false && !topicChanged && !(isRefusal && currentNodeType !== 'get') && !isGreeting);
 
     console.log(`[ConversationService] ✅ Pipeline complete | nodeSatisfied=${nodeSatisfied} | skippedAI=${!needsStage2AI} | isRefusal=${isRefusal} | isGreeting=${isGreeting} | flowRestarted=${flowRestarted} | topicChanged=${topicChanged} | interrupted=${interrupted} | continueFlow=${shouldContinueFlow}`);
 
