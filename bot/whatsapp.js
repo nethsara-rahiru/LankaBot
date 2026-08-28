@@ -327,6 +327,30 @@ const startClient = async (accountId) => {
                     }
                 }
 
+                // 1.5 ACTIVE FLOW FAST-PATH CHECK (Bypass Router AI & Translation for Exact Option Matches)
+                const userMsgInput = msg.effectiveInput || msg.body;
+                if (flow && (flow.status === 'waiting_option' || flow.status === 'waiting_ce') && flow.currentNodeId) {
+                    const currentStep = flow.compiled?.steps?.find(s => s.id === flow.currentNodeId);
+                    if (currentStep && currentStep.type === 'getOption') {
+                        const wordLists = settings?.wordLists || [];
+                        flow.wordLists = wordLists;
+                        const fastMatch = flow._fastMatchOption(userMsgInput, currentStep.options, wordLists);
+                        if (fastMatch) {
+                            console.log(`[WhatsApp Flow] ⚡ Fast-path exact keyword match: "${userMsgInput}" → option "${fastMatch.value}" (Next: "${fastMatch.next}"). Bypassing Router AI, translation & CE.`);
+                            const varName = currentStep.data?.variable;
+                            if (varName) {
+                                flow.variables[varName] = fastMatch.value;
+                                flow._emitVariables();
+                            }
+                            flow.status = 'running';
+                            flow._advance(fastMatch.next);
+                            await flow.resume();
+                            console.log(`[WhatsApp Flow] ✅ Flow reply sequence completed via fast-path for contact ${orgId}`);
+                            return; // Stop processing completely! 0 AI calls, 0 translation calls!
+                        }
+                    }
+                }
+
                 // 2. GLOBAL AI ROUTING
                 const entrypoints = settings.compiledFlow.entrypoints || {};
                 const entryKeys = Object.keys(entrypoints);

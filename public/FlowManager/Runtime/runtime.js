@@ -1721,22 +1721,37 @@ INSTRUCTIONS FOR AI:
      * @returns {string[]} - Array of normalised keyword strings
      */
     _expandKeywords(rawKeywords, wordLists = []) {
-        if (!rawKeywords || typeof rawKeywords !== 'string') return [];
-        
-        const tokens = rawKeywords.split(/[|,-]/).map(t => t.trim()).filter(Boolean);
+        const DEFAULT_WORD_LISTS = [
+            {
+                id: 'yes',
+                name: 'Yes / Positive',
+                keywords: ['yes', 'yeah', 'yep', 'ya', 'ow', 'ou', 'owu', 'ha', 'ov', 'oww', 'hari', 'ok', 'okay', 'sure', 'athe', 'aniwa', 'කැමතියි', 'ඔවු', 'ඔව්', 'හරි']
+            },
+            {
+                id: 'no',
+                name: 'No / Negative',
+                keywords: ['no', 'nope', 'na', 'naa', 'ba', 'baa', 'epa', 'epaa', 'naha', 'ne', 'nee', 'නැහැ', 'නෑ', 'එපා', 'බැහැ', 'බෑ']
+            }
+        ];
+
+        const allWordLists = [...DEFAULT_WORD_LISTS, ...(wordLists || [])];
         const result = new Set();
 
-        for (const token of tokens) {
-            if (token.startsWith('#')) {
-                const groupName = token.substring(1).trim().toLowerCase();
-                const group = (wordLists || []).find(w => w && (String(w.id || '').toLowerCase() === groupName || String(w.name || '').toLowerCase() === groupName));
-                if (group && Array.isArray(group.keywords)) {
-                    group.keywords.forEach(k => {
-                        if (k) result.add(String(k).trim().toLowerCase());
-                    });
+        if (rawKeywords && typeof rawKeywords === 'string') {
+            const tokens = rawKeywords.split(/[|,]/).map(t => t.trim()).filter(Boolean);
+
+            for (const token of tokens) {
+                if (token.startsWith('#')) {
+                    const groupName = token.substring(1).trim().toLowerCase();
+                    const group = allWordLists.find(w => w && (String(w.id || '').toLowerCase() === groupName || String(w.name || '').toLowerCase() === groupName));
+                    if (group && Array.isArray(group.keywords)) {
+                        group.keywords.forEach(k => {
+                            if (k) result.add(String(k).trim().toLowerCase());
+                        });
+                    }
+                } else {
+                    result.add(token.toLowerCase());
                 }
-            } else {
-                result.add(token.toLowerCase());
             }
         }
 
@@ -1754,6 +1769,17 @@ INSTRUCTIONS FOR AI:
         const normalisedInput = userInput.trim().toLowerCase().replace(/[!?.,'\u200b\u200c\u200d]/g, '').trim();
         if (!normalisedInput) return null;
 
+        const DEFAULT_WORD_LISTS = [
+            {
+                id: 'yes',
+                keywords: ['yes', 'yeah', 'yep', 'ya', 'ow', 'ou', 'owu', 'ha', 'ov', 'oww', 'hari', 'ok', 'okay', 'sure', 'athe', 'aniwa', 'කැමතියි', 'ඔවු', 'ඔව්', 'හරි']
+            },
+            {
+                id: 'no',
+                keywords: ['no', 'nope', 'na', 'naa', 'ba', 'baa', 'epa', 'epaa', 'naha', 'ne', 'nee', 'නැහැ', 'නෑ', 'එපා', 'බැහැ', 'බෑ']
+            }
+        ];
+
         for (const option of options) {
             if (!option) continue;
 
@@ -1763,9 +1789,17 @@ INSTRUCTIONS FOR AI:
                 return option;
             }
 
-            // 2. Check candidate keywords (including #group expansion)
+            // 2. Check candidate keywords (including explicit keywords + #group expansion)
             const rawKw = option.keywords || (option.data && option.data.keywords) || '';
-            const candidates = this._expandKeywords(rawKw, wordLists);
+            const candidates = new Set(this._expandKeywords(rawKw, wordLists));
+
+            // Auto-include default yes/no keywords if option value itself is "yes" or "no"
+            if (optVal === 'yes' || optVal === 'yep' || optVal === 'yeah') {
+                DEFAULT_WORD_LISTS[0].keywords.forEach(k => candidates.add(k));
+            } else if (optVal === 'no' || optVal === 'nope') {
+                DEFAULT_WORD_LISTS[1].keywords.forEach(k => candidates.add(k));
+            }
+
             for (const cand of candidates) {
                 const normCand = cand.replace(/[!?.,'\u200b\u200c\u200d]/g, '').trim();
                 if (normCand && normCand === normalisedInput) {
