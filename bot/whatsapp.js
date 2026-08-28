@@ -173,13 +173,6 @@ const startClient = async (accountId) => {
                 await customer.save();
             }
 
-            // Detect and save language preference on every incoming message
-            try {
-                await detectAndSaveLanguage(customer, msg.body);
-            } catch (e) {
-                console.error(`[WhatsApp ${account.sessionId}] Language detection error:`, e.message);
-            }
-
             // 2. Find or create OrganizationContact
             let orgContact = await OrganizationContact.findOne({ account: accountId, customer: customer._id });
             if (!orgContact) {
@@ -189,6 +182,22 @@ const startClient = async (accountId) => {
             } else {
                 orgContact.lastMessageAt = new Date();
                 await orgContact.save();
+            }
+
+            // Detect and save language preference on every incoming message (skipped during CatalogSelector)
+            try {
+                const activeFlow = activeFlows.get(orgContact._id.toString());
+                const isCatalogSelectorActive = activeFlow &&
+                    (activeFlow.status === 'waiting_option' || activeFlow.status === 'waiting_ai') &&
+                    activeFlow.compiled?.steps?.find(s => s.id === activeFlow.currentNodeId)?.type === 'catalogSelector';
+
+                if (isCatalogSelectorActive) {
+                    console.log(`[WhatsApp ${account.sessionId}] ⏩ Skipping Luma language detection for CatalogSelector node.`);
+                } else {
+                    await detectAndSaveLanguage(customer, msg.body);
+                }
+            } catch (e) {
+                console.error(`[WhatsApp ${account.sessionId}] Language detection error:`, e.message);
             }
 
             // Detect and fetch quoted/replied message if present

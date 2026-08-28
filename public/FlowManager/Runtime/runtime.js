@@ -829,12 +829,26 @@ class FlowRuntime {
                     const category = item.fields?.category || item.category || '';
                     const description = item.fields?.description || item.description || '';
                     const itemType = item.type || '';
+                    const rawVariants = item.fields?.variants || item.variants || item.fields?.options || item.options;
+
+                    let variantsList = [];
+                    if (Array.isArray(rawVariants)) {
+                        variantsList = rawVariants;
+                    } else if (typeof rawVariants === 'string' && rawVariants.trim()) {
+                        variantsList = rawVariants.split(/,|\n/).map(s => s.trim()).filter(Boolean).map(v => ({ name: v }));
+                    }
+
+                    let variantsStr = '';
+                    if (variantsList.length > 0) {
+                        variantsStr = variantsList.map(v => `${v.name || v.label || 'Variant'}${v.price !== undefined ? `: Rs. ${v.price}` : ''}`).join(', ');
+                    }
 
                     let str = `${idx + 1}. Item ID: "${item._id || item.id || idx + 1}" | Name: "${name}"`;
                     if (price !== 'N/A') str += ` | Price: Rs. ${price}`;
                     if (category) str += ` | Category: "${category}"`;
                     if (itemType) str += ` | Type: "${itemType}"`;
                     if (description) str += ` | Description: "${description}"`;
+                    if (variantsStr) str += ` | Available Variants: [${variantsStr}]`;
                     return str;
                 });
 
@@ -865,6 +879,7 @@ class FlowRuntime {
                         }
 
                         const val = parsed.value !== undefined ? parsed.value : null;
+                        const aiVariantVal = parsed.variant !== undefined ? parsed.variant : null;
 
                         // Extract actual original user message from nodeHistory (not the AI JSON response string)
                         let realUserMsg = null;
@@ -918,10 +933,35 @@ class FlowRuntime {
                         const itemName = selectedItem ? (selectedItem.fields?.name || selectedItem.name || 'Selected Item') : 'Selected Item';
                         console.log(`[CatalogSelector Node ${currentStep.id}] ✅ Selected item matched: "${itemName}" (ID: ${selectedItem?._id || 'N/A'})`);
 
+                        // Extract matched variant if user specified a variant alongside product
+                        let matchedVariantObj = null;
+                        const rawVariants = selectedItem.fields?.variants || selectedItem.variants || selectedItem.fields?.options || selectedItem.options;
+                        let itemVariants = [];
+                        if (Array.isArray(rawVariants)) {
+                            itemVariants = rawVariants;
+                        } else if (typeof rawVariants === 'string' && rawVariants.trim()) {
+                            itemVariants = rawVariants.split(/,|\n/).map(s => s.trim()).filter(Boolean).map(v => ({ name: v }));
+                        }
+
+                        if (itemVariants.length > 0) {
+                            const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                            const targetSearch = aiVariantVal || realUserMsg || cleanInput;
+                            if (targetSearch) {
+                                const normSearch = normalizeStr(targetSearch);
+                                matchedVariantObj = itemVariants.find(v => {
+                                    const vName = normalizeStr(v.name || v.label || '');
+                                    return vName && (normSearch.includes(vName) || vName.includes(normSearch));
+                                }) || null;
+                            }
+                        }
+
+                        const itemToSave = JSON.parse(JSON.stringify(selectedItem));
+                        itemToSave.selectedVariant = matchedVariantObj;
+
                         const varName = currentStep.data.variable;
                         if (varName) {
-                            this.variables[varName] = selectedItem;
-                            console.log(`[CatalogSelector Node ${currentStep.id}] 💾 Saved selected item object to variable: "${varName}"`);
+                            this.variables[varName] = itemToSave;
+                            console.log(`[CatalogSelector Node ${currentStep.id}] 💾 Saved selected item object (variant: ${matchedVariantObj ? (matchedVariantObj.name || matchedVariantObj.label) : 'none'}) to variable: "${varName}"`);
                             this._emitVariables();
                         }
 
@@ -942,19 +982,20 @@ class FlowRuntime {
                     if (this.onAIExtract) {
                         this.status = 'waiting_ai';
                         const customPrompt = currentStep.data.aiPrompt ? this._interpolate(currentStep.data.aiPrompt) : '';
-                        const defaultAiPrompt = `Analyze the user message and conversation history to select the EXACT catalog item the customer wants from the catalog list below:
+                        const defaultAiPrompt = `Analyze the user message and conversation history to select the EXACT catalog item and optional variant the customer wants from the catalog list below:
 
 ${optionsList.join('\n')}
 
 INSTRUCTIONS FOR AI:
-1. Compare user message, item names, descriptions, categories, item IDs, and Singlish/Tamil transliterations (e.g. "devil kaju" = Devilled Cashews / ඩෙවිල් කජු, "roast kaju" = Roasted Cashews).
-2. If the user refers to a product by its name, description keywords, category, number, or flavor, you MUST match it to the exact Item ID or Name and output status: "success".
-3. Return JSON: {"status": "success", "value": "matched_item_name_or_id"}
-4. DO NOT return status "fail" if a matching or relevant catalog item exists in the list above.
-5. Only return status "fail" with a followUp question if the user message is completely unrelated to any item in the catalog.`;
+1. Compare user message, item names, descriptions, categories, item IDs, variant names, and Singlish/Tamil transliterations (e.g. "devil kaju" = Devilled Cashews / ඩෙවිල් කජු, "roast kaju" = Roasted Cashews).
+2. If the user refers to a product by its name, description keywords, category, number, flavor, or variant (e.g. "500g kaju"), match it to the exact Item ID or Name and output status: "success".
+3. If the user explicitly specified a variant (e.g. "500g", "1kg", "Large", "Small"), return the variant name in the "variant" field. Otherwise return null for "variant".
+4. Return JSON: {"status": "success", "value": "matched_item_name_or_id", "variant": "matched_variant_name_or_null"}
+5. DO NOT return status "fail" if a matching or relevant catalog item exists in the list above.
+6. Only return status "fail" with a followUp question if the user message is completely unrelated to any item in the catalog.`;
 
                         const interpolatedAiPrompt = customPrompt
-                            ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions:\n${optionsList.join('\n')}`
+                            ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions & variants:\n${optionsList.join('\n')}`
                             : defaultAiPrompt;
 
                         const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
@@ -1001,19 +1042,20 @@ INSTRUCTIONS FOR AI:
                     if (this.onAIExtract) {
                         this.status = 'waiting_ai';
                         const customPrompt = currentStep.data.aiPrompt ? this._interpolate(currentStep.data.aiPrompt) : '';
-                        const defaultAiPrompt = `Analyze the user message and conversation history to select the EXACT catalog item the customer wants from the catalog list below:
+                        const defaultAiPrompt = `Analyze the user message and conversation history to select the EXACT catalog item and optional variant the customer wants from the catalog list below:
 
 ${optionsList.join('\n')}
 
 INSTRUCTIONS FOR AI:
-1. Compare user message, item names, descriptions, categories, item IDs, and Singlish/Tamil transliterations (e.g. "devil kaju" = Devilled Cashews / ඩෙවිල් කජු, "roast kaju" = Roasted Cashews).
-2. If the user refers to a product by its name, description keywords, category, number, or flavor, you MUST match it to the exact Item ID or Name and output status: "success".
-3. Return JSON: {"status": "success", "value": "matched_item_name_or_id"}
-4. DO NOT return status "fail" if a matching or relevant catalog item exists in the list above.
-5. Only return status "fail" with a followUp question if the user message is completely unrelated to any item in the catalog.`;
+1. Compare user message, item names, descriptions, categories, item IDs, variant names, and Singlish/Tamil transliterations (e.g. "devil kaju" = Devilled Cashews / ඩෙවිල් කජු, "roast kaju" = Roasted Cashews).
+2. If the user refers to a product by its name, description keywords, category, number, flavor, or variant (e.g. "500g kaju"), match it to the exact Item ID or Name and output status: "success".
+3. If the user explicitly specified a variant (e.g. "500g", "1kg", "Large", "Small"), return the variant name in the "variant" field. Otherwise return null for "variant".
+4. Return JSON: {"status": "success", "value": "matched_item_name_or_id", "variant": "matched_variant_name_or_null"}
+5. DO NOT return status "fail" if a matching or relevant catalog item exists in the list above.
+6. Only return status "fail" with a followUp question if the user message is completely unrelated to any item in the catalog.`;
 
                         const interpolatedAiPrompt = customPrompt
-                            ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions:\n${optionsList.join('\n')}`
+                            ? `${customPrompt}\n\nAvailable Catalog Items with full descriptions & variants:\n${optionsList.join('\n')}`
                             : defaultAiPrompt;
 
                         const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
@@ -1130,8 +1172,21 @@ INSTRUCTIONS FOR AI:
                             }
                         } catch (e) {
                             console.error('[VariantSelector] Error resolving product from string variable:', e);
-                        }
                     }
+                }
+
+                // Check if targetProduct already has a selectedVariant from CatalogSelector
+                if (targetProduct && targetProduct.selectedVariant && (targetProduct.selectedVariant.name || targetProduct.selectedVariant.label)) {
+                    const selectedV = targetProduct.selectedVariant;
+                    console.log(`[VariantSelector Node ${currentStep.id}] ⚡ Variant already selected in CatalogSelector: "${selectedV.name || selectedV.label}". Auto-advancing.`);
+                    const varName = currentStep.data.variable;
+                    if (varName) {
+                        this.variables[varName] = selectedV;
+                        this._emitVariables();
+                    }
+                    this.status = 'running';
+                    this._advance(currentStep.next);
+                    break;
                 }
 
                 let variants = [];

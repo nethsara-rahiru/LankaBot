@@ -184,25 +184,29 @@ const understandMessage = async (ctx) => {
 
     // ── Incoming Translation Pre-Processing ────────────────────────────────────
     // Translate non-English input (Sinhala, Singlish, Tamil, etc.) to English before AI processing.
-    // IMPORTANT: If the input has a [Replying to message: "..."] prefix, only translate the actual
-    // user reply part — not the structured prefix — then re-assemble so the AI gets correct context.
+    // IMPORTANT: Skip pre-translation if current node is catalogSelector so raw input reaches AI.
     let workingInput = ctx.userInput;
-    try {
-        // Split off any [Replying to message: "..."] prefix from the actual reply text
-        const replyPrefixMatch = workingInput.match(/^(\[Replying to message: "[\s\S]*?"\]\s*)([\s\S]*)$/);
-        const prefix = replyPrefixMatch ? replyPrefixMatch[1] : '';
-        const actualReply = replyPrefixMatch ? replyPrefixMatch[2].trim() : workingInput;
+    const isCatalogSelector = ctx.currentNode && ctx.currentNode.type === 'catalogSelector';
+    if (isCatalogSelector) {
+        console.log(`[UnderstandingService] ⏩ Skipping Luma incoming translation for CatalogSelector node. Passing raw user input.`);
+    } else {
+        try {
+            // Split off any [Replying to message: "..."] prefix from the actual reply text
+            const replyPrefixMatch = workingInput.match(/^(\[Replying to message: "[\s\S]*?"\]\s*)([\s\S]*)$/);
+            const prefix = replyPrefixMatch ? replyPrefixMatch[1] : '';
+            const actualReply = replyPrefixMatch ? replyPrefixMatch[2].trim() : workingInput;
 
-        const { translatedText, wasTranslated } = await translateIncomingToEnglish(actualReply, ctx.customer);
-        if (wasTranslated && translatedText) {
-            console.log(`[UnderstandingService] 🌐 Pre-translated user reply to English for AI Stage 1: "${actualReply}" → "${translatedText}"`);
-            // Reassemble: keep the structured prefix intact, replace only the translated reply
-            const reassembled = prefix ? `${prefix}${translatedText}` : translatedText;
-            workingInput = reassembled;
-            ctx.userInput = reassembled;
+            const { translatedText, wasTranslated } = await translateIncomingToEnglish(actualReply, ctx.customer);
+            if (wasTranslated && translatedText) {
+                console.log(`[UnderstandingService] 🌐 Pre-translated user reply to English for AI Stage 1: "${actualReply}" → "${translatedText}"`);
+                // Reassemble: keep the structured prefix intact, replace only the translated reply
+                const reassembled = prefix ? `${prefix}${translatedText}` : translatedText;
+                workingInput = reassembled;
+                ctx.userInput = reassembled;
+            }
+        } catch (err) {
+            console.error('[UnderstandingService] ⚠️ Translation pre-processing error:', err.message);
         }
-    } catch (err) {
-        console.error('[UnderstandingService] ⚠️ Translation pre-processing error:', err.message);
     }
 
     // ── Fast-path 1: Greeting detection (no AI call) ──────────────────────────
