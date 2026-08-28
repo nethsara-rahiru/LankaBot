@@ -695,6 +695,13 @@ class FlowRuntime {
                 break;
 
             case 'showCatalog': {
+                // If user input is already present (e.g. user typed a specific product name "Garlic kaju"), skip rendering full catalog list!
+                if (userInput && typeof userInput === 'string' && userInput.trim() !== '') {
+                    console.log(`[ShowCatalog Node ${currentStep.id}] ⏩ User input "${userInput}" present. Skipping catalog display and advancing.`);
+                    this._advance(currentStep.next);
+                    break;
+                }
+
                 const showCatType = currentStep.data.itemType || '';
                 const requestedStyleName = currentStep.data.menuStyle || currentStep.data.menuStyleName || currentStep.data.styleName || '';
                 try {
