@@ -1156,40 +1156,42 @@ INSTRUCTIONS FOR AI:
                         varVal = this.variables['item'] || this.variables['selectedItem'] || this.variables['product'];
                     }
 
-                    if (typeof varVal === 'object' && varVal !== null) {
-                        targetProduct = varVal;
-                    } else if (typeof varVal === 'string' || typeof varVal === 'number') {
-                        const searchStr = String(varVal).trim();
+                    const targetItemId = (typeof varVal === 'object' && varVal !== null) ? (varVal.itemID || varVal._id || varVal.id) : String(varVal || '').trim();
+                    const targetSearchStr = (typeof varVal === 'object' && varVal !== null) ? (varVal.name || '') : String(varVal || '').trim();
+
+                    if (targetItemId || targetSearchStr) {
                         try {
+                            let allItems = [];
                             if (this.onShowCatalog) {
                                 const result = await this.onShowCatalog('');
-                                if (result && Array.isArray(result.items)) {
-                                    targetProduct = result.items.find(i => {
-                                        const iId = String(i._id || i.id || '');
-                                        const iName = String(i.fields?.name || i.name || '').toLowerCase();
-                                        const queryLower = searchStr.toLowerCase();
-                                        return iId === searchStr || iName === queryLower || iName.includes(queryLower) || queryLower.includes(iName);
-                                    });
-                                }
+                                if (result && Array.isArray(result.items)) allItems = result.items;
                             } else {
                                 const accountId = (typeof localStorage !== 'undefined') ? localStorage.getItem('activeAccountId') : null;
                                 const simToken = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
                                 const headers = { 'x-auth-token': simToken || '' };
                                 if (accountId) headers['x-account-id'] = accountId;
                                 const catRes = await fetch(`/api/catalog`, { headers });
-                                if (catRes.ok) {
-                        const allItems = await catRes.json();
-                                    targetProduct = allItems.find(i => {
-                                        const iId = String(i._id || i.id || '');
-                                        const iName = String(i.fields?.name || i.name || '').toLowerCase();
-                                        const queryLower = searchStr.toLowerCase();
-                                        return iId === searchStr || iName === queryLower || iName.includes(queryLower) || queryLower.includes(iName);
-                                    });
+                                if (catRes.ok) allItems = await catRes.json();
+                            }
+
+                            if (allItems.length > 0) {
+                                const fetchedMatch = allItems.find(i => {
+                                    const iId = String(i._id || i.id || '');
+                                    const iName = String(i.fields?.name || i.name || '').toLowerCase();
+                                    const searchLower = targetSearchStr.toLowerCase();
+                                    return (targetItemId && iId === String(targetItemId)) || (searchLower && (iName === searchLower || iName.includes(searchLower) || searchLower.includes(iName)));
+                                });
+                                if (fetchedMatch) {
+                                    targetProduct = JSON.parse(JSON.stringify(fetchedMatch));
                                 }
                             }
                         } catch (e) {
-                            console.error('[VariantSelector] Error resolving product from string variable:', e);
+                            console.error('[VariantSelector] Error resolving product from database:', e);
                         }
+                    }
+
+                    if (!targetProduct && typeof varVal === 'object') {
+                        targetProduct = varVal;
                     }
                 }
 
@@ -1528,7 +1530,28 @@ INSTRUCTIONS FOR AI:
                 if (productMode === 'variable') {
                     const varName = currentStep.data.productVariable;
                     if (varName && this.variables[varName]) {
-                        targetProduct = this.variables[varName];
+                        const rawVar = this.variables[varName];
+                        const pId = typeof rawVar === 'object' ? (rawVar.itemID || rawVar._id || rawVar.id) : String(rawVar);
+                        if (pId) {
+                            try {
+                                if (this.onShowCatalog) {
+                                    const result = await this.onShowCatalog('');
+                                    if (result && Array.isArray(result.items)) {
+                                        const fetchedDoc = result.items.find(i => String(i._id || i.id) === String(pId));
+                                        if (fetchedDoc) {
+                                            targetProduct = JSON.parse(JSON.stringify(fetchedDoc));
+                                            if (typeof rawVar === 'object' && rawVar.price) {
+                                                targetProduct.price = rawVar.price;
+                                                if (targetProduct.fields) targetProduct.fields.price = rawVar.price;
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (e) { }
+                        }
+                        if (!targetProduct && typeof rawVar === 'object') {
+                            targetProduct = rawVar;
+                        }
                     }
                 } else {
                     const pId = currentStep.data.productId;

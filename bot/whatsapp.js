@@ -571,9 +571,12 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         if (mediaId) {
                             try {
                                 const accountData = await Account.findById(accountId);
-                                const resource = await Resource.findOne({ _id: mediaId, ownerId: accountData.user });
+                                let resource = await Resource.findOne({ _id: mediaId, ownerId: accountData.user });
+                                if (!resource) resource = await Resource.findById(mediaId);
+                                if (!resource) resource = await Resource.findOne({ _id: mediaId });
                                 if (resource) {
-                                    const filePath = path.join(__dirname, '..', 'assets', accountData.user.toString(), resource.storedName);
+                                    const ownerFolder = resource.ownerId ? resource.ownerId.toString() : accountData.user.toString();
+                                    const filePath = path.join(__dirname, '..', 'assets', ownerFolder, resource.storedName);
                                     if (fs.existsSync(filePath)) {
                                         mediaContent = MessageMedia.fromFilePath(filePath);
                                     }
