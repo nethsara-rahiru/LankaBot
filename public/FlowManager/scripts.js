@@ -405,6 +405,47 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select>
                 `;
                 break;
+            case 'addToCart':
+                content = `
+                    <p style="margin:0 0 0.4rem; font-size: 0.78rem; color: var(--text-dim);">Push item variable into cart. Duplicate item+variant increments qty.</p>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:0.2rem;">Item Variable</label>
+                    <select class="node-data" data-key="sourceVariable" style="width:100%;">
+                        <option value="">Select item variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin:0.5rem 0 0.2rem;">Cart Variable</label>
+                    <select class="node-data" data-key="cartVariable" style="width:100%;">
+                        <option value="">Select cart variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin:0.5rem 0 0.2rem;">Quantity</label>
+                    <input type="number" min="1" value="1" placeholder="Qty (default: 1)" class="node-data" data-key="quantity" style="width:100%;">
+                `;
+                break;
+            case 'qtySelector':
+                content = `
+                    <p style="margin:0 0 0.4rem; font-size: 0.78rem; color: var(--text-dim);">Ask the customer how many they want. Saves as a number. Skips AI for plain numeric replies.</p>
+                    <input type="text" placeholder="Prompt (e.g. How many would you like?)" class="node-data" data-key="prompt" style="width:100%;">
+                    <input type="text" placeholder="AI Prompt (Optional extraction instructions)" class="node-data" data-key="aiPrompt" style="margin-top:0.5rem; width:100%; font-size:0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin:0.5rem 0 0.2rem;">Save Qty to Variable</label>
+                    <select class="node-data" data-key="variable" style="width:100%;">
+                        <option value="">Select variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                break;
+            case 'showCart':
+                content = `
+                    <p style="margin:0 0 0.4rem; font-size: 0.78rem; color: var(--text-dim);">Send a formatted cart summary to the customer.</p>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:0.2rem;">Cart Variable</label>
+                    <select class="node-data" data-key="cartVariable" style="width:100%;">
+                        <option value="">Select cart variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                    <input type="text" placeholder="Header text (default: 🛒 *Your Cart*)" class="node-data" data-key="headerText" style="margin-top:0.5rem; width:100%;">
+                    <input type="text" placeholder="Empty cart message (default: 🛒 Your cart is empty.)" class="node-data" data-key="emptyMessage" style="margin-top:0.5rem; width:100%; font-size:0.78rem;">
+                `;
+                break;
             case 'placeOrder':
                 const getManualOrderFields = () => {
                     const aId = localStorage.getItem('activeAccountId');
@@ -463,6 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showProductCard: 'Show Product Card',
             showCatalog: 'Show Catalog',
             arrayManager: 'Array Manager',
+            addToCart: 'Add to Cart',
+            showCart: 'Show Cart',
+            qtySelector: 'Qty Selector',
             placeOrder: 'Place Order',
             newFlow: 'New Flow'
         };
@@ -479,6 +523,9 @@ document.addEventListener('DOMContentLoaded', () => {
             showProductCard: 'ph-card',
             showCatalog: 'ph-list-numbers',
             arrayManager: 'ph-list-plus',
+            addToCart: 'ph-shopping-cart-simple',
+            showCart: 'ph-receipt',
+            qtySelector: 'ph-hash',
             placeOrder: 'ph-shopping-cart',
             newFlow: 'ph-file-plus'
         };

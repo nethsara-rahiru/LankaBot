@@ -1694,7 +1694,182 @@ INSTRUCTIONS FOR AI:
                 this._advance(currentStep.next);
                 break;
 
+            case 'qtySelector': {
+                const qtyVarName = currentStep.data.variable || 'qty';
+
+                // ── AI response arrived (waiting_ai → resume) ───────────────────────────
+                if (this.status === 'waiting_ai' && userInput !== null) {
+                    try {
+                        const parsed = typeof userInput === 'string' ? JSON.parse(userInput) : userInput;
+                        const raw = parsed.value !== undefined ? parsed.value : parsed.qty !== undefined ? parsed.qty : userInput;
+                        const num = parseInt(String(raw).replace(/[^0-9]/g, ''), 10);
+
+                        if (isNaN(num) || num < 1) {
+                            // Bad extraction — re-ask
+                            this.status = 'waiting_input';
+                            const retryPrompt = this._interpolate(currentStep.data.prompt || 'Please enter a valid quantity:');
+                            if (this.onWaitingForInput) await this.onWaitingForInput(retryPrompt);
+                            return this.status;
+                        }
+
+                        this.variables[qtyVarName] = num;
+                        this._emitVariables();
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    } catch (e) {
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                    break;
+                }
+
+                // ── User replied (waiting_input → process) ──────────────────────────────
+                if (this.status === 'waiting_input' && userInput !== null) {
+                    const trimmed = String(userInput).trim();
+
+                    // ⚡ Fast-path: pure number reply → skip AI entirely
+                    const fastNum = parseInt(trimmed.replace(/[^0-9]/g, ''), 10);
+                    const looksNumeric = /^\s*\d+\s*$/.test(trimmed);
+
+                    if (looksNumeric && !isNaN(fastNum) && fastNum > 0) {
+                        console.log(`[QtySelector] ⚡ Fast-path numeric: "${trimmed}" → ${fastNum}`);
+                        this.variables[qtyVarName] = fastNum;
+                        this._emitVariables();
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                        break;
+                    }
+
+                    // AI path — extract number from natural language (e.g. "two", "give me 3", "half dozen")
+                    if (this.onAIExtract) {
+                        this.status = 'waiting_ai';
+                        const aiPrompt = currentStep.data.aiPrompt
+                            ? this._interpolate(currentStep.data.aiPrompt)
+                            : 'Extract the quantity (a positive integer) the customer wants from their reply.';
+                        const userPrompt = this._interpolate(currentStep.data.prompt || 'How many would you like?');
+
+                        if (!this.nodeHistory) this.nodeHistory = [];
+                        this.nodeHistory.push({ role: 'user', content: userInput });
+                        const currentTopic = this._getCurrentTopicContext();
+                        const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+                        const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
+                        const flowTopics = Object.keys(entrypoints).map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description provided'}`).join('\n');
+
+                        this.onAIExtract({
+                            nodeType: 'qtySelector',
+                            userInput: fullContext,
+                            userPrompt,
+                            aiPrompt,
+                            options: [],
+                            expectJson: true,
+                            flowTopics,
+                            currentTopicId: currentTopic.id,
+                            currentTopicDescription: currentTopic.description,
+                            noAiPrompt: false
+                        });
+                    } else {
+                        // No AI — just try to parse whatever was given
+                        const fallbackNum = parseInt(trimmed.replace(/[^0-9]/g, ''), 10) || 1;
+                        this.variables[qtyVarName] = fallbackNum;
+                        this._emitVariables();
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                    }
+                    break;
+                }
+
+                // ── First run — send prompt and wait ────────────────────────────────────
+                this.status = 'waiting_input';
+                if (this.onWaitingForInput) {
+                    const prompt = this._interpolate(currentStep.data.prompt || 'How many would you like?');
+                    await this.onWaitingForInput(prompt);
+                }
+                break;
+            }
+
+            case 'addToCart': {
+
+                const sourceVarName = currentStep.data.sourceVariable || 'item';
+                const cartVarName   = currentStep.data.cartVariable   || 'cart';
+                const configuredQty = parseInt(currentStep.data.quantity, 10) || 1;
+
+                const sourceItem = this.variables[sourceVarName];
+                if (!sourceItem) {
+                    console.warn(`[AddToCart] Source variable "${sourceVarName}" is empty — skipping.`);
+                    this._advance(currentStep.next);
+                    break;
+                }
+
+                // Normalise item into flat structure
+                const itemID   = sourceItem.itemID || sourceItem._id || sourceItem.id || null;
+                const itemName = sourceItem.name   || sourceItem.fields?.name || 'Item';
+                const variant  = sourceItem.variant || null;
+                const price    = parseFloat(sourceItem.price) || 0;
+
+                let cart = Array.isArray(this.variables[cartVarName]) ? [...this.variables[cartVarName]] : [];
+
+                // Deduplication: match by itemID + variant
+                const existingIdx = cart.findIndex(entry => {
+                    const sameId      = itemID && String(entry.itemID) === String(itemID);
+                    const sameVariant = String(entry.variant || '') === String(variant || '');
+                    return sameId && sameVariant;
+                });
+
+                if (existingIdx !== -1) {
+                    // Increment qty
+                    cart[existingIdx] = { ...cart[existingIdx], qty: (cart[existingIdx].qty || 1) + configuredQty };
+                    console.log(`[AddToCart] ⬆ Incremented qty for "${itemName}" (${variant || 'no variant'}) → qty ${cart[existingIdx].qty}`);
+                } else {
+                    // Push new entry
+                    const newEntry = { itemID, name: itemName, variant, price, qty: configuredQty };
+                    cart.push(newEntry);
+                    console.log(`[AddToCart] ➕ Added "${itemName}" (${variant || 'no variant'}) to cart.`);
+                }
+
+                this.variables[cartVarName] = cart;
+                this._emitVariables();
+                this._advance(currentStep.next);
+                break;
+            }
+
+            case 'showCart': {
+                const cartVar    = currentStep.data.cartVariable || 'cart';
+                const headerText = currentStep.data.headerText   || '🛒 *Your Cart*';
+                const emptyMsg   = currentStep.data.emptyMessage || '🛒 Your cart is empty.';
+
+                const cart = Array.isArray(this.variables[cartVar]) ? this.variables[cartVar] : [];
+
+                if (cart.length === 0) {
+                    if (this.onBotMessage) await this.onBotMessage(emptyMsg);
+                    this._advance(currentStep.next);
+                    break;
+                }
+
+                // Build message
+                const divider = '─────────────────';
+                let grandTotal = 0;
+                const lines = cart.map((entry, i) => {
+                    const qty       = entry.qty || 1;
+                    const price     = parseFloat(entry.price) || 0;
+                    const subtotal  = qty * price;
+                    grandTotal += subtotal;
+
+                    const variantTag = entry.variant ? ` (${entry.variant})` : '';
+                    const qtyPart    = `x${qty}`;
+                    const pricePart  = price > 0 ? ` — Rs. ${subtotal.toLocaleString()}` : '';
+                    return `${i + 1}. ${entry.name}${variantTag} ${qtyPart}${pricePart}`;
+                });
+
+                const totalLine = `💰 *Total: Rs. ${grandTotal.toLocaleString()}*`;
+                const cartMessage = [headerText, divider, ...lines, divider, totalLine].join('\n');
+
+                if (this.onBotMessage) await this.onBotMessage(cartMessage);
+                this._advance(currentStep.next);
+                break;
+            }
+
             case 'placeOrder':
+
                 console.log('[PlaceOrder] ▶ Node triggered. Raw step data:', JSON.stringify(currentStep.data || {}));
                 console.log('[PlaceOrder] Current variables:', JSON.stringify(this.variables));
 
