@@ -1172,6 +1172,7 @@ INSTRUCTIONS FOR AI:
                             }
                         } catch (e) {
                             console.error('[VariantSelector] Error resolving product from string variable:', e);
+                        }
                     }
                 }
 
