@@ -1695,7 +1695,23 @@ INSTRUCTIONS FOR AI:
                 break;
 
             case 'qtySelector': {
-                const qtyVarName = currentStep.data.variable || 'qty';
+                const itemVarName   = currentStep.data.itemVariable   || 'item';
+                const outputVarName = currentStep.data.outputVariable || itemVarName; // defaults to same variable
+
+                // Helper: save extracted qty by merging into item object
+                const _saveQty = (num) => {
+                    const existingItem = this.variables[itemVarName];
+                    if (existingItem && typeof existingItem === 'object' && !Array.isArray(existingItem)) {
+                        // Merge qty into item object → { itemID, name, variant, price, qty: num }
+                        this.variables[outputVarName] = { ...existingItem, qty: num };
+                        console.log(`[QtySelector] ✅ Merged qty ${num} into "${itemVarName}" → saved to "${outputVarName}"`);
+                    } else {
+                        // No item object — just save plain number
+                        this.variables[outputVarName] = num;
+                        console.log(`[QtySelector] ✅ Saved qty ${num} to "${outputVarName}" (no item object found in "${itemVarName}")`);
+                    }
+                    this._emitVariables();
+                };
 
                 // ── AI response arrived (waiting_ai → resume) ───────────────────────────
                 if (this.status === 'waiting_ai' && userInput !== null) {
@@ -1712,8 +1728,7 @@ INSTRUCTIONS FOR AI:
                             return this.status;
                         }
 
-                        this.variables[qtyVarName] = num;
-                        this._emitVariables();
+                        _saveQty(num);
                         this.status = 'running';
                         this._advance(currentStep.next);
                     } catch (e) {
@@ -1733,8 +1748,7 @@ INSTRUCTIONS FOR AI:
 
                     if (looksNumeric && !isNaN(fastNum) && fastNum > 0) {
                         console.log(`[QtySelector] ⚡ Fast-path numeric: "${trimmed}" → ${fastNum}`);
-                        this.variables[qtyVarName] = fastNum;
-                        this._emitVariables();
+                        _saveQty(fastNum);
                         this.status = 'running';
                         this._advance(currentStep.next);
                         break;
@@ -1770,8 +1784,7 @@ INSTRUCTIONS FOR AI:
                     } else {
                         // No AI — just try to parse whatever was given
                         const fallbackNum = parseInt(trimmed.replace(/[^0-9]/g, ''), 10) || 1;
-                        this.variables[qtyVarName] = fallbackNum;
-                        this._emitVariables();
+                        _saveQty(fallbackNum);
                         this.status = 'running';
                         this._advance(currentStep.next);
                     }
@@ -1788,10 +1801,8 @@ INSTRUCTIONS FOR AI:
             }
 
             case 'addToCart': {
-
                 const sourceVarName = currentStep.data.sourceVariable || 'item';
                 const cartVarName   = currentStep.data.cartVariable   || 'cart';
-                const configuredQty = parseInt(currentStep.data.quantity, 10) || 1;
 
                 const sourceItem = this.variables[sourceVarName];
                 if (!sourceItem) {
@@ -1800,11 +1811,12 @@ INSTRUCTIONS FOR AI:
                     break;
                 }
 
-                // Normalise item into flat structure
+                // Normalise item into flat structure & get item.qty (or 1 as default)
                 const itemID   = sourceItem.itemID || sourceItem._id || sourceItem.id || null;
                 const itemName = sourceItem.name   || sourceItem.fields?.name || 'Item';
                 const variant  = sourceItem.variant || null;
                 const price    = parseFloat(sourceItem.price) || 0;
+                const itemQty  = parseInt(sourceItem.qty, 10) || 1;
 
                 let cart = Array.isArray(this.variables[cartVarName]) ? [...this.variables[cartVarName]] : [];
 
@@ -1817,11 +1829,11 @@ INSTRUCTIONS FOR AI:
 
                 if (existingIdx !== -1) {
                     // Increment qty
-                    cart[existingIdx] = { ...cart[existingIdx], qty: (cart[existingIdx].qty || 1) + configuredQty };
+                    cart[existingIdx] = { ...cart[existingIdx], qty: (cart[existingIdx].qty || 1) + itemQty };
                     console.log(`[AddToCart] ⬆ Incremented qty for "${itemName}" (${variant || 'no variant'}) → qty ${cart[existingIdx].qty}`);
                 } else {
                     // Push new entry
-                    const newEntry = { itemID, name: itemName, variant, price, qty: configuredQty };
+                    const newEntry = { itemID, name: itemName, variant, price, qty: itemQty };
                     cart.push(newEntry);
                     console.log(`[AddToCart] ➕ Added "${itemName}" (${variant || 'no variant'}) to cart.`);
                 }

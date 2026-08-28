@@ -418,20 +418,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         <option value="">Select cart variable...</option>
                         ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
                     </select>
-                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin:0.5rem 0 0.2rem;">Quantity</label>
-                    <input type="number" min="1" value="1" placeholder="Qty (default: 1)" class="node-data" data-key="quantity" style="width:100%;">
                 `;
                 break;
             case 'qtySelector':
                 content = `
-                    <p style="margin:0 0 0.4rem; font-size: 0.78rem; color: var(--text-dim);">Ask the customer how many they want. Saves as a number. Skips AI for plain numeric replies.</p>
-                    <input type="text" placeholder="Prompt (e.g. How many would you like?)" class="node-data" data-key="prompt" style="width:100%;">
-                    <input type="text" placeholder="AI Prompt (Optional extraction instructions)" class="node-data" data-key="aiPrompt" style="margin-top:0.5rem; width:100%; font-size:0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
-                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin:0.5rem 0 0.2rem;">Save Qty to Variable</label>
-                    <select class="node-data" data-key="variable" style="width:100%;">
-                        <option value="">Select variable...</option>
+                    <p style="margin:0 0 0.4rem; font-size: 0.78rem; color: var(--text-dim);">Ask the customer for quantity and update the item JSON directly.</p>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:0.2rem;">Input Item Variable</label>
+                    <select class="node-data" data-key="itemVariable" style="width:100%;">
+                        <option value="">Select input item variable...</option>
                         ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
                     </select>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin:0.5rem 0 0.2rem;">Output Variable</label>
+                    <select class="node-data" data-key="outputVariable" style="width:100%;">
+                        <option value="">Select output variable (defaults to input)...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                    <input type="text" placeholder="Prompt (e.g. How many would you like?)" class="node-data" data-key="prompt" style="margin-top:0.5rem; width:100%;">
+                    <input type="text" placeholder="AI Prompt (Optional extraction instructions)" class="node-data" data-key="aiPrompt" style="margin-top:0.5rem; width:100%; font-size:0.8rem; background: rgba(52, 152, 219, 0.05); border-color: rgba(52, 152, 219, 0.2);">
                 `;
                 break;
             case 'showCart':
