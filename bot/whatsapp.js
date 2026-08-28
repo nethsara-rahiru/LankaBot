@@ -853,7 +853,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         activeFlows.delete(orgId);
                         try {
                             await OrganizationContact.findByIdAndUpdate(msg.orgContactId, {
-                                flowState: { currentNodeId: null, variables: {}, status: 'idle' }
+                                'flowState.currentNodeId': null,
+                                'flowState.status': 'idle'
                             });
                         } catch (e) { }
                     };

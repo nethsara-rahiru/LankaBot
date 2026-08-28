@@ -449,6 +449,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <input type="text" placeholder="Empty cart message (default: 🛒 Your cart is empty.)" class="node-data" data-key="emptyMessage" style="margin-top:0.5rem; width:100%; font-size:0.78rem;">
                 `;
                 break;
+            case 'clearCart':
+                content = `
+                    <p style="margin:0 0 0.4rem; font-size: 0.78rem; color: var(--text-dim);">Empty and reset the selected cart variable to [].</p>
+                    <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:0.2rem;">Cart Variable</label>
+                    <select class="node-data" data-key="cartVariable" style="width:100%;">
+                        <option value="">Select cart variable...</option>
+                        ${Array.from(variables).map(v => `<option value="${v}">${v}</option>`).join('')}
+                    </select>
+                `;
+                break;
             case 'placeOrder':
                 const getManualOrderFields = () => {
                     const aId = localStorage.getItem('activeAccountId');
@@ -509,6 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
             arrayManager: 'Array Manager',
             addToCart: 'Add to Cart',
             showCart: 'Show Cart',
+            clearCart: 'Clear Cart',
             qtySelector: 'Qty Selector',
             placeOrder: 'Place Order',
             newFlow: 'New Flow'
@@ -528,6 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
             arrayManager: 'ph-list-plus',
             addToCart: 'ph-shopping-cart-simple',
             showCart: 'ph-receipt',
+            clearCart: 'ph-trash-simple',
             qtySelector: 'ph-hash',
             placeOrder: 'ph-shopping-cart',
             newFlow: 'ph-file-plus'

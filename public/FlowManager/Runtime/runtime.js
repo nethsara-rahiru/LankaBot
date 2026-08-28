@@ -1839,6 +1839,7 @@ INSTRUCTIONS FOR AI:
                 }
 
                 this.variables[cartVarName] = cart;
+                delete this.variables[sourceVarName];
                 this._emitVariables();
                 this._advance(currentStep.next);
                 break;
@@ -1876,6 +1877,15 @@ INSTRUCTIONS FOR AI:
                 const cartMessage = [headerText, divider, ...lines, divider, totalLine].join('\n');
 
                 if (this.onBotMessage) await this.onBotMessage(cartMessage);
+                this._advance(currentStep.next);
+                break;
+            }
+
+            case 'clearCart': {
+                const cartVarName = currentStep.data.cartVariable || 'cart';
+                this.variables[cartVarName] = [];
+                this._emitVariables();
+                console.log(`[ClearCart] 🧹 Cart variable "${cartVarName}" reset to empty array.`);
                 this._advance(currentStep.next);
                 break;
             }
