@@ -87,7 +87,7 @@ class FlowRuntime {
         if (replyMatch && replyMatch[1]) {
             const quotedContent = replyMatch[1].trim();
             const cleanWithoutReply = strVal.replace(/\[Replying to (?:message: )?[\s\S]*?\]/gi, '').trim();
-            
+
             const quotedMatchItem = this._findMatchingCatalogItem(catalogItems, quotedContent);
             if (quotedMatchItem) return quotedMatchItem;
 
@@ -366,7 +366,7 @@ class FlowRuntime {
                             } else {
                                 parsed = JSON.parse(cleanInput);
                             }
-                        } catch(e) {
+                        } catch (e) {
                             // If AI failed to return any JSON, construct a fallback that carries forward the raw user input as followUp
                             parsed = { status: 'fail', followUp: `Thank you for your response ("${userInput}"). Could you please provide the specific detail required so we can assist you?` };
                         }
@@ -399,7 +399,7 @@ class FlowRuntime {
                         }
                         this.status = 'running';
                         this._advance(currentStep.next);
-                    } catch(e) {
+                    } catch (e) {
                         this.status = 'running';
                         this._advance(currentStep.next);
                     }
@@ -410,10 +410,10 @@ class FlowRuntime {
                         const aiPrompt = currentStep.data.aiPrompt;
                         const interpolatedAiPrompt = aiPrompt ? this._interpolate(aiPrompt) : '';
                         const userPrompt = this._interpolate(currentStep.data.prompt || '');
-                        
+
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
-                        
+
                         const currentTopic = this._getCurrentTopicContext();
                         const fullContext = this.nodeHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
                         const entrypoints = this.compiled && this.compiled.entrypoints ? this.compiled.entrypoints : {};
@@ -513,7 +513,7 @@ class FlowRuntime {
                             } else {
                                 parsed = JSON.parse(cleanInput);
                             }
-                        } catch(e) {
+                        } catch (e) {
                             parsed = { status: 'fail', followUp: `Thank you for your message. Please select one of the available options so we can assist you.` };
                         }
 
@@ -555,7 +555,7 @@ class FlowRuntime {
                             const fallback = options.length > 0 && options[0].next ? options[0].next : null;
                             this._advance(fallback);
                         }
-                    } catch(e) {
+                    } catch (e) {
                         this.status = 'running';
                         this._advance(currentStep.next);
                     }
@@ -566,7 +566,7 @@ class FlowRuntime {
                         const interpolatedAiPrompt = aiPrompt ? this._interpolate(aiPrompt) : '';
                         const userPrompt = this._interpolate(currentStep.data.prompt || '');
                         const opts = (currentStep.options || []).map(o => o.value);
-                        
+
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
                         const currentTopic = this._getCurrentTopicContext();
@@ -635,7 +635,7 @@ class FlowRuntime {
                 const rawV1 = this._interpolate(currentStep.data.var1 || '');
                 const rawV2 = this._interpolate(currentStep.data.var2 || '');
                 const op = currentStep.data.condition || '==';
-                
+
                 let result = false;
                 try {
                     const num1 = Number(rawV1);
@@ -648,13 +648,13 @@ class FlowRuntime {
                     switch (op) {
                         case '==': result = val1 == val2; break;
                         case '!=': result = val1 != val2; break;
-                        case '>':  result = val1 > val2;  break;
-                        case '<':  result = val1 < val2;  break;
+                        case '>': result = val1 > val2; break;
+                        case '<': result = val1 < val2; break;
                         case '>=': result = val1 >= val2; break;
                         case '<=': result = val1 <= val2; break;
-                        default:   result = val1 == val2; break;
+                        default: result = val1 == val2; break;
                     }
-                } catch(e) {
+                } catch (e) {
                     result = false;
                 }
 
@@ -672,7 +672,7 @@ class FlowRuntime {
                         const cleanInput = (typeof userInput === 'string') ? userInput.replace(/```json/gi, '').replace(/```/g, '').trim() : userInput;
                         const parsed = JSON.parse(cleanInput);
                         result = parsed.value === true || parsed.value === 'true';
-                    } catch(e) {
+                    } catch (e) {
                         result = (userInput || '').toLowerCase().includes('true');
                     }
 
@@ -803,7 +803,7 @@ class FlowRuntime {
             case 'catalogSelector': {
                 console.log('[CatalogSelector] step.next =', currentStep.next, '| step:', JSON.stringify({ id: currentStep.id, type: currentStep.type, next: currentStep.next }));
                 const showCatType = currentStep.data.itemType || '';
-                
+
                 // Fetch catalog items for option selection
                 let catalogItems = [];
                 try {
@@ -870,7 +870,7 @@ class FlowRuntime {
                             } else {
                                 parsed = JSON.parse(cleanInput);
                             }
-                        } catch(e) {
+                        } catch (e) {
                             parsed = { status: 'fail', followUp: `Thank you for your message. Please select an available product/service from our catalog so we can assist you.` };
                         }
 
@@ -980,7 +980,7 @@ class FlowRuntime {
                         this.status = 'running';
                         console.log(`[CatalogSelector Node ${currentStep.id}] ➡️ Advancing to next step: "${nextTarget}"`);
                         this._advance(nextTarget);
-                    } catch(e) {
+                    } catch (e) {
                         console.error(`[CatalogSelector Node ${currentStep.id}] ❌ Exception during step execution:`, e);
                         this.status = 'running';
                         this._advance(currentStep.next);
@@ -1006,7 +1006,7 @@ INSTRUCTIONS FOR AI:
                             : defaultAiPrompt;
 
                         const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
-                        
+
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
                         const currentTopic = this._getCurrentTopicContext();
@@ -1066,7 +1066,7 @@ INSTRUCTIONS FOR AI:
                             : defaultAiPrompt;
 
                         const userPrompt = this._interpolate(currentStep.data.prompt || 'Which catalog item would you like to select?');
-                        
+
                         if (!this.nodeHistory) this.nodeHistory = [];
                         this.nodeHistory.push({ role: 'user', content: userInput });
                         const currentTopic = this._getCurrentTopicContext();
@@ -1115,7 +1115,7 @@ INSTRUCTIONS FOR AI:
                 const mode = currentStep.data.productMode || 'dropdown';
                 const productId = currentStep.data.productId || '';
                 const productVarName = currentStep.data.productVariable || 'selectedItem';
-                
+
                 let targetProduct = null;
 
                 if (mode === 'dropdown' && productId) {
@@ -1239,7 +1239,7 @@ INSTRUCTIONS FOR AI:
                             const jsonMatch = cleanInput.match(/\{[\s\S]*\}/);
                             if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
                             else parsed = JSON.parse(cleanInput);
-                        } catch(e) {
+                        } catch (e) {
                             parsed = { status: 'fail', followUp: `Thank you for your message. Please select one of the available variants for ${productName}: ${variantOptionsList.join(', ')}.` };
                         }
 
@@ -1259,7 +1259,7 @@ INSTRUCTIONS FOR AI:
                             const strVal = String(typeof valToMatch === 'object' ? (valToMatch.name || valToMatch.label || valToMatch.value || '') : valToMatch);
                             const normVal = normalizeStr(strVal);
                             if (!normVal) return null;
-                            
+
                             // 1. Direct normalized match or index match
                             let match = variants.find((v, idx) => {
                                 const vName = normalizeStr(v.name || v.label || '');
@@ -1317,7 +1317,7 @@ INSTRUCTIONS FOR AI:
 
                         this.status = 'running';
                         this._advance(currentStep.next);
-                    } catch(e) {
+                    } catch (e) {
                         console.error(`[VariantSelector Node ${currentStep.id}] ❌ Exception during step execution:`, e);
                         this.status = 'running';
                         this._advance(currentStep.next);
@@ -1500,7 +1500,7 @@ INSTRUCTIONS FOR AI:
                             const settings = await res.json();
                             template = settings.itemCardTemplate;
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
 
                 if (!template) {
@@ -1655,7 +1655,7 @@ INSTRUCTIONS FOR AI:
                             const responseText = await res.text();
                             console.log('[PlaceOrder] Response status:', res.status, '| body:', responseText);
                             if (res.ok) {
-                                try { savedOrder = JSON.parse(responseText); } catch(e) {}
+                                try { savedOrder = JSON.parse(responseText); } catch (e) { }
                                 console.log('[PlaceOrder] ✅ Order saved:', JSON.stringify(savedOrder));
                             } else {
                                 console.error('[PlaceOrder] ❌ Order API error:', res.status, responseText);

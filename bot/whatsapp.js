@@ -367,7 +367,12 @@ const startClient = async (accountId) => {
                 const entryKeys = Object.keys(entrypoints);
                 let shouldRedirect = null;
 
-                if (entryKeys.length > 0) {
+                // ⚡ Single AI Call Optimization:
+                // If flow is currently waiting for input at an interactive node (e.g. catalogSelector, getOption, variantSelector),
+                // bypass Global Router AI. The active node's unified AI prompt handles both topic redirection and value extraction in 1 single AI call!
+                const isActiveWaitingNode = flow && (flow.status === 'waiting_option' || flow.status === 'waiting_input' || flow.status === 'waiting_ai' || flow.status === 'waiting_ce');
+
+                if (entryKeys.length > 0 && !isActiveWaitingNode) {
                     const topics = entryKeys.map(k => `- Topic ID: ${k}, Description: ${entrypoints[k].description || 'No description'}`).join('\n');
                     let currentContext = 'The user is starting a NEW conversation. There is no active flow.';
                     if (flow && flow.status !== 'idle') {
