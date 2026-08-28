@@ -501,6 +501,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
                     // ──────────────────────────────────────────────────────────────────────
 
+                    const interactiveNodeTypes = ['get', 'getOption', 'catalogSelector', 'variantSelector', 'ifAI'];
+
                     flow.resume = async (initialInput = null) => {
                         console.log(`[WhatsApp Flow] 🔄 flow.resume() called. Current status: '${flow.status}', isRunning: ${flow._isRunning}, currentNode: '${flow.currentNodeId}'`);
                         if (flow._isRunning) {
@@ -510,10 +512,14 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         flow._isRunning = true;
                         let pendingInput = initialInput;
                         while (flow.status === 'running') {
-                            console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}'...`);
+                            const currentStep = flow.compiled?.steps?.find(s => s.id === flow.currentNodeId);
+                            const stepType = currentStep ? currentStep.type : null;
+                            console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}' (Type: '${stepType}')...`);
                             const inputToPass = pendingInput;
                             await flow.step(inputToPass);
-                            pendingInput = null;
+                            if (interactiveNodeTypes.includes(stepType) || flow.status !== 'running') {
+                                pendingInput = null;
+                            }
                             await new Promise(r => setTimeout(r, 10)); // minimal delay to ensure order
                         }
                         console.log(`[WhatsApp Flow] ⏸️ flow.resume loop stopped. Final status: '${flow.status}', currentNode: '${flow.currentNodeId}'`);
