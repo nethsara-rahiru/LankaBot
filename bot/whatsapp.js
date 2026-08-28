@@ -187,12 +187,13 @@ const startClient = async (accountId) => {
             // Detect and save language preference on every incoming message (skipped during CatalogSelector)
             try {
                 const activeFlow = activeFlows.get(orgContact._id.toString());
-                const isCatalogSelectorActive = activeFlow &&
-                    (activeFlow.status === 'waiting_option' || activeFlow.status === 'waiting_ai') &&
-                    activeFlow.compiled?.steps?.find(s => s.id === activeFlow.currentNodeId)?.type === 'catalogSelector';
+                const activeNodeType = activeFlow && (activeFlow.status === 'waiting_option' || activeFlow.status === 'waiting_ai')
+                    ? activeFlow.compiled?.steps?.find(s => s.id === activeFlow.currentNodeId)?.type
+                    : null;
+                const isNoLumaNode = activeNodeType === 'catalogSelector' || activeNodeType === 'variantSelector';
 
-                if (isCatalogSelectorActive) {
-                    console.log(`[WhatsApp ${account.sessionId}] ⏩ Skipping Luma language detection for CatalogSelector node.`);
+                if (isNoLumaNode) {
+                    console.log(`[WhatsApp ${account.sessionId}] ⏩ Skipping Luma language detection for ${activeNodeType} node.`);
                 } else {
                     await detectAndSaveLanguage(customer, msg.body);
                 }

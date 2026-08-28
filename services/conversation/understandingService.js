@@ -186,9 +186,9 @@ const understandMessage = async (ctx) => {
     // Translate non-English input (Sinhala, Singlish, Tamil, etc.) to English before AI processing.
     // IMPORTANT: Skip pre-translation if current node is catalogSelector so raw input reaches AI.
     let workingInput = ctx.userInput;
-    const isCatalogSelector = ctx.currentNode && ctx.currentNode.type === 'catalogSelector';
-    if (isCatalogSelector) {
-        console.log(`[UnderstandingService] ⏩ Skipping Luma incoming translation for CatalogSelector node. Passing raw user input.`);
+    const isNoLumaNode = ctx.currentNode && (ctx.currentNode.type === 'catalogSelector' || ctx.currentNode.type === 'variantSelector');
+    if (isNoLumaNode) {
+        console.log(`[UnderstandingService] ⏩ Skipping Luma incoming translation for ${ctx.currentNode.type} node. Passing raw user input.`);
     } else {
         try {
             // Split off any [Replying to message: "..."] prefix from the actual reply text

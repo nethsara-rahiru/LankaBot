@@ -962,13 +962,23 @@ class FlowRuntime {
                             }
                         }
 
-                        const itemToSave = JSON.parse(JSON.stringify(selectedItem));
-                        itemToSave.selectedVariant = matchedVariantObj;
+                        const basePrice = selectedItem?.fields?.price !== undefined ? Number(selectedItem.fields.price) : (selectedItem?.price !== undefined ? Number(selectedItem.price) : 0);
+                        const itemToSave = {
+                            itemID: selectedItem?._id || selectedItem?.id || 'N/A',
+                            name: selectedItem?.fields?.name || selectedItem?.name || 'Selected Item',
+                            price: basePrice
+                        };
+                        if (matchedVariantObj) {
+                            itemToSave.variant = matchedVariantObj.name || matchedVariantObj.label || String(matchedVariantObj);
+                            if (matchedVariantObj.price !== undefined && matchedVariantObj.price !== '') {
+                                itemToSave.price = Number(matchedVariantObj.price);
+                            }
+                        }
 
                         const varName = currentStep.data.variable;
                         if (varName) {
                             this.variables[varName] = itemToSave;
-                            console.log(`[CatalogSelector Node ${currentStep.id}] 💾 Saved selected item object (variant: ${matchedVariantObj ? (matchedVariantObj.name || matchedVariantObj.label) : 'none'}) to variable: "${varName}"`);
+                            console.log(`[CatalogSelector Node ${currentStep.id}] 💾 Saved item to variable "${varName}":`, JSON.stringify(itemToSave));
                             this._emitVariables();
                         }
 
@@ -1168,7 +1178,7 @@ INSTRUCTIONS FOR AI:
                                 if (accountId) headers['x-account-id'] = accountId;
                                 const catRes = await fetch(`/api/catalog`, { headers });
                                 if (catRes.ok) {
-                                    const allItems = await catRes.json();
+                        const allItems = await catRes.json();
                                     targetProduct = allItems.find(i => {
                                         const iId = String(i._id || i.id || '');
                                         const iName = String(i.fields?.name || i.name || '').toLowerCase();
@@ -1183,13 +1193,26 @@ INSTRUCTIONS FOR AI:
                     }
                 }
 
-                // Check if targetProduct already has a selectedVariant from CatalogSelector
-                if (targetProduct && targetProduct.selectedVariant && (targetProduct.selectedVariant.name || targetProduct.selectedVariant.label)) {
-                    const selectedV = targetProduct.selectedVariant;
-                    console.log(`[VariantSelector Node ${currentStep.id}] ⚡ Variant already selected in CatalogSelector: "${selectedV.name || selectedV.label}". Auto-advancing.`);
+                const rawProductVar = this.variables[productVarName] || this.variables['item'] || this.variables['selectedItem'] || this.variables['product'];
+                // Check if variant was already selected in CatalogSelector (either in object.variant or object.selectedVariant)
+                const existingVarObj = (typeof rawProductVar === 'object' && rawProductVar !== null) ? rawProductVar : null;
+                const preSelectedVariant = existingVarObj?.variant || existingVarObj?.selectedVariant || targetProduct?.selectedVariant;
+
+                if (preSelectedVariant) {
+                    const vStr = typeof preSelectedVariant === 'object' ? (preSelectedVariant.name || preSelectedVariant.label) : String(preSelectedVariant);
+                    console.log(`[VariantSelector Node ${currentStep.id}] ⚡ Variant already selected in CatalogSelector: "${vStr}". Auto-advancing.`);
                     const varName = currentStep.data.variable;
                     if (varName) {
-                        this.variables[varName] = selectedV;
+                        if (existingVarObj && existingVarObj.itemID) {
+                            existingVarObj.variant = vStr;
+                            this.variables[varName] = existingVarObj;
+                        } else {
+                            this.variables[varName] = {
+                                itemID: targetProduct?._id || targetProduct?.id || 'N/A',
+                                name: targetProduct?.fields?.name || targetProduct?.name || 'Selected Item',
+                                variant: vStr
+                            };
+                        }
                         this._emitVariables();
                     }
                     this.status = 'running';
@@ -1217,7 +1240,16 @@ INSTRUCTIONS FOR AI:
                     }
                     const varName = currentStep.data.variable;
                     if (varName) {
-                        this.variables[varName] = { name: 'Standard', price: targetProduct?.fields?.price || targetProduct?.price || 0 };
+                        if (existingVarObj && existingVarObj.itemID) {
+                            existingVarObj.variant = 'Standard';
+                            this.variables[varName] = existingVarObj;
+                        } else {
+                            this.variables[varName] = {
+                                itemID: targetProduct?._id || targetProduct?.id || 'N/A',
+                                name: productName,
+                                variant: 'Standard'
+                            };
+                        }
                         this._emitVariables();
                     }
                     this.status = 'running';
@@ -1252,11 +1284,10 @@ INSTRUCTIONS FOR AI:
                             return this.status;
                         }
 
-                        const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-
-                        const findMatchingVariant = (valToMatch) => {
-                            if (valToMatch === null || valToMatch === undefined) return null;
-                            const strVal = String(typeof valToMatch === 'object' ? (valToMatch.name || valToMatch.label || valToMatch.value || '') : valToMatch);
+                        const findMatchingVariant = (valInput) => {
+                            if (!valInput) return null;
+                            const strVal = String(valInput).trim();
+                            const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
                             const normVal = normalizeStr(strVal);
                             if (!normVal) return null;
 
@@ -1306,12 +1337,25 @@ INSTRUCTIONS FOR AI:
 
                         this.nodeHistory = [];
                         const val = parsed.value !== undefined ? parsed.value : userInput;
-                        let selectedVariant = findMatchingVariant(val) || variants[0];
+                        let selectedVariantObj = findMatchingVariant(val) || variants[0];
+                        const variantName = selectedVariantObj ? (selectedVariantObj.name || selectedVariantObj.label || String(selectedVariantObj)) : String(val);
+                        const variantPrice = selectedVariantObj?.price !== undefined ? Number(selectedVariantObj.price) : (targetProduct?.fields?.price !== undefined ? Number(targetProduct.fields.price) : (targetProduct?.price || 0));
 
                         const varName = currentStep.data.variable;
                         if (varName) {
-                            this.variables[varName] = selectedVariant;
-                            console.log(`[VariantSelector Node ${currentStep.id}] 💾 Saved selected variant to variable "${varName}":`, JSON.stringify(selectedVariant));
+                            if (existingVarObj && existingVarObj.itemID) {
+                                existingVarObj.variant = variantName;
+                                existingVarObj.price = variantPrice;
+                                this.variables[varName] = existingVarObj;
+                            } else {
+                                this.variables[varName] = {
+                                    itemID: targetProduct?._id || targetProduct?.id || 'N/A',
+                                    name: targetProduct?.fields?.name || targetProduct?.name || productName,
+                                    variant: variantName,
+                                    price: variantPrice
+                                };
+                            }
+                            console.log(`[VariantSelector Node ${currentStep.id}] 💾 Saved selected variant to variable "${varName}":`, JSON.stringify(this.variables[varName]));
                             this._emitVariables();
                         }
 
@@ -1322,7 +1366,69 @@ INSTRUCTIONS FOR AI:
                         this.status = 'running';
                         this._advance(currentStep.next);
                     }
-                } else if (this.status === 'waiting_option' && userInput !== null) {
+                } else if ((this.status === 'waiting_option' || this.status === 'running') && userInput !== null && userInput !== undefined) {
+                    const findMatchingVariant = (valInput) => {
+                        if (!valInput) return null;
+                        const strVal = String(valInput).trim();
+                        const normalizeStr = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const normVal = normalizeStr(strVal);
+                        if (!normVal) return null;
+
+                        // 1. Direct normalized match or index match
+                        let match = variants.find((v, idx) => {
+                            const vName = normalizeStr(v.name || v.label || '');
+                            const normIndex = String(idx + 1);
+                            return normVal === vName || normVal === normIndex;
+                        });
+                        if (match) return match;
+
+                        // 2. Partial containment match (e.g. "1kg" matching "1kg Pack", or "250" matching "250g")
+                        match = variants.find(v => {
+                            const vName = normalizeStr(v.name || v.label || '');
+                            return vName && (normVal.includes(vName) || vName.includes(normVal));
+                        });
+                        if (match) return match;
+
+                        // 3. Numeric extraction match (e.g. "1" or "1000" matching "1kg")
+                        const numVal = normVal.replace(/[^0-9]/g, '');
+                        if (numVal) {
+                            match = variants.find(v => {
+                                const vNum = normalizeStr(v.name || v.label || '').replace(/[^0-9]/g, '');
+                                return vNum && (vNum === numVal || (numVal === '1' && vNum === '1000') || (numVal === '1000' && vNum === '1'));
+                            });
+                        }
+                        return match || null;
+                    };
+
+                    // ⚡ Fast-path exact variant match check (Bypass AI if user reply directly matches an option)
+                    const fastMatchVariant = findMatchingVariant(userInput);
+                    if (fastMatchVariant) {
+                        const variantName = fastMatchVariant.name || fastMatchVariant.label || String(fastMatchVariant);
+                        const variantPrice = fastMatchVariant.price !== undefined ? Number(fastMatchVariant.price) : (targetProduct?.fields?.price !== undefined ? Number(targetProduct.fields.price) : (targetProduct?.price || 0));
+
+                        console.log(`[VariantSelector Node ${currentStep.id}] ⚡ Fast-path variant match: "${userInput}" → "${variantName}". Bypassing AI extraction.`);
+
+                        const varName = currentStep.data.variable;
+                        if (varName) {
+                            if (existingVarObj && existingVarObj.itemID) {
+                                existingVarObj.variant = variantName;
+                                existingVarObj.price = variantPrice;
+                                this.variables[varName] = existingVarObj;
+                            } else {
+                                this.variables[varName] = {
+                                    itemID: targetProduct?._id || targetProduct?.id || 'N/A',
+                                    name: targetProduct?.fields?.name || targetProduct?.name || productName,
+                                    variant: variantName,
+                                    price: variantPrice
+                                };
+                            }
+                            this._emitVariables();
+                        }
+                        this.status = 'running';
+                        this._advance(currentStep.next);
+                        break;
+                    }
+
                     if (this.onAIExtract) {
                         this.status = 'waiting_ai';
                         const defaultAiPrompt = `Select the exact variant of ${productName} the customer wants. Available options: ${variantOptionsList.join(', ')}.`;
