@@ -263,9 +263,9 @@ class FlowSimulator {
         });
     }
 
-    stepOnce() {
+    async stepOnce() {
         if (this.runtime.status === 'running') {
-            this.runtime.step();
+            await this.runtime.step();
         }
     }
 
@@ -275,9 +275,9 @@ class FlowSimulator {
 
     _startAutoPlay() {
         this._stopAutoPlay();
-        this._autoTimer = setInterval(() => {
+        this._autoTimer = setInterval(async () => {
             if (this.runtime.status === 'running') {
-                this.runtime.step();
+                await this.runtime.step();
             } else {
                 this._stopAutoPlay();
             }
@@ -490,8 +490,8 @@ class FlowSimulator {
         this._updateButtonStates('running');
 
         // Give the runtime the user input and auto-step
-        setTimeout(() => {
-            this.runtime.step(text);
+        setTimeout(async () => {
+            await this.runtime.step(text);
             // Continue auto-stepping if still running
             if (this.runtime.status === 'running' && this.autoPlay) {
                 this._startAutoPlay();

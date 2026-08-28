@@ -480,9 +480,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             console.log(`[WhatsApp Flow] ⚡ flow.resume loop stepping node '${flow.currentNodeId}'...`);
                             const inputToPass = pendingInput;
                             await flow.step(inputToPass);
-                            if (inputToPass !== null && flow.status !== 'running') {
-                                pendingInput = null;
-                            }
+                            pendingInput = null;
                             await new Promise(r => setTimeout(r, 10)); // minimal delay to ensure order
                         }
                         console.log(`[WhatsApp Flow] ⏸️ flow.resume loop stopped. Final status: '${flow.status}', currentNode: '${flow.currentNodeId}'`);

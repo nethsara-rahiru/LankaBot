@@ -545,8 +545,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const div = document.createElement('div');
             div.className = 'node-option catalog-item-option';
             div.dataset.portId = portId;
+            div.dataset.itemName = name;
             div.innerHTML = `
-                <span style="flex:1; font-size:0.82rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${name}${price}${category ? ' — ' + category : ''}">${name}<span style="color:var(--text-dim);font-size:0.75rem;">${price}</span></span>
+                <span class="item-name" style="flex:1; font-size:0.82rem; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${name}${price}${category ? ' — ' + category : ''}">${name}<span style="color:var(--text-dim);font-size:0.75rem;">${price}</span></span>
                 <div class="port port-out" data-node-id="${nodeId}" data-port-id="${portId}" title="${name}"></div>
             `;
             container.appendChild(div);
@@ -585,8 +586,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const createNode = (type, x, y) => {
-        const id = `node_${nextNodeId++}`;
+    const createNode = (type, x, y, customId = null) => {
+        const id = customId || `node_${nextNodeId++}`;
+        if (customId) {
+            const num = parseInt(customId.replace('node_', ''), 10);
+            if (!isNaN(num) && num >= nextNodeId) nextNodeId = num + 1;
+        }
         const nodeEl = document.createElement('div');
         nodeEl.className = 'flow-node';
         nodeEl.id = id;
@@ -813,7 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Click to delete connection
                     path.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        connections.splice(index, 1);
+                        connections = connections.filter(c => !(c.source === conn.source && c.sourcePort === conn.sourcePort && c.target === conn.target));
                         updateConnections();
                     });
 
@@ -1015,8 +1020,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Create nodes
         flowData.nodes.forEach(n => {
-            nextNodeId = parseInt(n.id.replace('node_', ''));
-            createNode(n.type, n.x, n.y);
+            createNode(n.type, n.x, n.y, n.id);
 
             // Populate data fields
             const nodeEl = document.getElementById(n.id);
@@ -1113,8 +1117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     data.catalogOptions = [];
                     n.element.querySelectorAll('.catalog-item-option').forEach(el => {
                         const portId = el.dataset.portId;
-                        const titleSpan = el.querySelector('span');
-                        const value = titleSpan ? titleSpan.textContent : '';
+                        const value = el.dataset.itemName || (el.querySelector('.item-name') ? el.querySelector('.item-name').textContent : el.textContent);
                         data.catalogOptions.push({ id: portId, value: value });
                     });
                 }
