@@ -336,6 +336,8 @@ const startClient = async (accountId) => {
                     }
                 }
 
+                flow._msgGeneration = (flow._msgGeneration || 0) + 1;
+
                 // 1.5 ACTIVE FLOW FAST-PATH CHECK (Bypass Router AI & Translation for Exact Option Matches)
                 const userMsgInput = msg.effectiveInput || msg.body;
                 if (flow && (flow.status === 'waiting_option' || flow.status === 'waiting_ce') && flow.currentNodeId) {
@@ -526,7 +528,15 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         flow._isRunning = false;
                     };
 
+                    if (!flow._msgGeneration) flow._msgGeneration = 0;
+                    flow._msgGeneration++; // Bump generation on each new incoming message
+
                     flow.onBotMessage = async (text, mediaId) => {
+                        // Capture the generation at the time this onBotMessage was scheduled.
+                        // If a new message arrives during slow sends (e.g. catalog with 9+ items + typing delays),
+                        // the generation will have advanced and we drop the stale message to avoid zombie sends.
+                        const capturedGen = flow._msgGeneration;
+
                         const currentCustomer = await Customer.findOne({ phoneNumber: user });
                         const translatedText = text ? await processOutgoingMessage(text, currentCustomer, settings) : text;
 
@@ -543,6 +553,12 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 } catch (e) { }
                                 await new Promise(r => setTimeout(r, typingMs));
                             }
+                        }
+
+                        // Stale check: if a new message arrived during the typing delay, drop this send.
+                        if (flow._msgGeneration !== capturedGen) {
+                            console.log(`[WhatsApp Flow] 🚫 Dropping stale bot message (gen ${capturedGen} vs current ${flow._msgGeneration}): "${(translatedText || '').slice(0, 60)}..."`);
+                            return;
                         }
 
                         let mediaContent = null;
