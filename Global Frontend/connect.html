@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect WhatsApp — LankaBot Portal</title>
+    <meta name="description" content="Connect your WhatsApp number to LankaBot using a QR code or pairing code.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page { padding: 2rem 0 4rem; }
+        .connect-card { max-width: 400px; margin: 0 auto; }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 0.4rem;
+            font-size: 0.875rem; color: var(--text-sub);
+            text-decoration: none; margin-bottom: 1.5rem;
+        }
+        .back-link:hover { color: var(--text); }
+        .org-name { font-weight: 700; }
+        .steps { list-style: none; margin: 1rem 0 0; display: flex; flex-direction: column; gap: 0.6rem; }
+        .steps li {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            font-size: 0.87rem; color: var(--text-sub); line-height: 1.4;
+        }
+        .step-num {
+            background: var(--green-light); color: var(--green-dark);
+            width: 22px; height: 22px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+    <a href="/portal/dashboard.html" class="brand" style="margin-bottom:0;">
+        <div class="brand-dot"></div>
+        <span class="brand-name">Lanka<span>Bot</span></span>
+    </a>
+</header>
+
+<main class="container page">
+    <a href="/portal/dashboard.html" class="back-link">← Back to accounts</a>
+
+    <div class="connect-card">
+        <div id="accountBanner" style="margin-bottom:1.25rem;display:none;">
+            <h2 id="accountName" class="org-name"></h2>
+            <p id="accountPhone" style="font-size:0.85rem;margin-top:2px;"></p>
+        </div>
+
+        <div id="alert" class="alert alert-error"></div>
+
+        <!-- Tabs -->
+        <div class="tabs" role="tablist">
+            <button class="tab-btn active" id="tab-qr"     onclick="switchTab('qr')"     role="tab">QR Code</button>
+            <button class="tab-btn"        id="tab-pairing" onclick="switchTab('pairing')" role="tab">Pairing Code</button>
+        </div>
+
+        <!-- ── QR Tab ── -->
+        <div id="panel-qr">
+            <div class="qr-box" id="qrBox">
+                <div class="qr-placeholder" id="qrPlaceholder">
+                    <div class="spinner" style="width:28px;height:28px;border-width:3px;"></div>
+                    <span>Generating QR…</span>
+                </div>
+                <img id="qrImg" src="" alt="Scan with WhatsApp" style="display:none;width:100%;">
+            </div>
+
+            <ul class="steps">
+                <li><span class="step-num">1</span> Open WhatsApp on your phone.</li>
+                <li><span class="step-num">2</span> Tap <strong>Menu</strong> (Android) or <strong>Settings</strong> (iOS).</li>
+                <li><span class="step-num">3</span> Tap <strong>Linked Devices → Link a Device</strong>.</li>
+                <li><span class="step-num">4</span> Point your phone at the QR code above.</li>
+            </ul>
+
+            <div class="status-line" id="qrStatus" style="margin-top:1rem;">
+                <div class="spinner"></div> <span>Waiting for QR…</span>
+            </div>
+        </div>
+
+        <!-- ── Pairing Tab ── -->
+        <div id="panel-pairing" style="display:none;">
+            <p style="margin-bottom:1rem;font-size:0.9rem;">
+                Enter your WhatsApp phone number and we'll generate a pairing code you can type into WhatsApp.
+            </p>
+            <div class="form-group">
+                <label for="phoneInput">Phone number <span style="color:var(--text-sub);font-weight:400;">(with country code)</span></label>
+                <input type="tel" id="phoneInput" placeholder="e.g. 94771234567">
+            </div>
+            <button class="btn btn-primary" id="pairBtn" onclick="requestPairing()">Generate Code</button>
+
+            <div id="codeDisplay" style="display:none;margin-top:1.25rem;text-align:center;">
+                <p style="font-size:0.85rem;margin-bottom:0.25rem;">Enter this code in WhatsApp</p>
+                <div class="pairing-code" id="pairingCode">────</div>
+                <p style="font-size:0.8rem;color:var(--text-sub);">
+                    On your phone: <strong>Linked Devices → Link with Phone Number</strong>
+                </p>
+            </div>
+
+            <div class="status-line" id="pairStatus" style="margin-top:1rem;display:none;">
+                <div class="spinner"></div> <span>Waiting for connection…</span>
+            </div>
+        </div>
+
+        <!-- ── Success state ── -->
+        <div id="successPanel" style="display:none;text-align:center;padding:1.5rem 0;">
+            <div style="font-size:2.5rem;margin-bottom:0.75rem;">✅</div>
+            <h2>Connected!</h2>
+            <p style="margin:0.5rem 0 1.25rem;">Your WhatsApp is now live. Redirecting…</p>
+            <a href="/portal/dashboard.html" class="btn btn-primary" style="width:auto;padding:0.65rem 1.75rem;">Go to Dashboard</a>
+        </div>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    if (!requireAuth()) throw new Error('redirect');
+
+    // ── Parse account ID from URL ──────────────────────────────
+    const params    = new URLSearchParams(location.search);
+    const accountId = params.get('id');
+
+    if (!accountId) window.location.href = '/portal/dashboard.html';
+
+    let currentTab = 'qr';
+    let socket;
+
+    // ── Load account info ──────────────────────────────────────
+    async function loadAccount() {
+        try {
+            const accounts = await apiFetch('/api/accounts');
+            const acc = accounts.find(a => a._id === accountId);
+            if (!acc) { window.location.href = '/portal/dashboard.html'; return; }
+
+            document.getElementById('accountName').textContent  = acc.organizationName;
+            document.getElementById('accountPhone').textContent = acc.phoneNumber ? `+${acc.phoneNumber}` : '';
+            document.getElementById('accountBanner').style.display = 'block';
+
+            if (acc.status === 'ready') { showSuccess(); return; }
+            if (acc.lastQR) { showQR(acc.lastQR); }
+        } catch { /* proceed anyway */ }
+    }
+
+    // ── Tabs ───────────────────────────────────────────────────
+    function switchTab(tab) {
+        currentTab = tab;
+        document.getElementById('panel-qr').style.display      = tab === 'qr'      ? '' : 'none';
+        document.getElementById('panel-pairing').style.display = tab === 'pairing' ? '' : 'none';
+        document.getElementById('tab-qr').classList.toggle('active',      tab === 'qr');
+        document.getElementById('tab-pairing').classList.toggle('active', tab === 'pairing');
+
+        if (tab === 'qr') triggerQR();
+    }
+
+    // ── Trigger QR reconnect ───────────────────────────────────
+    async function triggerQR() {
+        setQRStatus('Connecting…');
+        try {
+            await apiFetch(`/api/accounts/${accountId}/reconnect`, { method: 'POST' });
+        } catch (err) {
+            setQRStatus('Error: ' + err.message, true);
+        }
+    }
+
+    function showQR(dataUrl) {
+        const img   = document.getElementById('qrImg');
+        const box   = document.getElementById('qrBox');
+        const ph    = document.getElementById('qrPlaceholder');
+        img.src     = dataUrl;
+        img.style.display = 'block';
+        ph.style.display  = 'none';
+        box.classList.add('ready');
+        setQRStatus('Scan with WhatsApp to connect.');
+    }
+
+    function setQRStatus(msg, isError = false) {
+        const el = document.getElementById('qrStatus');
+        el.innerHTML = isError
+            ? `<span style="color:var(--red);">${msg}</span>`
+            : `<div class="spinner"></div><span>${msg}</span>`;
+    }
+
+    // ── Pairing code ───────────────────────────────────────────
+    async function requestPairing() {
+        const phone = document.getElementById('phoneInput').value.trim();
+        const alertEl = document.getElementById('alert');
+        hideAlert(alertEl);
+
+        if (!phone) { showAlert(alertEl, 'Please enter your phone number.'); return; }
+
+        const btn = document.getElementById('pairBtn');
+        btn.disabled = true;
+        btn.textContent = 'Requesting…';
+
+        try {
+            await apiFetch(`/api/accounts/${accountId}/pair`, {
+                method: 'POST',
+                body: { phoneNumber: phone }
+            });
+            document.getElementById('pairStatus').style.display = 'flex';
+        } catch (err) {
+            showAlert(alertEl, err.message);
+            btn.disabled = false;
+            btn.textContent = 'Generate Code';
+        }
+    }
+
+    // ── Success ────────────────────────────────────────────────
+    function showSuccess() {
+        document.getElementById('panel-qr').style.display      = 'none';
+        document.getElementById('panel-pairing').style.display = 'none';
+        document.querySelector('.tabs').style.display          = 'none';
+        document.getElementById('successPanel').style.display  = 'block';
+        setTimeout(() => window.location.href = '/portal/dashboard.html', 2500);
+    }
+
+    // ── Socket.io ──────────────────────────────────────────────
+    loadSocket((sock) => {
+        socket = sock;
+
+        sock.on('account_qr', ({ accountId: id, qr }) => {
+            if (id !== accountId) return;
+            showQR(qr);
+        });
+
+        sock.on('account_pairing_code', ({ accountId: id, code }) => {
+            if (id !== accountId) return;
+            document.getElementById('pairingCode').textContent = code;
+            document.getElementById('codeDisplay').style.display = 'block';
+            document.getElementById('pairStatus').style.display  = 'flex';
+        });
+
+        sock.on('account_ready', ({ accountId: id }) => {
+            if (id !== accountId) return;
+            showSuccess();
+        });
+    });
+
+    // ── Init ───────────────────────────────────────────────────
+    loadAccount().then(() => {
+        // Only trigger QR if starting on QR tab
+        if (currentTab === 'qr') triggerQR();
+    });
+</script>
+</body>
+</html>

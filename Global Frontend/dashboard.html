@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Accounts — LankaBot Portal</title>
+    <meta name="description" content="Manage your WhatsApp business accounts on LankaBot.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .page { padding: 2rem 0 4rem; }
+        .page-title { margin-bottom: 0.25rem; }
+        .page-sub   { margin-bottom: 1.75rem; }
+        .accounts-list { display: flex; flex-direction: column; gap: 0.85rem; }
+
+        /* share dropdown */
+        .share-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .share-panel {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1rem;
+            width: 300px;
+            z-index: 100;
+        }
+        .share-panel.open { display: block; }
+        .share-panel h3  { margin-bottom: 0.35rem; }
+        .share-panel p   { font-size: 0.82rem; margin-bottom: 0.75rem; line-height: 1.4; }
+    </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+    <a href="/portal/dashboard.html" class="brand" style="margin-bottom:0;">
+        <div class="brand-dot"></div>
+        <span class="brand-name">Lanka<span>Bot</span></span>
+    </a>
+    <div class="topbar-right">
+        <span class="topbar-user" id="userLabel"></span>
+        <button class="btn btn-ghost btn-sm" onclick="logout()" id="logoutBtn">Sign out</button>
+    </div>
+</header>
+
+<!-- Main -->
+<main class="container page">
+    <h1 class="page-title">My Accounts</h1>
+    <p class="page-sub">Your WhatsApp numbers managed by LankaBot.</p>
+
+    <div id="alert" class="alert alert-error"></div>
+
+    <div id="accountsList" class="accounts-list">
+        <!-- Loading placeholder -->
+        <div style="padding:2rem;text-align:center;color:var(--text-sub);">
+            <div class="spinner" style="margin:0 auto 0.75rem;width:22px;height:22px;border-width:2.5px;"></div>
+            Loading accounts…
+        </div>
+    </div>
+</main>
+
+<!-- Close share panels when clicking outside -->
+<script src="app.js"></script>
+<script>
+    if (!requireAuth()) throw new Error('redirect');
+
+    const user = getUser();
+    if (user) document.getElementById('userLabel').textContent = user.name || user.email;
+
+    function logout() {
+        clearAuth();
+        window.location.href = '/portal/login.html';
+    }
+
+    // Close any open share panel when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.share-dropdown')) {
+            document.querySelectorAll('.share-panel.open').forEach(p => p.classList.remove('open'));
+        }
+    });
+
+    // ─── Load Accounts ────────────────────────────────────────
+    async function loadAccounts() {
+        const list = document.getElementById('accountsList');
+        const alertEl = document.getElementById('alert');
+        try {
+            const accounts = await apiFetch('/api/accounts');
+            renderAccounts(accounts, list);
+        } catch (err) {
+            if (err.status === 401) { clearAuth(); window.location.href = '/portal/login.html'; return; }
+            list.innerHTML = '';
+            showAlert(alertEl, 'Failed to load accounts. ' + err.message);
+        }
+    }
+
+    function renderAccounts(accounts, list) {
+        if (!accounts || accounts.length === 0) {
+            list.innerHTML = `<div class="empty-state">
+                <div class="empty-state-icon">📵</div>
+                <h3>No accounts yet</h3>
+                <p>Contact your administrator to set up a WhatsApp account.</p>
+            </div>`;
+            return;
+        }
+
+        list.innerHTML = accounts.map(acc => accountCard(acc)).join('');
+    }
+
+    function accountCard(acc) {
+        const badge  = statusBadge(acc.status);
+        const phone  = acc.phoneNumber ? `+${acc.phoneNumber}` : 'Not connected';
+        const avatar = acc.profilePic
+            ? `<img src="${acc.profilePic}" alt="Profile" onerror="this.style.display='none'">`
+            : `<span style="font-size:1.2rem;">📱</span>`;
+
+        const canConnect    = acc.status === 'disconnected' || acc.status === 'qr';
+        const canReconnect  = acc.status === 'ready';
+
+        const connectBtn = canConnect
+            ? `<a href="/portal/connect.html?id=${acc._id}" class="btn btn-outline btn-sm">Connect</a>`
+            : '';
+        const reconnectBtn = canReconnect
+            ? `<a href="/portal/connect.html?id=${acc._id}" class="btn btn-ghost btn-sm">Reconnect</a>`
+            : '';
+
+        const shareLink = buildShareLink(acc._id);
+
+        return `
+        <div class="account-card" id="card-${acc._id}">
+            <div class="account-avatar">${avatar}</div>
+            <div class="account-info">
+                <div class="account-name">${escHtml(acc.organizationName)}</div>
+                <div class="account-phone">${escHtml(phone)}</div>
+                <div style="margin-top:0.4rem;">${badge}</div>
+            </div>
+            <div class="account-actions">
+                ${connectBtn}
+                ${reconnectBtn}
+                <div class="share-dropdown">
+                    <button class="btn btn-ghost btn-sm" onclick="toggleShare(event,'share-${acc._id}')">
+                        Share Link
+                    </button>
+                    <div class="share-panel" id="share-${acc._id}">
+                        <h3>Connection link</h3>
+                        <p>Share this link with the WhatsApp number owner so they can scan the QR code from any device.</p>
+                        <div class="share-box">
+                            <input type="text" value="${escHtml(shareLink)}" readonly id="shareInput-${acc._id}">
+                            <button class="btn btn-outline btn-sm" onclick="copyLink('${acc._id}', this)">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function toggleShare(e, panelId) {
+        e.stopPropagation();
+        const panel = document.getElementById(panelId);
+        const isOpen = panel.classList.contains('open');
+        document.querySelectorAll('.share-panel.open').forEach(p => p.classList.remove('open'));
+        if (!isOpen) panel.classList.add('open');
+    }
+
+    async function copyLink(accountId, btn) {
+        const input = document.getElementById(`shareInput-${accountId}`);
+        await copyToClipboard(input.value, btn);
+    }
+
+    function escHtml(str) {
+        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ─── Real-time status updates via Socket.io ───────────────
+    loadSocket((socket) => {
+        socket.on('account_ready', ({ accountId }) => updateCard(accountId, 'ready'));
+        socket.on('account_disconnected', ({ accountId }) => updateCard(accountId, 'disconnected'));
+    });
+
+    function updateCard(accountId, newStatus) {
+        const card = document.getElementById(`card-${accountId}`);
+        if (!card) return;
+        const badgeEl = card.querySelector('.badge');
+        if (badgeEl) badgeEl.outerHTML = statusBadge(newStatus);
+        // Refresh action buttons
+        loadAccounts();
+    }
+
+    // Initial load
+    loadAccounts();
+</script>
+</body>
+</html>
