@@ -55,6 +55,39 @@ const getBrowserExecutablePath = () => {
 };
 
 /**
+ * Cleans lingering lock files from Chrome user directory to prevent process lock crashes.
+ */
+const cleanSessionLocks = (accountId) => {
+    try {
+        const sessionDir = path.join(process.cwd(), '.wwebjs_auth', `session-${accountId}`);
+        if (!fs.existsSync(sessionDir)) return;
+
+        const lockFiles = [
+            path.join(sessionDir, 'SingletonLock'),
+            path.join(sessionDir, 'SingletonCookie'),
+            path.join(sessionDir, 'SingletonSocket'),
+            path.join(sessionDir, 'LOCK'),
+            path.join(sessionDir, 'Default', 'LOCK')
+        ];
+
+        for (const lockFile of lockFiles) {
+            try {
+                if (fs.existsSync(lockFile)) {
+                    fs.unlinkSync(lockFile);
+                    console.log(`[SessionManager ${accountId}] 🧹 Removed lingering browser lock file: ${path.basename(lockFile)}`);
+                } else {
+                    const stat = fs.lstatSync(lockFile);
+                    if (stat.isSymbolicLink()) {
+                        fs.unlinkSync(lockFile);
+                        console.log(`[SessionManager ${accountId}] 🧹 Removed lingering browser symlink lock: ${path.basename(lockFile)}`);
+                    }
+                }
+            } catch (_) { }
+        }
+    } catch (_) { }
+};
+
+/**
  * Creates and initializes a WhatsApp Web client instance with optimized Puppeteer settings.
  * 
  * @param {Object} account DB Account document
@@ -64,6 +97,7 @@ const getBrowserExecutablePath = () => {
  */
 const createClientSession = async (account, ioInstance, callbacks = {}) => {
     const accountId = account._id.toString();
+    cleanSessionLocks(accountId);
     const executablePath = getBrowserExecutablePath();
 
     console.log(`[SessionManager ${account.sessionId}] 🚀 Initializing WhatsApp Web Client...`);
@@ -204,5 +238,6 @@ const setPairingPhoneNumber = (accountId, phoneNumber) => {
 module.exports = {
     createClientSession,
     setPairingPhoneNumber,
-    getBrowserExecutablePath
+    getBrowserExecutablePath,
+    cleanSessionLocks
 };

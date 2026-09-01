@@ -232,7 +232,8 @@ const understandMessage = async (ctx) => {
 
     let raw = null;
     try {
-        raw = await getAIResponse(workingInput, systemPrompt, 2);
+        // Stage 1 only returns a compact JSON object (~150-250 tokens), so cap at 350
+        raw = await getAIResponse(workingInput, systemPrompt, 2, 350);
         console.log(`[UnderstandingService] 📥 Raw Stage 1 response: ${raw ? raw.substring(0, 200) : 'null'}`);
     } catch (e) {
         console.error('[UnderstandingService] ❌ AI call failed:', e.message);

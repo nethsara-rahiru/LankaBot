@@ -12,7 +12,7 @@
  * @param {number} retries   - Max retry attempts (default 3)
  * @returns {Promise<string|null>} AI response text or null on failure
  */
-const sendRequest = async (provider, messages, retries = 3) => {
+const sendRequest = async (provider, messages, retries = 3, maxTokens = 1024) => {
     if (!provider.apiKey) {
         console.error(`[APIRouterClient] ❌ API key not set for provider: ${provider.name}`);
         return null;
@@ -35,7 +35,7 @@ const sendRequest = async (provider, messages, retries = 3) => {
                     model: provider.model,
                     messages,
                     temperature: 0.7,
-                    max_tokens: 1024
+                    max_tokens: maxTokens
                 })
             });
 

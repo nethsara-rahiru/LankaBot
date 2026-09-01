@@ -44,9 +44,10 @@ const resolveSystemPrompt = (systemPrompt) => {
  * @param {string}        prompt       - The user's message / input
  * @param {string|object} systemPrompt - System prompt string or template variable map
  * @param {number}        retries      - Max retries per provider (default 3)
+ * @param {number}        maxTokens    - Max tokens for response (default 1024)
  * @returns {Promise<string|null>}     - AI response text, or null on total failure
  */
-const getAIResponse = async (prompt, systemPrompt, retries = 3) => {
+const getAIResponse = async (prompt, systemPrompt, retries = 3, maxTokens = 1024) => {
     const finalSystemPrompt = resolveSystemPrompt(systemPrompt);
 
     const messages = [
@@ -61,7 +62,7 @@ const getAIResponse = async (prompt, systemPrompt, retries = 3) => {
     console.log(`User Input: "${prompt}"`);
     console.log(`-------------------------------------------------------------\n`);
 
-    const primaryResult = await sendRequest(routerConfig.primary, messages, retries);
+    const primaryResult = await sendRequest(routerConfig.primary, messages, retries, maxTokens);
 
     if (primaryResult) {
         console.log('[APIRouterService] ✅ Response received from API Router.');
@@ -70,7 +71,7 @@ const getAIResponse = async (prompt, systemPrompt, retries = 3) => {
 
     // --- Fallback: Groq ---
     console.warn('[APIRouterService] ⚠️ API Router failed or returned empty. Falling back to Groq...');
-    const fallbackResult = await sendRequest(routerConfig.fallback, messages, retries);
+    const fallbackResult = await sendRequest(routerConfig.fallback, messages, retries, maxTokens);
 
     if (fallbackResult) {
         console.log('[APIRouterService] ✅ Fallback response received from Groq.');

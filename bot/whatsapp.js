@@ -114,9 +114,12 @@ const init = async (io) => {
 const startClient = async (accountId) => {
     accountId = accountId.toString();
     if (clients.has(accountId)) {
-        console.log(`[WhatsApp Manager] ⚠️ Client already running for account ${accountId}, skipping.`);
-        return;
+        console.log(`[WhatsApp Manager] ⚠️ Client already running for account ${accountId}, stopping previous instance...`);
+        await stopClient(accountId);
     }
+
+    // Clean up any lingering browser lock files before starting new Puppeteer process
+    sessionManager.cleanSessionLocks(accountId);
 
     const account = await Account.findById(accountId);
     if (!account) {
@@ -279,7 +282,7 @@ const startClient = async (accountId) => {
 
             if (matchedRule) {
                 console.log(`[WhatsApp ${account.sessionId}] ⚡ Rule matched! Trigger: "${matchedRule.trigger}". Processing reply...`);
-                const settings = await Settings.findOne({ account: accountId });
+                // Settings already loaded once above — reuse here
                 const customer = await Customer.findOne({ phoneNumber: user });
                 const finalReply = await processOutgoingMessage(matchedRule.reply, customer, settings);
 
@@ -308,8 +311,7 @@ const startClient = async (accountId) => {
             }
 
             // Flow Reply Mode
-            const settings = await Settings.findOne({ account: accountId });
-
+            // Settings already loaded above — reuse for flow logic too
             if (settings && settings.replyMethod === 'flow' && settings.compiledFlow) {
                 const orgId = msg.orgContactId.toString();
                 let flow = activeFlows.get(orgId);
@@ -338,6 +340,16 @@ const startClient = async (accountId) => {
                 }
 
                 flow._msgGeneration = (flow._msgGeneration || 0) + 1;
+
+                // Load and cache Customer once per flow session to avoid repeated DB queries.
+                // The cache is cleared on greeting restart or flow reset.
+                if (!flow._cachedCustomer) {
+                    flow._cachedCustomer = await Customer.findOne({ phoneNumber: user });
+                }
+                // Settings already loaded above — cache on flow for use in callbacks
+                if (!flow._cachedSettings) {
+                    flow._cachedSettings = settings;
+                }
 
                 // 1.5 ACTIVE FLOW FAST-PATH CHECK (Bypass Router AI & Translation for Exact Option Matches)
                 const userMsgInput = msg.effectiveInput || msg.body;
@@ -430,7 +442,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     // ─── Conversation Engine (new) ─────────────────────────────────────────
                     flow.onConversationEngine = async (flowInstance, userInput) => {
                         try {
-                            const currentSettings = await Settings.findOne({ account: accountId });
+                            const currentSettings = flow._cachedSettings || settings;
                             const currentStep = flowInstance.compiled?.steps?.find(s => s.id === flowInstance.currentNodeId);
 
                             // ⚡ Fast-path exact keyword check for getOption nodes (bypass translation & AI)
@@ -453,7 +465,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                             }
 
                             const { processMessage } = require('../services/conversation/conversationService');
-                            const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                            // Use cached customer if available (loaded once per session)
+                            const currentCustomer = flow._cachedCustomer || await Customer.findOne({ phoneNumber: user });
                             const business = {
                                 name: currentSettings?.aiConfig?.organizationName || account?.pushName || 'FrontDesk',
                                 description: currentSettings?.aiConfig?.aiPersonality || null,
@@ -477,6 +490,8 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                                 flowInstance.variables = {};
                                 flowInstance.start(settings.compiledFlow);
                                 flowInstance.status = 'running';
+                                // Clear cached Customer so fresh data is fetched on next turn
+                                flowInstance._cachedCustomer = null;
                             } else if (result.isRefusal) {
                                 // User refused to answer; release node lock and set flow to idle
                                 console.log('[WhatsApp CE] ✋ User refusal detected. Flow reset to idle.');
@@ -543,13 +558,15 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         // the generation will have advanced and we drop the stale message to avoid zombie sends.
                         const capturedGen = flow._msgGeneration;
 
-                        const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                        // Use cached customer if available (loaded once per session), fallback to DB query
+                        const currentCustomer = flow._cachedCustomer || await Customer.findOne({ phoneNumber: user });
                         const translatedText = text ? await processOutgoingMessage(text, currentCustomer, settings) : text;
 
                         const isTypingEnabled = settings?.sendTyping !== false;
                         if (isTypingEnabled) {
                             const wordCount = (translatedText || '').split(/\s+/).filter(w => w.length > 0).length;
-                            const maxTyping = (settings?.typingTime !== undefined && settings.typingTime !== null) ? settings.typingTime : 3000;
+                            // Default lowered from 3000ms → 800ms; respects saved typingTime (including 0 for instant)
+                            const maxTyping = (settings?.typingTime !== undefined && settings.typingTime !== null) ? settings.typingTime : 800;
                             const typingMs = Math.min(wordCount * 400, maxTyping);
                             if (typingMs > 0) {
                                 try {
@@ -611,7 +628,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onWaitingForInput = async (prompt) => {
-                        const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                        const currentCustomer = flow._cachedCustomer || await Customer.findOne({ phoneNumber: user });
                         const translatedPrompt = await processOutgoingMessage(prompt, currentCustomer, settings);
 
                         await msg.reply(translatedPrompt);
@@ -634,7 +651,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                     };
 
                     flow.onWaitingForOption = async (prompt, options, nodeType) => {
-                        const currentCustomer = await Customer.findOne({ phoneNumber: user });
+                        const currentCustomer = flow._cachedCustomer || await Customer.findOne({ phoneNumber: user });
                         
                         let fullMessageText = prompt;
                         if (nodeType === 'variantSelector' && Array.isArray(options) && options.length > 0) {
@@ -673,7 +690,7 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
                         // Skip pre-translation for CatalogSelector node — feed raw user input directly to AI so it matches Sinhala/Singlish item names natively
                         if (data.nodeType !== 'catalogSelector') {
                             try {
-                                const currentCustForTranslation = await Customer.findOne({ phoneNumber: user });
+                                const currentCustForTranslation = flow._cachedCustomer || await Customer.findOne({ phoneNumber: user });
                                 if (currentCustForTranslation) {
                                     const { translatedText, wasTranslated } = await translateIncomingToEnglish(data.userInput, currentCustForTranslation);
                                     if (wasTranslated) {
@@ -1079,8 +1096,13 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
     client.on('disconnected', async (reason) => {
         console.warn(`[WhatsApp ${account.sessionId}] 🔌 Client disconnected. Reason: ${reason}`);
         await Account.findByIdAndUpdate(accountId, { status: 'disconnected', lastQR: null });
-        ioInstance.emit('account_disconnected', { accountId });
-        ioInstance.emit('system_log', `[${account.sessionId}] Disconnected: ${reason}`);
+        try { await client.destroy(); } catch (_) { }
+        clients.delete(accountId);
+        sessionManager.cleanSessionLocks(accountId);
+        if (ioInstance) {
+            ioInstance.emit('account_disconnected', { accountId });
+            ioInstance.emit('system_log', `[${account.sessionId}] Disconnected: ${reason}`);
+        }
     });
 
     client.initialize().catch(async (err) => {
@@ -1093,8 +1115,9 @@ Output ONLY "continue" or the Topic ID. Nothing else.`;
 };
 
 const stopClient = async (accountId) => {
+    accountId = accountId.toString();
     console.log(`[WhatsApp Manager] 🛑 Stopping client for account ${accountId}...`);
-    const client = clients.get(accountId.toString());
+    const client = clients.get(accountId);
     if (client) {
         try {
             await client.destroy();
@@ -1102,10 +1125,13 @@ const stopClient = async (accountId) => {
         } catch (e) {
             console.error(`[WhatsApp Manager] ❌ Error destroying client [${accountId}]:`, e.message);
         }
-        clients.delete(accountId.toString());
+        clients.delete(accountId);
+        // Allow time for OS process to exit and release directory locks
+        await new Promise(r => setTimeout(r, 1200));
     } else {
         console.warn(`[WhatsApp Manager] ⚠️ Attempted to stop client ${accountId} but it was not running.`);
     }
+    sessionManager.cleanSessionLocks(accountId);
 };
 
 const resetActiveFlows = async (accountId) => {
@@ -1131,7 +1157,7 @@ const startClientWithPairing = async (accountId, phoneNumber) => {
     // Store the phone number in sessionManager so QR event uses pairing instead
     sessionManager.setPairingPhoneNumber(accountId, phoneNumber);
     // Start the client normally — the QR event will detect the pairing number
-    startClient(accountId);
+    await startClient(accountId);
 };
 
 // Clear active flow for a single organization contact

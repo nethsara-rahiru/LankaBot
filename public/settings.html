@@ -159,28 +159,28 @@
                             <div class="input-group">
                                 <label>Initial Delay</label>
                                 <i class="ph-bold ph-timer"></i>
-                                <input type="number" id="responseTime" placeholder="e.g. 2000">
+                                <input type="number" id="responseTime" placeholder="e.g. 0 (or 1000 for delay)" min="0">
                                 <span class="unit-label">ms</span>
                                 <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Time before
-                                    bot starts processing.</small>
+                                    bot starts processing. Use <strong>0</strong> for instant.</small>
                             </div>
 
                             <div class="input-group">
                                 <label>Typing Duration</label>
                                 <i class="ph-bold ph-keyboard"></i>
-                                <input type="number" id="typingTime" placeholder="e.g. 3000">
+                                <input type="number" id="typingTime" placeholder="e.g. 800 (or 0 to disable)" min="0">
                                 <span class="unit-label">ms</span>
                                 <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">How long
-                                    "typing..." is shown.</small>
+                                    "typing..." is shown. Use <strong>0</strong> for instant replies.</small>
                             </div>
 
                             <div class="input-group">
                                 <label>Final Wait</label>
                                 <i class="ph-bold ph-hourglass"></i>
-                                <input type="number" id="waitingTime" placeholder="e.g. 1000">
+                                <input type="number" id="waitingTime" placeholder="e.g. 0 (or 500 for delay)" min="0">
                                 <span class="unit-label">ms</span>
                                 <small style="display: block; margin-top: 0.5rem; color: var(--text-dim);">Delay before
-                                    sending the message.</small>
+                                    sending the message. Use <strong>0</strong> to skip.</small>
                             </div>
                         </div>
                     </div>
@@ -264,12 +264,10 @@
                         <h2>Human-like Interaction Tips</h2>
                     </div>
                     <div style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.6;">
-                        <p>• <strong>Randomness</strong>: The bot uses these values as base points. Small variations are
-                            added automatically.</p>
-                        <p>• <strong>Realistic Typing</strong>: Setting typing duration to 3-5 seconds makes the
-                            interaction feel natural.</p>
-                        <p>• <strong>Initial Delay</strong>: A 1-2 second delay simulates the time taken to read the
-                            message.</p>
+                        <p>• <strong>Fastest responses</strong>: Set <em>Typing Duration</em> and <em>Initial Delay</em> to <strong>0</strong> for instant replies with no artificial wait.</p>
+                        <p>• <strong>Human-like feel</strong>: Setting typing duration to 800–2000ms makes the interaction feel more natural and personal.</p>
+                        <p>• <strong>Initial Delay</strong>: A 500–1000ms delay simulates reading time. Set to 0 to skip entirely.</p>
+                        <p>• <strong>Typing indicator</strong>: Uncheck the typing indicator toggle above for the absolute fastest delivery — bypasses all timing delays.</p>
                     </div>
                 </section>
 
@@ -344,9 +342,13 @@
 
         // Save settings handler
         async function saveAllSettings(btnElement, originalHtml) {
-            const responseTime = parseInt(responseTimeInput.value);
-            const typingTime = parseInt(typingTimeInput.value);
-            const waitingTime = parseInt(waitingTimeInput.value);
+            // Parse timing fields — treat empty string as 0, allow genuine 0 values
+            const responseTimeRaw = responseTimeInput.value.trim();
+            const typingTimeRaw = typingTimeInput.value.trim();
+            const waitingTimeRaw = waitingTimeInput.value.trim();
+            const responseTime = responseTimeRaw === '' ? 0 : parseInt(responseTimeRaw, 10);
+            const typingTime = typingTimeRaw === '' ? 0 : parseInt(typingTimeRaw, 10);
+            const waitingTime = waitingTimeRaw === '' ? 0 : parseInt(waitingTimeRaw, 10);
             const sendTyping = sendTypingInput ? sendTypingInput.checked : true;
 
             const selectedLangs = Array.from(document.querySelectorAll('.lang-checkbox:checked')).map(cb => cb.value);
@@ -357,8 +359,10 @@
                 return;
             }
 
-            if (isNaN(responseTime) || isNaN(typingTime) || isNaN(waitingTime)) {
-                alert('Please enter valid numbers for response timing fields.');
+            // Allow 0 explicitly — only reject non-numeric values
+            if (isNaN(responseTime) || isNaN(typingTime) || isNaN(waitingTime) ||
+                responseTime < 0 || typingTime < 0 || waitingTime < 0) {
+                alert('Please enter valid numbers (0 or greater) for response timing fields.');
                 return;
             }
 
