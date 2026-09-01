@@ -260,6 +260,7 @@ const startClient = async (accountId) => {
         }
 
         try {
+            const settings = await Settings.findOne({ account: accountId });
             // Find Rules for THIS account, sorted by priority (1 is highest priority)
             const rules = await Rule.find({ account: accountId, active: true }).sort({ priority: 1 });
             const matchedRule = rules.find(r => {
