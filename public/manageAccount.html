@@ -233,6 +233,18 @@
                     </div>
                 </div>
 
+                <!-- External API & Key Card -->
+                <div class="card feature-card" onclick="openApiKeyModal()" style="border-left: 4px solid #3b82f6;">
+                    <div class="feature-icon-wrapper" style="background: rgba(59, 130, 246, 0.1);">
+                        <i class="ph-bold ph-key" style="color: #3b82f6;"></i>
+                    </div>
+                    <div class="feature-content">
+                        <h3>External API & Key</h3>
+                        <p>Manage API key and send WhatsApp messages programmatically.</p>
+                        <span class="badge-soon" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;">Active</span>
+                    </div>
+                </div>
+
                 <!-- User Management Card -->
                 <div class="card feature-card" id="userManagementCard"
                     onclick="window.location.href='/userManagement.html'"
@@ -249,6 +261,44 @@
                 </div>
             </section>
         </main>
+
+        <!-- API Key Management Modal -->
+        <div id="apiKeyModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(5px); z-index:9999; align-items:center; justify-content:center;">
+            <div style="background: #1a1a2e; border: 1px solid rgba(255,255,255,0.1); border-radius:16px; width:90%; max-width:550px; padding:2rem; color:#fff; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+                    <h3 style="margin:0; font-size:1.25rem; font-weight:700; display:flex; align-items:center; gap:0.5rem;">
+                        <i class="ph-bold ph-key" style="color:#3b82f6;"></i> External API & Key
+                    </h3>
+                    <button onclick="closeApiKeyModal()" style="background:none; border:none; color:#888; font-size:1.4rem; cursor:pointer;">&times;</button>
+                </div>
+
+                <p style="font-size:0.85rem; color:#aaa; margin-bottom:1rem;">Use your API key to send messages from external applications, scripts, or automated tools.</p>
+
+                <div style="margin-bottom:1.25rem;">
+                    <label style="display:block; font-size:0.8rem; color:#888; margin-bottom:0.35rem;">YOUR USER API KEY</label>
+                    <div style="display:flex; gap:0.5rem;">
+                        <input type="password" id="adminApiKeyInput" readonly value="Loading..." style="flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.6rem 0.8rem; color:#fff; font-family:monospace; font-size:0.9rem;">
+                        <button class="btn" onclick="toggleAdminKeyVisibility(this)" style="background:rgba(255,255,255,0.1); color:#fff; border:none; padding:0.6rem 0.9rem; border-radius:8px; cursor:pointer;">Show</button>
+                        <button class="btn" onclick="copyAdminApiKey(this)" style="background:#3b82f6; color:#fff; border:none; padding:0.6rem 0.9rem; border-radius:8px; cursor:pointer;">Copy</button>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:0.75rem; margin-bottom:1.5rem;">
+                    <button onclick="regenerateAdminApiKey()" style="background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.3); border-radius:8px; padding:0.5rem 0.85rem; font-size:0.82rem; cursor:pointer;">Regenerate API Key</button>
+                    <a href="/portal/docs.html" target="_blank" style="display:inline-flex; align-items:center; gap:0.3rem; background:rgba(255,255,255,0.05); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.3); border-radius:8px; padding:0.5rem 0.85rem; font-size:0.82rem; text-decoration:none;">📖 API Documentation</a>
+                </div>
+
+                <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin-bottom:1.25rem;">
+
+                <h4 style="font-size:0.95rem; font-weight:600; margin-bottom:0.75rem; color:#fff;">Send Test WhatsApp Message</h4>
+                <div style="display:flex; flex-direction:column; gap:0.75rem;">
+                    <input type="text" id="adminTestPhone" placeholder="Receiver Number (e.g. 94771234567)" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.6rem 0.8rem; color:#fff; font-size:0.88rem;">
+                    <textarea id="adminTestMsg" rows="3" placeholder="Message content..." style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.6rem 0.8rem; color:#fff; font-size:0.88rem; font-family:inherit;"></textarea>
+                    <button onclick="sendAdminTestMsg(this)" style="background:#2ecc71; color:#fff; border:none; border-radius:8px; padding:0.65rem; font-weight:600; cursor:pointer;">Send WhatsApp Message</button>
+                    <div id="adminTestStatus" style="display:none; font-size:0.82rem; padding:0.5rem; border-radius:6px;"></div>
+                </div>
+            </div>
+        </div>
 
         <footer>
             <p>&copy; 2026 FrontDesk Premium Dashboard. Built for high-performance automation.</p>
@@ -314,6 +364,124 @@
                 }
             } catch (e) { }
         });
+
+        // ─── API Key Modal Logic for manageAccount.html ───────────
+        let adminApiKey = '';
+
+        async function openApiKeyModal() {
+            document.getElementById('apiKeyModal').style.display = 'flex';
+            const input = document.getElementById('adminApiKeyInput');
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('/api/users/api-key', {
+                    headers: { 'x-auth-token': token }
+                });
+                const data = await res.json();
+                adminApiKey = data.apiKey || '';
+                input.value = adminApiKey;
+            } catch (e) {
+                input.value = 'Failed to load key';
+            }
+        }
+
+        function closeApiKeyModal() {
+            document.getElementById('apiKeyModal').style.display = 'none';
+        }
+
+        function toggleAdminKeyVisibility(btn) {
+            const input = document.getElementById('adminApiKeyInput');
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = 'Hide';
+            } else {
+                input.type = 'password';
+                btn.textContent = 'Show';
+            }
+        }
+
+        async function copyAdminApiKey(btn) {
+            if (!adminApiKey) return;
+            try {
+                await navigator.clipboard.writeText(adminApiKey);
+                const orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = orig, 1800);
+            } catch {
+                prompt('API Key:', adminApiKey);
+            }
+        }
+
+        async function regenerateAdminApiKey() {
+            if (!confirm('Regenerate API key? Existing integrations will stop working.')) return;
+            const input = document.getElementById('adminApiKeyInput');
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('/api/users/api-key/generate', {
+                    method: 'POST',
+                    headers: { 'x-auth-token': token }
+                });
+                const data = await res.json();
+                adminApiKey = data.apiKey;
+                input.value = adminApiKey;
+                alert('API Key regenerated successfully!');
+            } catch (e) {
+                alert('Error regenerating key: ' + e.message);
+            }
+        }
+
+        async function sendAdminTestMsg(btn) {
+            const phone = document.getElementById('adminTestPhone').value.trim();
+            const text = document.getElementById('adminTestMsg').value.trim();
+            const statusEl = document.getElementById('adminTestStatus');
+            const accountId = localStorage.getItem('activeAccountId');
+
+            if (!phone || !text) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(239,68,68,0.2)';
+                statusEl.style.color = '#ef4444';
+                statusEl.textContent = 'Please enter phone number and message content.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            statusEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/external/send-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': adminApiKey
+                    },
+                    body: JSON.stringify({
+                        receiverNumber: phone,
+                        message: text,
+                        accountId: accountId || undefined
+                    })
+                });
+                const data = await res.json();
+                statusEl.style.display = 'block';
+
+                if (res.ok && data.success) {
+                    statusEl.style.background = 'rgba(46,204,113,0.2)';
+                    statusEl.style.color = '#2ecc71';
+                    statusEl.textContent = '✅ Message sent! Message ID: ' + data.data.messageId;
+                } else {
+                    statusEl.style.background = 'rgba(239,68,68,0.2)';
+                    statusEl.style.color = '#ef4444';
+                    statusEl.textContent = '❌ Error: ' + (data.msg || 'Failed to send message');
+                }
+            } catch (e) {
+                statusEl.style.display = 'block';
+                statusEl.style.background = 'rgba(239,68,68,0.2)';
+                statusEl.style.color = '#ef4444';
+                statusEl.textContent = '❌ Network error: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send WhatsApp Message';
+            }
+        }
     </script>
 </body>
 

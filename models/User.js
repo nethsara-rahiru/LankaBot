@@ -37,6 +37,12 @@ const UserSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Account'
     }],
+    apiKey: {
+        type: String,
+        unique: true,
+        sparse: true,
+        default: null
+    },
     date: {
         type: Date,
         default: Date.now

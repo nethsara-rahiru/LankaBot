@@ -52,12 +52,48 @@
 </header>
 
 <!-- Main -->
-<main class="container page">
-    <h1 class="page-title">My Accounts</h1>
-    <p class="page-sub">Your WhatsApp numbers managed by FrontDesk Agent.</p>
+    <!-- API Key & Integration Section -->
+    <div class="card" style="background:#fff; border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:2rem; box-shadow:var(--shadow-sm);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1rem;">
+            <div>
+                <h2 style="font-size:1.2rem; font-weight:700; color:var(--text-main); margin-bottom:0.25rem;">🔑 API Key & External Integration</h2>
+                <p style="font-size:0.88rem; color:var(--text-sub);">Send WhatsApp messages programmatically from external systems, CRMs, or webhooks.</p>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+                <a href="/portal/docs.html" class="btn btn-outline btn-sm">📖 View API Docs</a>
+                <button class="btn btn-ghost btn-sm" onclick="toggleTestMessageForm()">💬 Test API Message</button>
+            </div>
+        </div>
 
-    <div id="alert" class="alert alert-error"></div>
+        <div style="display:flex; gap:0.5rem; align-items:center; max-width:600px; margin-bottom:1rem;">
+            <input type="password" id="portalApiKeyInput" value="Loading key…" readonly style="font-family:monospace; flex:1; padding:0.55rem 0.8rem; border:1px solid var(--border); border-radius:6px; background:#f8fafc; font-size:0.9rem;">
+            <button class="btn btn-outline btn-sm" onclick="toggleApiKeyVisibility(this)">Show</button>
+            <button class="btn btn-outline btn-sm" onclick="copyPortalApiKey(this)">Copy</button>
+            <button class="btn btn-ghost btn-sm" style="color:#dc2626;" onclick="handleRegenerateKey()">Regenerate</button>
+        </div>
 
+        <!-- Inline Test Form -->
+        <div id="testApiForm" style="display:none; background:#f8fafc; border:1px dashed var(--border); border-radius:8px; padding:1.25rem; margin-top:1rem;">
+            <h3 style="font-size:0.95rem; font-weight:600; margin-bottom:0.75rem; color:var(--text-main);">Send Test External Message</h3>
+            <div style="display:flex; flex-direction:column; gap:0.75rem; max-width:500px;">
+                <div>
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-sub); margin-bottom:0.25rem;">Recipient Phone Number</label>
+                    <input type="text" id="testReceiverPhone" placeholder="e.g. 94771234567" style="width:100%; padding:0.5rem 0.75rem; border:1px solid var(--border); border-radius:6px;">
+                </div>
+                <div>
+                    <label style="display:block; font-size:0.8rem; font-weight:600; color:var(--text-sub); margin-bottom:0.25rem;">Message Content</label>
+                    <textarea id="testMessageText" rows="3" placeholder="Enter test message…" style="width:100%; padding:0.5rem 0.75rem; border:1px solid var(--border); border-radius:6px; font-family:inherit;"></textarea>
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button class="btn btn-primary btn-sm" onclick="sendTestExternalMessage(this)">Send Message</button>
+                    <button class="btn btn-ghost btn-sm" onclick="toggleTestMessageForm()">Cancel</button>
+                </div>
+                <div id="testApiResult" style="display:none; font-size:0.85rem; font-weight:600; padding:0.5rem; border-radius:6px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <h2 style="font-size:1.2rem; font-weight:700; margin-bottom:0.75rem;">My Accounts</h2>
     <div id="accountsList" class="accounts-list">
         <!-- Loading placeholder -->
         <div style="padding:2rem;text-align:center;color:var(--text-sub);">
@@ -195,6 +231,103 @@
 
     // Initial load
     loadAccounts();
+    initApiKey();
+
+    // ─── API Key Management Functions ─────────────────────────
+    let currentApiKey = '';
+
+    async function initApiKey() {
+        const input = document.getElementById('portalApiKeyInput');
+        try {
+            currentApiKey = await fetchApiKey();
+            if (input) input.value = currentApiKey;
+        } catch (err) {
+            if (input) input.value = 'Failed to load key';
+        }
+    }
+
+    function toggleApiKeyVisibility(btn) {
+        const input = document.getElementById('portalApiKeyInput');
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = 'Hide';
+        } else {
+            input.type = 'password';
+            btn.textContent = 'Show';
+        }
+    }
+
+    async function copyPortalApiKey(btn) {
+        if (!currentApiKey) return;
+        await copyToClipboard(currentApiKey, btn);
+    }
+
+    async function handleRegenerateKey() {
+        if (!confirm('Are you sure you want to regenerate your API key? Any external scripts using your current API key will be revoked.')) return;
+        const input = document.getElementById('portalApiKeyInput');
+        try {
+            currentApiKey = await regenerateApiKey();
+            if (input) input.value = currentApiKey;
+            alert('Your API Key has been regenerated successfully.');
+        } catch (err) {
+            alert('Failed to regenerate API Key: ' + err.message);
+        }
+    }
+
+    function toggleTestMessageForm() {
+        const form = document.getElementById('testApiForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    }
+
+    async function sendTestExternalMessage(btn) {
+        const phone = document.getElementById('testReceiverPhone').value.trim();
+        const text = document.getElementById('testMessageText').value.trim();
+        const resultEl = document.getElementById('testApiResult');
+
+        if (!phone || !text) {
+            resultEl.style.display = 'block';
+            resultEl.style.background = '#fee2e2';
+            resultEl.style.color = '#dc2626';
+            resultEl.textContent = 'Please provide both recipient phone number and message content.';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Sending…';
+        resultEl.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/external/send-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': currentApiKey
+                },
+                body: JSON.stringify({ receiverNumber: phone, message: text })
+            });
+
+            const data = await res.json();
+            resultEl.style.display = 'block';
+
+            if (res.ok && data.success) {
+                resultEl.style.background = '#dcfce7';
+                resultEl.style.color = '#16a34a';
+                resultEl.textContent = `✅ Message sent successfully! Message ID: ${data.data.messageId}`;
+            } else {
+                resultEl.style.background = '#fee2e2';
+                resultEl.style.color = '#dc2626';
+                resultEl.textContent = `❌ Error: ${data.msg || 'Failed to send message'}`;
+            }
+        } catch (err) {
+            resultEl.style.display = 'block';
+            resultEl.style.background = '#fee2e2';
+            resultEl.style.color = '#dc2626';
+            resultEl.textContent = `❌ Network Error: ${err.message}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Send Message';
+        }
+    }
 </script>
 </body>
 </html>

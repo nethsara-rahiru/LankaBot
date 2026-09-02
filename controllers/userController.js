@@ -1,5 +1,6 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 // @route   GET api/users
 // @desc    Get all users
@@ -250,3 +251,55 @@ exports.removeAccount = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
+// @route   GET api/users/api-key
+// @desc    Get current user's API Key (generates if missing)
+// @access  Private
+exports.getApiKey = async (req, res) => {
+    try {
+        let targetUserId = req.user.id;
+        if (req.query.userId && req.user.role === 'admin') {
+            targetUserId = req.query.userId;
+        }
+
+        let user = await User.findById(targetUserId);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        if (!user.apiKey) {
+            user.apiKey = 'lb_live_' + crypto.randomBytes(20).toString('hex');
+            await user.save();
+        }
+
+        res.json({ apiKey: user.apiKey });
+    } catch (err) {
+        console.error('Get API Key Error:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
+    }
+};
+
+// @route   POST api/users/api-key/generate
+// @desc    Generate/Regenerate user's API Key
+// @access  Private
+exports.generateApiKey = async (req, res) => {
+    try {
+        let targetUserId = req.user.id;
+        if (req.body.userId && req.user.role === 'admin') {
+            targetUserId = req.body.userId;
+        }
+
+        let user = await User.findById(targetUserId);
+        if (!user) return res.status(404).json({ msg: 'User not found' });
+
+        user.apiKey = 'lb_live_' + crypto.randomBytes(20).toString('hex');
+        await user.save();
+
+        res.json({
+            msg: 'API Key generated successfully',
+            apiKey: user.apiKey
+        });
+    } catch (err) {
+        console.error('Generate API Key Error:', err);
+        res.status(500).json({ msg: 'Server Error', error: err.message });
+    }
+};
+

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>External API Documentation — FrontDesk Agent</title>
+    <meta name="description" content="Integrate FrontDesk Agent WhatsApp Messaging API into external systems.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .docs-page {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 5rem;
+        }
+        .docs-header {
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.5rem;
+        }
+        .docs-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+        .docs-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-sub);
+        }
+        .docs-section {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.75rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .docs-section h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-main);
+        }
+        .method-badge {
+            display: inline-block;
+            background: #2563eb;
+            color: #fff;
+            font-weight: 700;
+            font-size: 0.82rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            font-family: 'Fira Code', monospace;
+        }
+        .endpoint-url {
+            font-family: 'Fira Code', monospace;
+            background: #f1f5f9;
+            color: #0f172a;
+            padding: 0.5rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            border: 1px solid #cbd5e1;
+            display: inline-block;
+            margin-left: 0.5rem;
+        }
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.92rem;
+        }
+        .param-table th, .param-table td {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .param-table th {
+            background: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+        }
+        .param-name {
+            font-family: 'Fira Code', monospace;
+            font-weight: 600;
+            color: #2563eb;
+        }
+        .param-type {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .req-tag {
+            display: inline-block;
+            background: #fee2e2;
+            color: #dc2626;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+        .opt-tag {
+            display: inline-block;
+            background: #f1f5f9;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+        }
+        
+        /* Code Box */
+        .code-container {
+            background: #0f172a;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 1.25rem 0;
+        }
+        .code-tabs {
+            display: flex;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+        }
+        .code-tab {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 0.65rem 1.2rem;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .code-tab:hover { color: #f8fafc; }
+        .code-tab.active {
+            color: #38bdf8;
+            border-bottom: 2px solid #38bdf8;
+            background: #0f172a;
+        }
+        .code-content-wrapper {
+            position: relative;
+        }
+        .code-block {
+            display: none;
+            padding: 1.25rem;
+            margin: 0;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.88rem;
+            color: #f8fafc;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        .code-block.active { display: block; }
+        .copy-code-btn {
+            position: absolute;
+            top: 0.75rem;
+            right: 0.75rem;
+            background: rgba(255,255,255,0.1);
+            color: #cbd5e1;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 4px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .copy-code-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+
+        .response-box {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.88rem;
+            color: #38bdf8;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<header class="topbar">
+    <a href="/portal/dashboard.html" class="brand" style="margin-bottom:0;">
+        <div class="brand-dot"></div>
+        <span class="brand-name">FrontDesk <span>Agent</span></span>
+    </a>
+    <div class="topbar-right">
+        <a href="/portal/dashboard.html" class="btn btn-ghost btn-sm">Dashboard</a>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">Sign out</button>
+    </div>
+</header>
+
+<!-- Main Container -->
+<main class="docs-page">
+    <div class="docs-header">
+        <h1 class="docs-title">External Messaging API Reference</h1>
+        <p class="docs-subtitle">Send WhatsApp messages automatically from external apps, CRMs, scripts, or webhooks using FrontDesk Agent.</p>
+    </div>
+
+    <!-- 1. Authentication -->
+    <div class="docs-section">
+        <h2>🔑 Authentication</h2>
+        <p style="color: var(--text-sub); line-height: 1.6; margin-bottom: 1rem;">
+            All API requests must include your unique <strong>User API Key</strong>. You can find or regenerate your API Key in your <a href="/portal/dashboard.html" style="color:#2563eb;font-weight:600;">Portal Dashboard</a> or Admin Account Settings.
+        </p>
+        <p style="color: var(--text-sub); margin-bottom: 0.75rem;">Provide your API key using any of the following supported methods:</p>
+        <ul style="color: var(--text-sub); padding-left: 1.5rem; line-height: 1.7;">
+            <li><strong>HTTP Header (Recommended):</strong> <code>x-api-key: YOUR_API_KEY</code></li>
+            <li><strong>Authorization Header:</strong> <code>Authorization: Bearer YOUR_API_KEY</code></li>
+            <li><strong>JSON Payload or Query Parameter:</strong> <code>"apiKey": "YOUR_API_KEY"</code></li>
+        </ul>
+    </div>
+
+    <!-- 2. Endpoint Specification -->
+    <div class="docs-section">
+        <h2>
+            <span class="method-badge">POST</span>
+            <span class="endpoint-url">/api/external/send-message</span>
+        </h2>
+        <p style="color: var(--text-sub); line-height: 1.6; margin-top: 0.8rem; margin-bottom: 1.25rem;">
+            Dispatches a WhatsApp text message to the specified recipient phone number through your active connected WhatsApp account.
+        </p>
+
+        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main);">Request Headers</h3>
+        <div class="response-box" style="color: #e2e8f0; margin-bottom: 1.5rem;">
+Content-Type: application/json
+x-api-key: YOUR_API_KEY
+        </div>
+
+        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-main);">Request Body Parameters</h3>
+        <table class="param-table">
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="param-name">receiverNumber</span> / <span class="param-name">to</span></td>
+                    <td><span class="param-type">string</span></td>
+                    <td><span class="req-tag">Required</span></td>
+                    <td>Recipient's WhatsApp phone number with country code (e.g. <code>94771234567</code> or <code>+94771234567</code>).</td>
+                </tr>
+                <tr>
+                    <td><span class="param-name">message</span> / <span class="param-name">text</span></td>
+                    <td><span class="param-type">string</span></td>
+                    <td><span class="req-tag">Required</span></td>
+                    <td>The text message content to send to the recipient.</td>
+                </tr>
+                <tr>
+                    <td><span class="param-name">accountId</span></td>
+                    <td><span class="param-type">string</span></td>
+                    <td><span class="opt-tag">Optional</span></td>
+                    <td>Specific WhatsApp Account ID to send from. If omitted, auto-selects your active connected WhatsApp number.</td>
+                </tr>
+                <tr>
+                    <td><span class="param-name">apiKey</span></td>
+                    <td><span class="param-type">string</span></td>
+                    <td><span class="opt-tag">Optional</span></td>
+                    <td>Your API Key (if not provided in HTTP headers).</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. Interactive Code Samples -->
+    <div class="docs-section">
+        <h2>⚡ Code Examples</h2>
+        <p style="color: var(--text-sub);">Select your programming language to view code snippets:</p>
+
+        <div class="code-container">
+            <div class="code-tabs">
+                <button class="code-tab active" onclick="switchTab('curl')">cURL</button>
+                <button class="code-tab" onclick="switchTab('js')">JavaScript (Node.js)</button>
+                <button class="code-tab" onclick="switchTab('python')">Python</button>
+                <button class="code-tab" onclick="switchTab('php')">PHP</button>
+            </div>
+            <div class="code-content-wrapper">
+                <button class="copy-code-btn" onclick="copyActiveCode(this)">Copy Code</button>
+
+<pre id="code-curl" class="code-block active">curl -X POST "http://localhost:5000/api/external/send-message" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: YOUR_API_KEY" \
+  -d '{
+    "receiverNumber": "94771234567",
+    "message": "Hello from FrontDesk Agent External API!"
+  }'</pre>
+
+<pre id="code-js" class="code-block">const response = await fetch('http://localhost:5000/api/external/send-message', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': 'YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    receiverNumber: '94771234567',
+    message: 'Hello from FrontDesk Agent External API!'
+  })
+});
+
+const result = await response.json();
+console.log(result);</pre>
+
+<pre id="code-python" class="code-block">import requests
+
+url = "http://localhost:5000/api/external/send-message"
+headers = {
+    "Content-Type": "application/json",
+    "x-api-key": "YOUR_API_KEY"
+}
+payload = {
+    "receiverNumber": "94771234567",
+    "message": "Hello from FrontDesk Agent External API!"
+}
+
+response = requests.post(url, json=payload, headers=headers)
+print(response.json())</pre>
+
+<pre id="code-php" class="code-block">&lt;?php
+$ch = curl_init("http://localhost:5000/api/external/send-message");
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Content-Type: application/json",
+    "x-api-key: YOUR_API_KEY"
+]);
+curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+    "receiverNumber" => "94771234567",
+    "message" => "Hello from FrontDesk Agent External API!"
+]));
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$response = curl_exec($ch);
+curl_close($ch);
+echo $response;
+?&gt;</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Response Format & Status Codes -->
+    <div class="docs-section">
+        <h2>📤 Response Formats</h2>
+        
+        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: #16a34a;">Success Response (200 OK)</h3>
+        <div class="response-box" style="margin-bottom: 1.5rem;">
+{
+  "success": true,
+  "msg": "Message sent successfully",
+  "data": {
+    "messageId": "false_94771234567@c.us_3EB01234567890ABCDEF",
+    "accountId": "66d5a1b2c3d4e5f6a7b8c9d0",
+    "organizationName": "FrontDesk Support",
+    "senderPhoneNumber": "94770000000",
+    "receiver": "94771234567@c.us",
+    "message": "Hello from FrontDesk Agent External API!",
+    "timestamp": "2026-09-02T11:45:00.000Z"
+  }
+}
+        </div>
+
+        <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: #dc2626;">Error Response (400 Bad Request / 401 Unauthorized)</h3>
+        <div class="response-box" style="color: #f87171;">
+{
+  "success": false,
+  "msg": "Invalid API key provided."
+}
+        </div>
+    </div>
+</main>
+
+<script src="app.js"></script>
+<script>
+    function logout() {
+        clearAuth();
+        window.location.href = '/portal/login.html';
+    }
+
+    function switchTab(lang) {
+        document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.code-block').forEach(b => b.classList.remove('active'));
+        
+        event.target.classList.add('active');
+        document.getElementById(`code-${lang}`).classList.add('active');
+    }
+
+    async function copyActiveCode(btn) {
+        const activeBlock = document.querySelector('.code-block.active');
+        if (activeBlock) {
+            await copyToClipboard(activeBlock.textContent, btn);
+        }
+    }
+</script>
+</body>
+</html>

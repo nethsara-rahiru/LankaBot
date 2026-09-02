@@ -96,3 +96,20 @@ function buildShareLink(accountId) {
     const base = `${location.protocol}//${location.host}/portal/scan.html`;
     return `${base}?id=${accountId}#${token}`;
 }
+
+// ─── API Key helpers ──────────────────────────────────────────
+async function fetchApiKey(userId) {
+    const path = userId ? `/api/users/api-key?userId=${userId}` : '/api/users/api-key';
+    const data = await apiFetch(path);
+    return data.apiKey;
+}
+
+async function regenerateApiKey(userId) {
+    const body = userId ? { userId } : {};
+    const data = await apiFetch('/api/users/api-key/generate', {
+        method: 'POST',
+        body
+    });
+    return data.apiKey;
+}
+

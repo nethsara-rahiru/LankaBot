@@ -1,3 +1,1 @@
-create a compleatly new frontend user end users to interact. keep it very clean and simple ui.
-
-for now add a simple login. use the same database. user should be able to check is their Whatsapp number is active or not. they should be able to connect, reconnect from a new tab.
+user should be able to get a external api to send messages from out of the system. user will send a message,reviver number,the api key etc, then the system will send the message to the reciver through the system with a whatsapp account active with the user api

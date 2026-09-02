@@ -1170,4 +1170,74 @@ const clearActiveFlow = (orgContactId) => {
     }
 };
 
-module.exports = { init, startClient, stopClient, resetActiveFlows, startClientWithPairing, clearActiveFlow };
+// Send message via external API call
+const sendExternalMessage = async (accountId, recipientNumber, text) => {
+    accountId = accountId.toString();
+    const client = clients.get(accountId);
+    if (!client) {
+        throw new Error('WhatsApp client is not active or connected for account ID: ' + accountId);
+    }
+
+    // Format phone number for whatsapp-web.js
+    let formattedNumber = recipientNumber.toString().replace(/[^0-9]/g, '');
+    if (!formattedNumber) {
+        throw new Error('Invalid receiver phone number.');
+    }
+    const jid = formattedNumber.endsWith('@c.us') ? formattedNumber : `${formattedNumber}@c.us`;
+
+    // Send message via client
+    const sentMsg = await client.sendMessage(jid, text);
+
+    // Save to Database (Customer, OrganizationContact, Message)
+    try {
+        const rawPhone = formattedNumber.replace('@c.us', '');
+        let customer = await Customer.findOne({ phoneNumber: rawPhone });
+        if (!customer) {
+            customer = new Customer({ phoneNumber: rawPhone, name: '' });
+            await customer.save();
+        }
+
+        let orgContact = await OrganizationContact.findOne({ account: accountId, customer: customer._id });
+        if (!orgContact) {
+            orgContact = new OrganizationContact({ account: accountId, customer: customer._id });
+            await orgContact.save();
+        } else {
+            orgContact.lastMessageAt = new Date();
+            await orgContact.save();
+        }
+
+        const newMsg = new Message({
+            organizationContact: orgContact._id,
+            role: 'bot',
+            content: text,
+            messageType: 'text'
+        });
+        await newMsg.save();
+
+        if (ioInstance) {
+            ioInstance.emit('new_message', {
+                accountId,
+                orgContactId: orgContact._id.toString(),
+                message: {
+                    _id: newMsg._id,
+                    role: newMsg.role,
+                    content: newMsg.content,
+                    messageType: newMsg.messageType,
+                    timestamp: newMsg.timestamp
+                }
+            });
+        }
+    } catch (dbErr) {
+        console.error(`[WhatsApp ${accountId}] ⚠️ Warning: Failed to log external message to DB:`, dbErr.message);
+    }
+
+    return {
+        id: sentMsg.id?.id || sentMsg.id,
+        to: jid,
+        content: text,
+        timestamp: new Date()
+    };
+};
+
+module.exports = { init, startClient, stopClient, resetActiveFlows, startClientWithPairing, clearActiveFlow, sendExternalMessage };
+

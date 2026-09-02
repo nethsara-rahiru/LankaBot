@@ -42,6 +42,7 @@ app.use('/api/simulator', require('./routes/simulatorRoutes'));
 app.use('/api/storage', require('./routes/storageRoutes'));
 app.use('/api/catalog', require('./routes/catalogRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/external', require('./routes/externalRoutes'));
 
 // Global User Portal — served at /portal
 app.use('/portal', express.static(path.join(__dirname, 'Global Frontend')));

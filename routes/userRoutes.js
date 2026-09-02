@@ -16,6 +16,12 @@ router.post('/login', userController.loginUser);
 // @route   PUT api/users/profile
 router.put('/profile', auth, userController.updateProfile);
 
+// @route   GET api/users/api-key
+router.get('/api-key', auth, userController.getApiKey);
+
+// @route   POST api/users/api-key/generate
+router.post('/api-key/generate', auth, userController.generateApiKey);
+
 // --- Admin Routes ---
 router.get('/admin', auth, admin, userController.getAllUsersAdmin);
 router.put('/admin/:id/role', auth, admin, userController.updateUserRole);
